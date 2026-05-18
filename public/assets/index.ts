@@ -1,0 +1,140 @@
+import { NavigationItemsType } from '@/types/navigation-items-type';
+import { FileText, Package, ShoppingCart, LayoutDashboard, Users, Settings, BarChart3, ShieldCheck, KeyRound, UserCircle, DollarSign, Building2, Contact, Landmark } from 'lucide-react';
+
+export const navItems: NavigationItemsType[] = [
+  {
+    href: "/dashboard",
+    label: "داشبورد",
+    icon: LayoutDashboard,
+    requiredPermissions: ["dashboard.read"],
+  },
+  {
+    href: "/dashboard/profile",
+    label: "پروفایل من",
+    icon: UserCircle,
+  },
+  {
+    href: "/dashboard/payment-request",
+    label: "درخواست‌های مالی",
+    icon: DollarSign,
+    requiredPermissions: ["payment.create"],
+  },
+  {
+    href: "/dashboard/petty-cash",
+    label: "تنخواه",
+    icon: DollarSign,
+    requiredPermissions: ["payment.create"],
+  },
+  {
+    label: "گردش کار",
+    icon: FileText,
+    children: [
+      {
+        href: "/dashboard/workflow/inbox",
+        label: "کارهای من (Inbox)",
+        icon: BarChart3,
+        requiredPermissions: ["workflow.inbox.read"],
+      },
+      {
+        href: "/dashboard/workflow/tracking",
+        label: "پیگیری گردش کار",
+        icon: BarChart3,
+        requiredPermissions: ["workflow.tracking.read"],
+      },
+    ],
+  },
+  {
+    label: "تدارکات",
+    icon: ShoppingCart,
+    requiredPermissions: ["procurement.read"],
+    children: [
+      {
+        href: "/dashboard/procurement/requests",
+        label: "درخواست‌ها (PR)",
+        icon: BarChart3,
+        requiredPermissions: ["procurement.read"],
+      },
+      {
+        href: "/dashboard/procurement/orders",
+        label: "سفارش‌های خرید (PO)",
+        icon: BarChart3,
+        requiredPermissions: ["procurement.read"],
+      },
+      {
+        href: "/dashboard/procurement/grn",
+        label: "دریافت کالا (GRN)",
+        icon: BarChart3,
+        requiredPermissions: ["procurement.read"],
+      },
+    ],
+  },
+  {
+    label: "انبار",
+    icon: Package,
+    requiredPermissions: ["inventory.read", "inventory.transfer"],
+    children: [
+      {
+        href: "/dashboard/inventory/stock",
+        label: "موجودی انبار",
+        icon: BarChart3,
+        requiredPermissions: ["inventory.read"],
+      },
+      {
+        href: "/dashboard/inventory/transactions",
+        label: "تراکنش‌ها",
+        icon: BarChart3,
+        requiredPermissions: ["inventory.transfer"],
+      },
+    ],
+  },
+  {
+    label: "اطلاعات پایه",
+    icon: Settings,
+    requiredPermissions: ["masterdata.manage", "item.read", "item.*"],
+    children: [
+      {
+        href: "/dashboard/master/items",
+        label: "کالاها",
+        icon: BarChart3,
+        requiredPermissions: ["item.read", "item.*"],
+      },
+      {
+        href: "/dashboard/master/categories",
+        label: "گروه کالا",
+        icon: BarChart3,
+        requiredPermissions: ["masterdata.manage"],
+      },
+      {
+        href: "/dashboard/master/warehouses",
+        label: "انبارها",
+        icon: BarChart3,
+        requiredPermissions: ["masterdata.manage"],
+      },
+      {
+        href: "/dashboard/master/suppliers",
+        label: "تامین‌کنندگان",
+        icon: BarChart3,
+        requiredPermissions: ["masterdata.manage"],
+      },
+    ],
+  },
+  {
+    label: "مدیریت",
+    icon: ShieldCheck,
+    requiredPermissions: ["admin.manage"],
+    children: [
+      { href: "/dashboard/admin/users", label: "کاربران", icon: Users, requiredPermissions: ["admin.manage"] },
+      { href: "/dashboard/admin/departments/tree", label: "واحدهای سازمانی", icon: Building2, requiredPermissions: ["admin.manage"] },
+      { href: "/dashboard/admin/roles", label: "نقش‌ها", icon: ShieldCheck, requiredPermissions: ["admin.manage"] },
+      { href: "/dashboard/admin/permissions", label: "مجوزها", icon: KeyRound, requiredPermissions: ["admin.manage"] },
+      { href: "/dashboard/admin/assignment-rules", label: "مجوزهای نقش", icon: Settings, requiredPermissions: ["admin.manage"] },
+      { href: "/dashboard/admin/workflow-definitions", label: "تعریف workflow", icon: Settings, requiredPermissions: ["admin.manage"] },
+      { href: "/dashboard/admin/counterparties", label: "طرف‌حساب‌ها", icon: Contact, requiredPermissions: ["admin.manage"] },
+      { href: "/dashboard/admin/company-bank-accounts", label: "حساب‌های بانکی شرکت", icon: Landmark, requiredPermissions: ["admin.manage"] },
+    ],
+  },
+];
+
+export const bottomItems = [
+  { path: "/dashboard/profile", label: "پروفایل من", icon: Users },
+];

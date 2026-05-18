@@ -1,0 +1,34 @@
+---
+description: ساختار ماژول‌های داشبورد (schema جدا، فرم new/edit جدا، مودال، Notification، useFormAction)
+globs: app/dashboard/**/*
+alwaysApply: false
+---
+
+# ماژول‌های feature در داشبورد
+
+هر بخش (مثل users، roles) این ساختار را داشته باشد:
+
+```
+app/dashboard/<area>/<feature>/
+  _types/<feature>.schema.ts
+  _utils/
+  _hooks/
+  _components/
+    <feature>-list.tsx
+    <feature>-form-modal.tsx
+    <feature>-form.tsx
+    new/<feature>-new-form.tsx    # فرم ایجاد (فایل جدا، بدون route)
+    edit/<feature>-edit-form.tsx  # فرم ویرایش (فایل جدا، بدون route)
+  page.tsx                        # فقط لیست + مودال
+```
+
+## UI
+- ایجاد/ویرایش در **مودال** روی همان صفحهٔ لیست (بدون تغییر route)
+- فایل‌های `new/` و `edit/` فقط برای جداسازی کد فرم، نه `new/page.tsx`
+
+## فرم‌ها
+- `useFormAction` + `startTransition` + loading دکمه ذخیره
+- پیام‌ها فقط با `useNotificationStore` (نه toast)
+
+## schema
+- schema فرم در `_types/` همان feature

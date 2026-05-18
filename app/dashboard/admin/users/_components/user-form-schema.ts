@@ -1,0 +1,125 @@
+import type { FormSchema } from '@/app/components/form-input/form-generator/form-generator.types';
+import type { Role } from '@/app/_types/role.types';
+import type { DepartmentSelectOption } from '../_hooks/use-departments-options';
+import type { UserSelectOption } from '../_hooks/use-users-options';
+
+export function buildUserFormSchema(
+  roles: Role[],
+  departmentOptions: DepartmentSelectOption[],
+  managerOptions: UserSelectOption[],
+  isEdit: boolean,
+): FormSchema {
+  return {
+    fields: [
+      {
+        name: 'username',
+        label: 'نام کاربری',
+        type: 'text',
+        required: true,
+        row: 0,
+        lgSpan: 6,
+        placeholder: 'مثال: jsmith',
+      },
+      {
+        name: 'email',
+        label: 'ایمیل',
+        type: 'email',
+        required: true,
+        row: 0,
+        lgSpan: 6,
+        placeholder: 'user@example.com',
+      },
+      {
+        name: 'first_name',
+        label: 'نام',
+        type: 'text',
+        required: true,
+        row: 1,
+        lgSpan: 6,
+      },
+      {
+        name: 'last_name',
+        label: 'نام خانوادگی',
+        type: 'text',
+        required: true,
+        row: 1,
+        lgSpan: 6,
+      },
+      {
+        name: 'phone',
+        label: 'موبایل',
+        type: 'text',
+        required: false,
+        row: 2,
+        lgSpan: 6,
+        placeholder: '09123456789',
+      },
+      {
+        name: 'sheba_number',
+        label: 'شماره شبا',
+        type: 'text',
+        required: false,
+        row: 2,
+        lgSpan: 6,
+        placeholder: 'IR… (اختیاری)',
+      },
+      {
+        name: 'card_number',
+        label: 'شماره کارت',
+        type: 'text',
+        required: false,
+        row: 3,
+        lgSpan: 6,
+        placeholder: '۱۶ رقم (اختیاری)',
+      },
+      {
+        name: 'password',
+        label: isEdit ? 'رمز عبور (خالی = بدون تغییر)' : 'رمز عبور',
+        type: 'password',
+        required: !isEdit,
+        row: 4,
+        lgSpan: 6,
+        placeholder: isEdit ? 'اختیاری' : 'حداقل ۸ کاراکتر',
+      },
+      {
+        name: 'role_id',
+        label: 'نقش',
+        type: 'select',
+        required: false,
+        row: 4,
+        lgSpan: 6,
+        options: [{ label: '— بدون نقش —', value: '' }, ...roles.map((r) => ({ label: r.name, value: String(r.id) }))],
+      },
+      {
+        name: 'department_id',
+        label: 'واحد سازمانی',
+        type: 'select',
+        required: false,
+        row: 4,
+        lgSpan: 6,
+        options: departmentOptions,
+      },
+      {
+        name: 'manager_id',
+        label: 'مدیر مستقیم',
+        type: 'select',
+        required: false,
+        row: 5,
+        lgSpan: 6,
+        options: managerOptions,
+      },
+      {
+        name: 'is_active',
+        label: 'وضعیت',
+        type: 'select',
+        required: true,
+        row: 5,
+        lgSpan: 6,
+        options: [
+          { label: 'فعال', value: 'true' },
+          { label: 'غیرفعال', value: 'false' },
+        ],
+      },
+    ],
+  };
+}

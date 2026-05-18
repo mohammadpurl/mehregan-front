@@ -1,0 +1,126 @@
+@layer utilities {
+
+    /* Glass Card */
+    .glass-card {
+        @apply bg-card/80 backdrop-blur-md border shadow-lg;
+        border-color: var(--border);
+    }
+
+    /* Gradient utilities */
+    .gradient-primary {
+        background: linear-gradient(135deg, oklch(0.3197 0.0781 257.27), oklch(0.3783 0.0647 256.94));
+    }
+
+    .gradient-accent {
+        background: linear-gradient(135deg, oklch(0.7884 0.1527 79.1), oklch(0.7697 0.1645 70.61));
+    }
+
+    .stat-card-shadow {
+        box-shadow: 0 4px 20px -4px oklch(0.3197 0.0781 257.27 / 0.12);
+    }
+
+    /* Notification */
+    @utility notification {
+        @apply fixed top-6 right-6 z-[200] flex gap-3 items-center w-full max-w-xs p-4 rounded-xl shadow-xl border pointer-events-auto;
+
+        background-color: var(--card);
+        color: var(--foreground);
+        border-color: var(--border);
+
+        .notification-icon {
+            @apply inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-md;
+        }
+    }
+
+    /* Progress Bar - نسخه اصلاح‌شده و تمیز */
+    @utility progress {
+        @apply relative w-full appearance-none overflow-hidden h-2 rounded-lg bg-muted;
+
+        /* Firefox */
+        &::-moz-progress-bar {
+            @apply bg-foreground;
+        }
+
+        &.progress-primary::-moz-progress-bar {
+            @apply bg-primary;
+        }
+
+        &.progress-secondary::-moz-progress-bar {
+            @apply bg-secondary;
+        }
+
+        &.progress-accent::-moz-progress-bar {
+            @apply bg-accent;
+        }
+
+        &.progress-info::-moz-progress-bar {
+            @apply bg-info;
+        }
+
+        &.progress-success::-moz-progress-bar {
+            @apply bg-success;
+        }
+
+        &.progress-warning::-moz-progress-bar {
+            @apply bg-warning;
+        }
+
+        &.progress-error::-moz-progress-bar {
+            @apply bg-destructive;
+        }
+
+        /* Webkit (Chrome, Safari, Edge) */
+        &::-webkit-progress-bar {
+            @apply bg-transparent rounded-lg;
+        }
+
+        &::-webkit-progress-value {
+            @apply bg-foreground rounded-lg;
+        }
+
+        &.progress-primary::-webkit-progress-value {
+            @apply bg-primary;
+        }
+
+        &.progress-secondary::-webkit-progress-value {
+            @apply bg-secondary;
+        }
+
+        &.progress-accent::-webkit-progress-value {
+            @apply bg-accent;
+        }
+
+        &.progress-info::-webkit-progress-value {
+            @apply bg-info;
+        }
+
+        &.progress-success::-webkit-progress-value {
+            @apply bg-success;
+        }
+
+        &.progress-warning::-webkit-progress-value {
+            @apply bg-warning;
+        }
+
+        &.progress-error::-webkit-progress-value {
+            @apply bg-destructive;
+        }
+
+        /* Sizes */
+        &.progress-xs {
+            @apply h-1;
+        }
+
+        &.progress-sm {
+            @apply h-2;
+        }
+
+        &.progress-md {
+            @apply h-3;
+        }
+
+        &.progress-lg {
+            @apply h-4;
+        }
+    }
+}

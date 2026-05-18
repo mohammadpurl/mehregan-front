@@ -1,0 +1,56 @@
+/* react-multi-date-picker — هم‌تراز با تم پروژه و RTL */
+.rmdp-wrapper.jalali-date-picker-root {
+  width: 100%;
+}
+
+.jalali-date-picker-root .rmdp-container {
+  width: 100%;
+}
+
+.jalali-date-picker-root .rmdp-input {
+  width: 100%;
+  direction: ltr;
+  text-align: left;
+  font-family: inherit;
+}
+
+.jalali-date-picker-root .rmdp-calendar {
+  direction: rtl;
+  font-family: inherit;
+}
+
+.jalali-date-picker-root .rmdp-day.rmdp-selected span:not(.highlight) {
+  background-color: var(--primary);
+  box-shadow: 0 0 3px var(--primary);
+}
+
+.jalali-date-picker-root .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.jalali-date-picker-root .rmdp-arrow-container:hover {
+  background-color: var(--muted);
+  box-shadow: none;
+}
+
+.jalali-date-picker-root .rmdp-header-values {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.jalali-date-picker-root .rmdp-week-day {
+  color: var(--muted-foreground);
+}
+
+.jalali-date-picker-root .rmdp-calendar {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.jalali-date-picker-root .rmdp-calendar-container {
+  z-index: 80;
+}
