@@ -35,23 +35,23 @@ interface AdvancedDataGridProps<T> {
   pagination: PaginationState;
   onPaginationChange: OnChangeFn<PaginationState>;
 
-  globalFilter: string;
-  onGlobalFilterChange: (value: string) => void;
+  globalFilter?: string;
+  onGlobalFilterChange?: (value: string) => void;
 
-  columnFilters: ColumnFiltersState;
-  onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
+  columnFilters?: ColumnFiltersState;
+  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
 
-  sorting: SortingState;
-  onSortingChange: OnChangeFn<SortingState>;
+  sorting?: SortingState;
+  onSortingChange?: OnChangeFn<SortingState>;
 
-  columnVisibility: VisibilityState;
-  onColumnVisibilityChange: OnChangeFn<VisibilityState>;
+  columnVisibility?: VisibilityState;
+  onColumnVisibilityChange?: OnChangeFn<VisibilityState>;
 
   isLoading?: boolean;
   onRefresh?: () => void;
   onExport?: () => Promise<unknown[]>;
 
-  entityName: string;
+  entityName?: string;
   onCreateClick?: () => void;
 
   globalFilterForm?: React.ReactNode;
@@ -73,6 +73,14 @@ function readStoredColumnSizing(key: string): ColumnSizingState {
   } catch {
     return {};
   }
+}
+
+/** کلید پایدار localStorage برای ذخیرهٔ عرض ستون‌ها (بر اساس entityName یا کلید صریح). */
+function resolveColumnSizingStorageKey(entityName?: string, explicit?: string): string | undefined {
+  if (explicit) return explicit;
+  if (entityName == null || typeof entityName !== 'string') return undefined;
+  const normalized = entityName.replace(/\s*\([^)]*\)\s*/g, '').trim();
+  return normalized ? `erp-column-sizing:${normalized}` : undefined;
 }
 
 function getColumnHeaderLabel<T>(column: Column<T, unknown>): string {
@@ -109,18 +117,41 @@ export function AdvancedDataGrid<T>({
   isLoading = false,
   onRefresh,
   onExport,
-  entityName,
+  entityName = 'داده',
   onCreateClick,
   globalFilterForm,
   enableColumnFilters = true,
-  enableColumnResizing = false,
+  enableColumnResizing = true,
   columnSizingStorageKey,
   variant = 'erpClassic',
 }: AdvancedDataGridProps<T>) {
+  const [internalGlobalFilter, setInternalGlobalFilter] = React.useState('');
+  const [internalColumnFilters, setInternalColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
+  const [internalColumnVisibility, setInternalColumnVisibility] = React.useState<VisibilityState>({});
+
+  const resolvedGlobalFilter = globalFilter ?? internalGlobalFilter;
+  const resolvedOnGlobalFilterChange = onGlobalFilterChange ?? setInternalGlobalFilter;
+  const resolvedColumnFilters = columnFilters ?? internalColumnFilters;
+  const resolvedOnColumnFiltersChange = onColumnFiltersChange ?? setInternalColumnFilters;
+  const resolvedSorting = sorting ?? internalSorting;
+  const resolvedOnSortingChange = onSortingChange ?? setInternalSorting;
+  const resolvedColumnVisibility = columnVisibility ?? internalColumnVisibility;
+  const resolvedOnColumnVisibilityChange = onColumnVisibilityChange ?? setInternalColumnVisibility;
+
+  const resolvedColumnSizingStorageKey = React.useMemo(
+    () =>
+      enableColumnResizing
+        ? resolveColumnSizingStorageKey(entityName, columnSizingStorageKey)
+        : undefined,
+    [enableColumnResizing, entityName, columnSizingStorageKey],
+  );
 
   const [columnPanelOpen, setColumnPanelOpen] = React.useState(false);
   const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>(() =>
-    columnSizingStorageKey ? readStoredColumnSizing(columnSizingStorageKey) : {},
+    resolvedColumnSizingStorageKey
+      ? readStoredColumnSizing(resolvedColumnSizingStorageKey)
+      : {},
   );
   const [mobileRowExpanded, setMobileRowExpanded] = React.useState<Record<string, boolean>>({});
 
@@ -149,7 +180,7 @@ export function AdvancedDataGrid<T>({
     }, [callback, delay]);
   };
 
-  const debouncedGlobalFilter = useDebouncedCallback(onGlobalFilterChange);
+  const debouncedGlobalFilter = useDebouncedCallback(resolvedOnGlobalFilterChange);
 
   // filter helpers
   const isEmptyFilter = (value: unknown) => {
@@ -163,20 +194,21 @@ export function AdvancedDataGrid<T>({
   const isFilterActive = (value: unknown) => !isEmptyFilter(value);
 
   const handleColumnFilterChange = React.useCallback((columnId: string, value: unknown) => {
-    onColumnFiltersChange(prev => {
-      const filtered = prev.filter(f => f.id !== columnId);
+    resolvedOnColumnFiltersChange((prev) => {
+      const filters = prev ?? [];
+      const filtered = filters.filter((f) => f.id !== columnId);
       if (isEmptyFilter(value)) return filtered;
       return [...filtered, { id: columnId, value }];
     });
-  }, [onColumnFiltersChange]);
+  }, [resolvedOnColumnFiltersChange]);
 
   const handleColumnSizingChange: OnChangeFn<ColumnSizingState> = React.useCallback(
     (updater) => {
       setColumnSizing((prev) => {
         const next = typeof updater === 'function' ? updater(prev) : updater;
-        if (columnSizingStorageKey && typeof window !== 'undefined') {
+        if (resolvedColumnSizingStorageKey && typeof window !== 'undefined') {
           try {
-            localStorage.setItem(columnSizingStorageKey, JSON.stringify(next));
+            localStorage.setItem(resolvedColumnSizingStorageKey, JSON.stringify(next));
           } catch {
             /* ignore quota / private mode */
           }
@@ -184,7 +216,7 @@ export function AdvancedDataGrid<T>({
         return next;
       });
     },
-    [columnSizingStorageKey],
+    [resolvedColumnSizingStorageKey],
   );
 
   const table = useReactTable({
@@ -195,17 +227,17 @@ export function AdvancedDataGrid<T>({
       : undefined,
     state: {
       pagination,
-      globalFilter,
-      columnFilters,
-      sorting,
-      columnVisibility,
+      globalFilter: resolvedGlobalFilter,
+      columnFilters: resolvedColumnFilters,
+      sorting: resolvedSorting,
+      columnVisibility: resolvedColumnVisibility,
       ...(enableColumnResizing ? { columnSizing } : {}),
     },
     onPaginationChange,
-    onGlobalFilterChange,
-    onColumnFiltersChange,
-    onSortingChange,
-    onColumnVisibilityChange,
+    onGlobalFilterChange: resolvedOnGlobalFilterChange,
+    onColumnFiltersChange: resolvedOnColumnFiltersChange,
+    onSortingChange: resolvedOnSortingChange,
+    onColumnVisibilityChange: resolvedOnColumnVisibilityChange,
     ...(enableColumnResizing ? { onColumnSizingChange: handleColumnSizingChange } : {}),
     enableColumnFilters,
     enableColumnResizing,
@@ -222,7 +254,7 @@ export function AdvancedDataGrid<T>({
   });
 
   const getColumnFilterValue = (id: string) =>
-    columnFilters.find(f => f.id === id)?.value;
+    resolvedColumnFilters.find((f) => f.id === id)?.value;
 
   const handleExport = async () => {
     let exportData = data;
@@ -283,7 +315,7 @@ export function AdvancedDataGrid<T>({
         <div className="flex min-w-0 w-full flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center sm:gap-3">
           <Input
             placeholder={`جستجو در ${entityName}...`}
-            defaultValue={globalFilter}
+            defaultValue={resolvedGlobalFilter}
             onChange={e => debouncedGlobalFilter(e.target.value)}
             className="min-h-9 w-full min-w-0 sm:max-w-md sm:flex-1 md:min-w-72"
           />

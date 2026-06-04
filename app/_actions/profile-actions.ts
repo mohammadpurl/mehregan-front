@@ -31,12 +31,22 @@ export async function getProfileAction() {
   }
 }
 
+function emptyToUndefined(value: string | undefined): string | undefined {
+  const t = value?.trim();
+  return t ? t : undefined;
+}
+
 function sanitizeProfileUpdate(model: UpdateProfileModel): UpdateProfileModel {
   const card = model.card_number?.replace(/\s|-/g, '').trim();
   let sheba = model.sheba_number?.replace(/\s/g, '').trim().toUpperCase();
   if (sheba && !sheba.startsWith('IR')) sheba = `IR${sheba}`;
   return {
-    ...model,
+    email: model.email.trim(),
+    mobile: model.mobile.trim(),
+    first_name: model.first_name.trim(),
+    last_name: model.last_name.trim(),
+    national_id: emptyToUndefined(model.national_id),
+    father_name: emptyToUndefined(model.father_name),
     card_number: card || undefined,
     sheba_number: sheba || undefined,
   };

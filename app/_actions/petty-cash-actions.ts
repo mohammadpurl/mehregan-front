@@ -49,10 +49,31 @@ export async function createPettyCashAction(input: PettyCashCreateInput) {
   }
 }
 
-export async function getPettyCashListAction(params?: { page?: number; pageSize?: number }) {
+export type PettyCashListScope = 'mine' | 'team' | 'all' | 'approver' | 'participated';
+
+export async function getPettyCashListCapabilitiesAction() {
+  try {
+    const data = await readDataWithAuth<{ scopes: PettyCashListScope[] }>(
+      '/petty-cash/list-capabilities',
+    );
+    return { success: true as const, data };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'خطا در دریافت محدوده لیست'),
+    };
+  }
+}
+
+export async function getPettyCashListAction(params?: {
+  page?: number;
+  pageSize?: number;
+  scope?: PettyCashListScope;
+}) {
   const page = params?.page ?? 1;
   const pageSize = params?.pageSize ?? 10;
   const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (params?.scope) query.set('scope', params.scope);
   try {
     const response = await readDataWithAuth<{ items?: unknown[]; total: number }>(`/petty-cash/?${query}`);
     const items = (response?.items ?? []).map(normalizePettyCashFromApi).filter(Boolean) as PettyCashResponse[];

@@ -7,6 +7,12 @@ export type PettyCashSettlementStatus =
   | 'SETTLED'
   | string;
 
+export interface PettyCashAttachment {
+  id?: string | number;
+  fileName?: string;
+  fileUrl?: string;
+}
+
 export interface PettyCashExpenseLine {
   id?: number;
   description: string;
@@ -27,8 +33,13 @@ export interface PettyCashResponse {
   expenseLines?: PettyCashExpenseLine[];
   totalExpenses?: number;
   remainingAmount?: number;
+  requestedDate?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  documentsUrls?: string[];
+  attachments?: PettyCashAttachment[];
+  attachmentCount?: number;
+  expenseLineCount?: number;
 }
 
 export interface PettyCashEligibility {

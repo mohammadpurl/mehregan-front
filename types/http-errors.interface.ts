@@ -1,6 +1,9 @@
 interface Problem {
-    title: string;
-    status: number;
+    /** RFC7807 + backend standard */
+    title?: string;
+    status?: number;
+    code?: string;
+    message?: string;
     detail?: string;
     errors?: Record<string, string[]>;
 }

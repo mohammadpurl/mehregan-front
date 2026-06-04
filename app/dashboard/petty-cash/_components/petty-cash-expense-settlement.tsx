@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
+import { FormattedNumberInput } from '@/app/components/ui/formatted-number-input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import {
@@ -19,6 +20,7 @@ import { PettyCashExpensesFormSchema, type PettyCashExpensesFormValues } from '.
 import { canSettlePettyCash, sumExpenseLines } from '../_utils/petty-cash-mapper';
 import { formatAmount } from '@/app/utils/number-format';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
+import { JalaliDateInput } from '@/app/components/ui/jalali-date-input';
 
 type Props = {
   record: PettyCashResponse;
@@ -180,11 +182,12 @@ export function PettyCashExpenseSettlement({ record, onUpdated }: Props) {
                       <FormItem>
                         <FormLabel className="text-xs">مبلغ</FormLabel>
                         <FormControl>
-                          <Input
-                            type="number"
+                          <FormattedNumberInput
+                            value={f.value}
+                            onChange={f.onChange}
+                            onBlur={f.onBlur}
                             min={1}
-                            {...f}
-                            onChange={(e) => f.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                            placeholder="مبلغ"
                           />
                         </FormControl>
                         <FormMessage />
@@ -198,7 +201,12 @@ export function PettyCashExpenseSettlement({ record, onUpdated }: Props) {
                       <FormItem>
                         <FormLabel className="text-xs">تاریخ (اختیاری)</FormLabel>
                         <FormControl>
-                          <Input type="date" {...f} />
+                          <JalaliDateInput
+                            value={f.value ?? ''}
+                            onChange={f.onChange}
+                            onBlur={f.onBlur}
+                            placeholder="انتخاب تاریخ"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

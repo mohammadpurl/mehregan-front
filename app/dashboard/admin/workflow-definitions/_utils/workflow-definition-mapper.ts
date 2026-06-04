@@ -5,12 +5,7 @@ import type {
 } from '@/app/_types/workflow-definition.types';
 import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.types';
 
-const STRATEGIES: AssigneeStrategy[] = [
-  'role_pool',
-  'fixed_user',
-  'submitter_manager',
-  'department_head',
-];
+const STRATEGIES: AssigneeStrategy[] = ['role_pool', 'fixed_user', 'submitter_manager', 'department_head'];
 
 function coerceStrategy(v: unknown): AssigneeStrategy {
   const s = String(v ?? 'role_pool').toLowerCase();

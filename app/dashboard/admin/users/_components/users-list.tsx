@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ColumnFiltersState, VisibilityState } from '@tanstack/react-table';
 import { DashboardPageShell } from '@/app/components/layout/DashboardPageShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
@@ -13,8 +14,10 @@ import { useDeleteAction } from '@/app/hooks/use-delete-action';
 import { useUsersList } from '../_hooks/use-users-list';
 import { getUsersTableColumns } from './users-table-columns';
 import { UserFormModal } from './user-form-modal';
+import { prefetchUserFormOptions, invalidateUserFormQueries } from '../_queries/prefetch-user-form-options';
 
 export function UsersList() {
+  const queryClient = useQueryClient();
   const { executeDelete, deletePending } = useDeleteAction();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
@@ -42,10 +45,15 @@ export function UsersList() {
     loadUsers,
   } = useUsersList();
 
+  useEffect(() => {
+    prefetchUserFormOptions(queryClient);
+  }, [queryClient]);
+
   const openCreate = useCallback(() => {
+    prefetchUserFormOptions(queryClient);
     setEditingUser(null);
     setModalOpen(true);
-  }, []);
+  }, [queryClient]);
 
   const openEdit = useCallback((user: AdminUser) => {
     setEditingUser(user);
@@ -180,7 +188,10 @@ export function UsersList() {
           if (!open) closeModal();
           else setModalOpen(true);
         }}
-        onSaved={() => loadUsers()}
+        onSaved={() => {
+          invalidateUserFormQueries(queryClient);
+          loadUsers();
+        }}
       />
     </DashboardPageShell>
   );

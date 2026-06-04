@@ -5,6 +5,8 @@ export const PAYMENT_TYPE_LABELS: Record<string, string> = {
   [PaymentRequestType.LOAN]: 'وام',
   [PaymentRequestType.ADVANCE]: 'مساعده',
   [PaymentRequestType.PAYMENT_ORDER]: 'دستور پرداخت',
+  [PaymentRequestType.PROCUREMENT]: 'پرداخت خرید',
+  procurement: 'پرداخت خرید',
   [PaymentRequestType.CASH]: 'تنخواه',
   [PaymentRequestType.PAYMENT]: 'پرداخت',
   [PaymentRequestType.OTHER]: 'سایر',

@@ -7,6 +7,27 @@ import {
   updateDataWithAuth,
 } from '@/app/core/http-service/http-service';
 import { CreateRoleModel, Role, UpdateRoleModel } from '@/app/_types/role.types';
+
+function normalizeRole(raw: Record<string, unknown>): Role {
+  return {
+    id: Number(raw.id),
+    name: String(raw.name ?? ''),
+    displayName:
+      raw.displayName != null
+        ? String(raw.displayName)
+        : raw.display_name != null
+          ? String(raw.display_name)
+          : null,
+    isSingleton: Boolean(raw.isSingleton ?? raw.is_singleton ?? false),
+  };
+}
+
+function normalizeRoleList(data: PaginatedResponse<Record<string, unknown>>): PaginatedResponse<Role> {
+  return {
+    ...data,
+    items: (data.items ?? []).map((row) => normalizeRole(row as Record<string, unknown>)),
+  };
+}
 import { extractActionErrorMessage } from './extract-action-error';
 
 type PaginatedResponse<T> = {
@@ -49,9 +70,13 @@ export async function getRolesAction(params?: {
   const url = `/roles?${query.toString()}`;
   try {
     log('info', 'getRolesAction request', { url, params });
-    const data = await readDataWithAuth<PaginatedResponse<Role>>(url);
-    log('info', 'getRolesAction success', { total: data?.total, itemCount: data?.items?.length });
-    return { success: true, data };
+    const data = await readDataWithAuth<PaginatedResponse<Record<string, unknown>>>(url);
+    const normalized = normalizeRoleList(data);
+    log('info', 'getRolesAction success', {
+      total: normalized?.total,
+      itemCount: normalized?.items?.length,
+    });
+    return { success: true, data: normalized };
   } catch (err: unknown) {
     const message = extractActionErrorMessage(err, 'خطا در دریافت نقش‌ها');
     log('error', 'getRolesAction failed', { error: message, page, pageSize, url });
@@ -86,8 +111,13 @@ export async function getAllRolesAction() {
 
 export async function createRoleAction(model: CreateRoleModel) {
   try {
-    const data = await createDataWithAuth<CreateRoleModel, Role>('/roles', model);
-    return { success: true, data };
+    const payload = {
+      name: model.name,
+      displayName: model.displayName,
+      isSingleton: model.isSingleton ?? false,
+    };
+    const raw = await createDataWithAuth<typeof payload, Record<string, unknown>>('/roles', payload);
+    return { success: true, data: normalizeRole(raw) };
   } catch (err: unknown) {
     const error = err as { message?: string; response?: { data?: { message?: string } } };
     log('error', 'createRoleAction failed', { error: error?.message });
@@ -100,8 +130,16 @@ export async function createRoleAction(model: CreateRoleModel) {
 
 export async function updateRoleAction(id: number, model: UpdateRoleModel) {
   try {
-    const data = await updateDataWithAuth<UpdateRoleModel, Role>(`/roles/${id}`, model);
-    return { success: true, data };
+    const payload = {
+      name: model.name,
+      displayName: model.displayName,
+      isSingleton: model.isSingleton,
+    };
+    const raw = await updateDataWithAuth<typeof payload, Record<string, unknown>>(
+      `/roles/${id}`,
+      payload,
+    );
+    return { success: true, data: normalizeRole(raw) };
   } catch (err: unknown) {
     const error = err as { message?: string; response?: { data?: { message?: string } } };
     log('error', 'updateRoleAction failed', { error: error?.message });

@@ -1,14 +1,14 @@
 'use client';
 
 import { DashboardPageShell } from '@/app/components/layout/DashboardPageShell';
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { createRoleAction, deleteRoleAction, getRolesAction, updateRoleAction } from '@/app/_actions/role-actions';
 import { Role } from '@/app/_types/role.types';
-import { RoleSchema } from '@/app/_types/rbac.schema';
+import { RoleEditSchema, RoleSchema } from '@/app/_types/rbac.schema';
 import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import { FormGenerator } from '@/app/components/form-input/form-generator/form-generator';
 import { FormSchema } from '@/app/components/form-input/form-generator/form-generator.types';
@@ -51,18 +51,41 @@ export default function RolesPage() {
     (state) => state.showNotification
     );
 
-  const roleFormSchema: FormSchema = {
-    fields: [
-      {
-        name: 'name',
-        label: 'نام نقش',
-        type: 'text',
-        required: true,
-        row: 0,
-        placeholder: 'مثال: admin',
-      },
-    ],
-  };
+  const roleFormSchema: FormSchema = useMemo(
+    () => ({
+      fields: [
+        {
+          name: 'displayName',
+          label: 'نام نمایشی',
+          type: 'text',
+          required: true,
+          row: 0,
+          placeholder: 'مثال: مدیر مالی',
+        },
+        {
+          name: 'name',
+          label: 'شناسه فنی',
+          type: 'text',
+          required: true,
+          row: 1,
+          placeholder: 'مثال: finance_manager',
+          disabled: editingRoleId != null,
+        },
+        {
+          name: 'isSingleton',
+          label: 'نقش تک‌نفره',
+          type: 'select',
+          required: true,
+          row: 2,
+          options: [
+            { label: 'خیر — چند کاربر می‌توانند داشته باشند', value: 'false' },
+            { label: 'بله — فقط یک کاربر', value: 'true' },
+          ],
+        },
+      ],
+    }),
+    [editingRoleId],
+  );
 
   const closeModal = () => {
     setModalOpen(false);
@@ -129,17 +152,31 @@ export default function RolesPage() {
     return () => clearTimeout(timer);
   }, [triggerLoadRoles]);
 
-  const handleSave = async (formData: { name: string }) => {
-    const parsed = RoleSchema.safeParse({ name: formData.name });
+  const handleSave = async (formData: {
+    name: string;
+    displayName: string;
+    isSingleton: string;
+  }) => {
+    const schema = editingRoleId ? RoleEditSchema : RoleSchema;
+    const parsed = schema.safeParse({
+      name: formData.name,
+      displayName: formData.displayName,
+      isSingleton: formData.isSingleton === 'true',
+    });
     if (!parsed.success) {
       toast({ title: 'خطا', description: parsed.error.issues[0]?.message || 'مقدار نامعتبر', variant: 'destructive' });
       return;
     }
 
     setSaving(true);
+    const payload = {
+      name: parsed.data.name,
+      displayName: parsed.data.displayName,
+      isSingleton: parsed.data.isSingleton,
+    };
     const result = editingRoleId
-      ? await updateRoleAction(editingRoleId, parsed.data)
-      : await createRoleAction(parsed.data);
+      ? await updateRoleAction(editingRoleId, payload)
+      : await createRoleAction(payload);
 
     if (result.success) {
       toast({ title: 'موفق', description: editingRoleId ? 'نقش ویرایش شد' : 'نقش ایجاد شد' });
@@ -198,8 +235,13 @@ export default function RolesPage() {
       },
     },
     {
+      accessorKey: 'displayName',
+      header: 'نام نمایشی',
+      cell: ({ row }) => row.original.displayName || row.original.name,
+    },
+    {
       accessorKey: 'name',
-      header: 'نام',
+      header: 'شناسه فنی',
       meta: {
         filterComponent: ({ onFilterChange, value }: { onFilterChange: (value: unknown) => void; value: unknown }) => (
           <Input
@@ -327,7 +369,11 @@ export default function RolesPage() {
           key={editingRoleId ?? 'new-role'}
           schema={roleFormSchema}
           formId="roles-form"
-          defaultValues={{ name: selectedRole?.name || '' }}
+          defaultValues={{
+            name: selectedRole?.name || '',
+            displayName: selectedRole?.displayName || '',
+            isSingleton: selectedRole?.isSingleton ? 'true' : 'false',
+          }}
           onSubmit={handleSave}
           isLoading={saving}
         />

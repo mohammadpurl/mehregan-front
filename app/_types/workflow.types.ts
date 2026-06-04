@@ -46,3 +46,32 @@ export interface WorkflowListResponse {
   page: number;
   pageSize: number;
 }
+
+/** نمونه گردش‌کار سازمانی (پیگیری) */
+export type WorkflowInstanceListScope =
+  | 'mine'
+  | 'team'
+  | 'all'
+  | 'approver'
+  | 'participated';
+
+export interface WorkflowInstanceRow {
+  id: number;
+  ref_type: string;
+  ref_id: number;
+  ref_label: string;
+  status: string;
+  title: string;
+  requester_id?: number | null;
+  requester_name?: string | null;
+  current_step_order?: number | null;
+  current_assignee_name?: string | null;
+  updated_at?: string | null;
+}
+
+export interface WorkflowInstanceListResponse {
+  items: WorkflowInstanceRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

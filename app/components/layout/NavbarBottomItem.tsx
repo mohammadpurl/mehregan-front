@@ -8,7 +8,7 @@ const NavbarBottomItem = () => {
     const {sidebarOpen} = useUiStore();
   return (
    
-    <div className="py-4 px-3 border-t border-sidebar-border space-y-1">
+    <div className="space-y-1 border-t border-[oklch(0.3783_0.0647_256.94)] px-3 py-4">
           {bottomItems.map((item) => (
             <Link
               key={`bottomIte ${item.path}`}
@@ -17,7 +17,7 @@ const NavbarBottomItem = () => {
             //   onClick={() => setMobileOpen(false)}
               className={`
                 flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200
-                text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50
+                erp-nav-item-idle
                 ${!sidebarOpen ? "justify-center" : ""}
               `}
             >

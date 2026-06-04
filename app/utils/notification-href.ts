@@ -16,7 +16,11 @@ export function buildNotificationHref(item: NotificationCenterItem): string | nu
         ? `/dashboard/workflow/inbox?instanceId=${encodeURIComponent(id)}`
         : '/dashboard/workflow/inbox';
     case 'product-request':
-      return id ? `/dashboard/product-request?requestId=${encodeURIComponent(id)}` : '/dashboard/product-request';
+    case 'request':
+    case 'procurement_proforma':
+      return id
+        ? `/dashboard/procurement/requests?requestId=${encodeURIComponent(id)}`
+        : '/dashboard/procurement/requests';
     case 'item':
       return id ? `/dashboard/master/items?itemId=${encodeURIComponent(id)}` : '/dashboard/master/items';
     case 'warehouse':
@@ -25,6 +29,25 @@ export function buildNotificationHref(item: NotificationCenterItem): string | nu
       return id ? `/dashboard/master/suppliers?supplierId=${encodeURIComponent(id)}` : '/dashboard/master/suppliers';
     case 'payment-request':
       return id ? `/dashboard/payment-request?paymentId=${encodeURIComponent(id)}` : '/dashboard/payment-request';
+    case 'petty-cash':
+    case 'petty_cash':
+      return id
+        ? `/dashboard/petty-cash/settlement?pettyCashId=${encodeURIComponent(id)}`
+        : '/dashboard/petty-cash/settlement';
+    case 'financial_document':
+    case 'financial-document':
+      return id
+        ? `/dashboard/financial-documents?financialDocumentId=${encodeURIComponent(id)}`
+        : '/dashboard/financial-documents';
+    case 'mission_request':
+    case 'mission-request':
+      return id
+        ? `/dashboard/mission-requests?missionRequestId=${encodeURIComponent(id)}`
+        : '/dashboard/mission-requests';
+    case 'ad_hoc_task':
+      return id
+        ? `/dashboard/workflow/inbox?adHocTaskId=${encodeURIComponent(id)}`
+        : '/dashboard/workflow/inbox';
     default:
       return '/dashboard/notifications';
   }

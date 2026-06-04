@@ -6,7 +6,12 @@ import {
   readDataWithAuth,
   updateDataWithAuth,
 } from '@/app/core/http-service/http-service';
-import { AdminUser, CreateUserModel, UpdateUserModel } from '@/app/_types/user.types';
+import {
+  AdminUser,
+  CreateUserModel,
+  ManagerLookupItem,
+  UpdateUserModel,
+} from '@/app/_types/user.types';
 import { normalizeAdminUser, normalizeAdminUserList } from '@/app/utils/user-mapper';
 
 type PaginatedResponse<T> = {
@@ -59,6 +64,57 @@ export async function getUsersAction(params?: {
     const error = err as { message?: string };
     log('error', 'getUsersAction failed', { error: error?.message, page, pageSize, url });
     return { success: false, error: error?.message || 'خطا در دریافت کاربران' };
+  }
+}
+
+function managerLookupLabel(user: AdminUser): string {
+  const fromApi = user.full_name?.trim();
+  const fromParts = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+  const name = fromApi || fromParts;
+  return name ? `${name} (${user.username})` : user.username;
+}
+
+/** جستجوی paginated کاربران برای انتخاب مدیر مستقیم */
+export async function lookupUsersForManagerAction(params?: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  excludeUserId?: number | null;
+}) {
+  const page = params?.page ?? 1;
+  const pageSize = params?.pageSize ?? 20;
+  try {
+    const result = await getUsersAction({
+      page,
+      pageSize,
+      search: params?.search?.trim() || undefined,
+    });
+    if (!result.success || !result.data?.items) {
+      return {
+        success: false as const,
+        error: result.error || 'جستجوی کاربران ناموفق بود',
+        data: { items: [] as ManagerLookupItem[], total: 0, rawCount: 0 },
+      };
+    }
+    const rawItems = result.data.items;
+    const items = rawItems
+      .filter((user) => (params?.excludeUserId != null ? user.id !== params.excludeUserId : true))
+      .map((user) => ({ id: user.id, label: managerLookupLabel(user) }));
+    return {
+      success: true as const,
+      data: {
+        items,
+        total: result.data.total ?? rawItems.length,
+        rawCount: rawItems.length,
+      },
+    };
+  } catch (err: unknown) {
+    const error = err as { message?: string };
+    return {
+      success: false as const,
+      error: error?.message || 'جستجوی کاربران ناموفق بود',
+      data: { items: [] as ManagerLookupItem[], total: 0, rawCount: 0 },
+    };
   }
 }
 

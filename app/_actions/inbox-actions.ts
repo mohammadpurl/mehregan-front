@@ -15,8 +15,8 @@ export async function getInboxAction(params?: {
   const query = new URLSearchParams();
   query.set('page', String(page));
   query.set('pageSize', String(pageSize));
-  if (params?.sortBy) query.set('sortBy', params.sortBy);
-  if (params?.sortOrder) query.set('sortOrder', params.sortOrder);
+  query.set('sortBy', params?.sortBy ?? 'created_at');
+  query.set('sortOrder', params?.sortOrder ?? 'desc');
 
   try {
     const data = await readDataWithAuth<InboxListResponse>(`/inbox?${query.toString()}`);

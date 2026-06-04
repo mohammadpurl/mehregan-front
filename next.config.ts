@@ -3,9 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     authInterrupts: true,
-    /** محدودیت پیش‌فرض Server Action = 1MB؛ برای آپلود آواتار تا ۵MB */
+    /** پیش‌فرض Next حدود ۱MB — برای پیوست تا ۲۵MB و آواتار ۱۰MB */
     serverActions: {
-      bodySizeLimit: "6mb",
+      bodySizeLimit: "35mb",
     },
   },
 };

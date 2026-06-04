@@ -1,24 +1,16 @@
 import type { FormSchema } from '@/app/components/form-input/form-generator/form-generator.types';
-import type { Role } from '@/app/_types/role.types';
-import type { DepartmentSelectOption } from '../_hooks/use-departments-options';
-import type { UserSelectOption } from '../_hooks/use-users-options';
 
-export function buildUserFormSchema(
-  roles: Role[],
-  departmentOptions: DepartmentSelectOption[],
-  managerOptions: UserSelectOption[],
-  isEdit: boolean,
-): FormSchema {
+export function buildUserFormSchema(isEdit: boolean): FormSchema {
   return {
     fields: [
       {
         name: 'username',
-        label: 'نام کاربری',
+        label: 'شناسه فنی',
         type: 'text',
         required: true,
         row: 0,
         lgSpan: 6,
-        placeholder: 'مثال: jsmith',
+        placeholder: 'شناسه یکتای ورود — مثال: jsmith',
       },
       {
         name: 'email',
@@ -36,6 +28,7 @@ export function buildUserFormSchema(
         required: true,
         row: 1,
         lgSpan: 6,
+        placeholder: 'مثال: علی',
       },
       {
         name: 'last_name',
@@ -44,6 +37,7 @@ export function buildUserFormSchema(
         required: true,
         row: 1,
         lgSpan: 6,
+        placeholder: 'مثال: اکبری',
       },
       {
         name: 'phone',
@@ -84,29 +78,26 @@ export function buildUserFormSchema(
       {
         name: 'role_id',
         label: 'نقش',
-        type: 'select',
+        type: 'custom',
         required: false,
         row: 4,
         lgSpan: 6,
-        options: [{ label: '— بدون نقش —', value: '' }, ...roles.map((r) => ({ label: r.name, value: String(r.id) }))],
       },
       {
         name: 'department_id',
         label: 'واحد سازمانی',
-        type: 'select',
+        type: 'custom',
         required: false,
         row: 4,
         lgSpan: 6,
-        options: departmentOptions,
       },
       {
         name: 'manager_id',
         label: 'مدیر مستقیم',
-        type: 'select',
+        type: 'custom',
         required: false,
         row: 5,
         lgSpan: 6,
-        options: managerOptions,
       },
       {
         name: 'is_active',

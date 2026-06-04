@@ -2,9 +2,14 @@
 export type WorkflowBusinessRefType =
   | 'workflow_form'
   | 'payment_request'
+  | 'payment_order'
+  | 'financial_document'
   | 'petty_cash'
+  | 'mission_request'
   | 'warehouse_form'
-  | 'request';
+  | 'request'
+  | 'purchase_request'
+  | 'procurement_proforma';
 
 export type AssigneesByOrder = Record<string, number>;
 

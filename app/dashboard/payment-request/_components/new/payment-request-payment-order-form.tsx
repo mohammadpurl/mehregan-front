@@ -15,16 +15,23 @@ import { createPaymentOrderAction } from '@/app/_actions/payment-request-actions
 import { getCounterpartiesAction } from '@/app/_actions/counterparty-actions';
 import type { Counterparty } from '../../_types/counterparty.types';
 import type { CounterpartyBankAccount } from '../../_types/bank-account.types';
-import { paymentOrderCreateSchema, type PaymentOrderCreateValues } from '../../_types/counterparty.schema';
+import {
+  PaymentOrderKind,
+  paymentOrderCreateSchema,
+  type PaymentOrderCreateValues,
+} from '../../_types/counterparty.schema';
 import { canSetPayerAccountRole } from '../../_utils/payment-request-roles';
 import { useFormAction } from '@/app/hooks/use-form-action';
 import { useSessionStore } from '@/app/_store/auth-store';
 import { WorkflowSameAssigneeAlert } from '@/app/dashboard/workflow/_components/workflow-same-assignee-alert';
 import { useWorkflowAssigneesPreviewWarning } from '@/app/dashboard/workflow/_hooks/use-workflow-assignees-preview-warning';
+import { AttachmentFileInput } from '@/app/components/attachments/attachment-file-input';
+import { notifyAttachmentUploadFailed } from '@/app/utils/form-notify';
 import { CompanyBankAccountSelect } from '../bank-account/company-bank-account-select';
 import { CounterpartyBankAccountSelect } from '../bank-account/counterparty-bank-account-select';
 import { BankAccountDetailAlert } from '../bank-account/bank-account-detail-alert';
 import { todayGregorianIso } from '@/app/utils/jalali-date';
+import { PaymentMethod } from '../../_utils/payment-method';
 
 type Props = {
   formId?: string;
@@ -33,12 +40,14 @@ type Props = {
 };
 
 const defaultValues: PaymentOrderCreateValues = {
+  paymentOrderKind: PaymentOrderKind.INDIVIDUAL,
   counterpartyId: 0,
   counterpartyBankAccountId: 0,
   payerCompanyAccountId: 0,
   paymentDate: todayGregorianIso(),
   reason: '',
   amount: 0,
+  paymentMethod: PaymentMethod.TRANSFER,
 };
 
 export function PaymentRequestPaymentOrderForm({
@@ -49,17 +58,21 @@ export function PaymentRequestPaymentOrderForm({
   const { isPending, startTransition, notifyError, notifySuccess } = useFormAction();
   const session = useSessionStore((s) => s.session);
   const canSetPayerAccount = canSetPayerAccountRole(session?.roles);
-  const sameAssigneeWarning = useWorkflowAssigneesPreviewWarning('payment_request');
+  const sameAssigneeWarning = useWorkflowAssigneesPreviewWarning('payment_order');
   const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
   const [loadingCp, setLoadingCp] = useState(true);
   const [cpBankAccounts, setCpBankAccounts] = useState<CounterpartyBankAccount[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  const [filesError, setFilesError] = useState<string | null>(null);
 
   const form = useForm<PaymentOrderCreateValues>({
     resolver: zodResolver(paymentOrderCreateSchema(canSetPayerAccount)),
     defaultValues,
   });
 
+  const orderKind = form.watch('paymentOrderKind');
+  const isIndividual = orderKind === PaymentOrderKind.INDIVIDUAL;
+  const isCollective = !isIndividual;
   const selectedId = form.watch('counterpartyId');
   const selectedBankId = form.watch('counterpartyBankAccountId');
   const selectedBank = useMemo(
@@ -77,20 +90,42 @@ export function PaymentRequestPaymentOrderForm({
   }, []);
 
   useEffect(() => {
+    if (isCollective) {
+      form.setValue('amount', 0);
+      form.setValue('paymentDate', '');
+      form.clearErrors(['amount', 'paymentDate']);
+    } else if (!form.getValues('paymentDate')?.trim()) {
+      form.setValue('paymentDate', todayGregorianIso());
+    }
+  }, [isCollective, form]);
+
+  useEffect(() => {
+    if (!isIndividual) {
+      form.setValue('counterpartyId', 0);
+      form.setValue('counterpartyBankAccountId', 0);
+      setCpBankAccounts([]);
+      return;
+    }
     form.setValue('counterpartyBankAccountId', 0);
     setCpBankAccounts([]);
-  }, [selectedId, form]);
+  }, [selectedId, isIndividual, form]);
 
   useEffect(() => {
     onBusyChange?.(isPending || loadingCp);
   }, [isPending, loadingCp, onBusyChange]);
 
   const onSubmit = (values: PaymentOrderCreateValues) => {
+    if (isCollective && files.length === 0) {
+      setFilesError('برای دستور پرداخت جمعی بارگذاری حداقل یک پیوست الزامی است');
+      return;
+    }
+    setFilesError(null);
+
     startTransition(async () => {
       const result = await createPaymentOrderAction(values, files.length ? files : undefined);
       if (result.success) {
         notifySuccess('دستور پرداخت ثبت شد');
-        if (result.attachmentError) notifyError(`پیوست: ${result.attachmentError}`);
+        if (result.attachmentError) notifyAttachmentUploadFailed(result.attachmentError);
         onSuccess?.();
       } else {
         notifyError(result.error || 'ثبت ناموفق بود');
@@ -104,7 +139,8 @@ export function PaymentRequestPaymentOrderForm({
         <WorkflowSameAssigneeAlert show={sameAssigneeWarning} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            طرف‌حساب و حساب واریز را انتخاب کنید؛ حساب مبدأ از حساب‌های تعریف‌شده شرکت است.
+            انفرادی: طرف‌حساب، مبلغ و تاریخ مشخص است. جمعی: مبلغ و تاریخ در زمان ثبت وارد نمی‌شود؛{' '}
+            <strong>پیوست الزامی</strong> است.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" asChild>
@@ -118,27 +154,19 @@ export function PaymentRequestPaymentOrderForm({
 
         <FormField
           control={form.control}
-          name="counterpartyId"
+          name="paymentOrderKind"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>طرف حساب</FormLabel>
-              <Select
-                disabled={loadingCp}
-                value={field.value > 0 ? String(field.value) : ''}
-                onValueChange={(v) => field.onChange(Number(v))}
-              >
+              <FormLabel>نوع دستور پرداخت</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={loadingCp ? 'در حال بارگذاری…' : 'انتخاب طرف حساب'} />
+                    <SelectValue placeholder="انتخاب نوع" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {counterparties.map((cp) => (
-                    <SelectItem key={cp.id} value={String(cp.id)}>
-                      {cp.name}
-                      {cp.companyName ? ` — ${cp.companyName}` : ''}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value={PaymentOrderKind.INDIVIDUAL}>انفرادی (طرف‌حساب مشخص)</SelectItem>
+                  <SelectItem value={PaymentOrderKind.COLLECTIVE}>جمعی (بدون طرف‌حساب واحد)</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -146,26 +174,65 @@ export function PaymentRequestPaymentOrderForm({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="counterpartyBankAccountId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>حساب واریز (طرف‌حساب)</FormLabel>
-              <FormControl>
-                <CounterpartyBankAccountSelect
-                  counterpartyId={selectedId}
-                  value={field.value}
-                  onChange={field.onChange}
-                  onAccountsLoaded={setCpBankAccounts}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {isIndividual ? (
+          <>
+            <FormField
+              control={form.control}
+              name="counterpartyId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>طرف حساب</FormLabel>
+                  <Select
+                    disabled={loadingCp}
+                    value={field.value != null && field.value > 0 ? String(field.value) : ''}
+                    onValueChange={(v) => field.onChange(Number(v))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingCp ? 'در حال بارگذاری…' : 'انتخاب طرف حساب'} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {counterparties.map((cp) => (
+                        <SelectItem key={cp.id} value={String(cp.id)}>
+                          {cp.name}
+                          {cp.companyName ? ` — ${cp.companyName}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <BankAccountDetailAlert title="جزئیات حساب واریز" account={selectedBank} />
+            <FormField
+              control={form.control}
+              name="counterpartyBankAccountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>حساب واریز (طرف‌حساب)</FormLabel>
+                  <FormControl>
+                    <CounterpartyBankAccountSelect
+                      counterpartyId={selectedId ?? 0}
+                      value={field.value ?? 0}
+                      onChange={field.onChange}
+                      onAccountsLoaded={setCpBankAccounts}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <BankAccountDetailAlert title="جزئیات حساب واریز" account={selectedBank} />
+          </>
+        ) : (
+          <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+            در دستور پرداخت جمعی طرف‌حساب، حساب مقصد، مبلغ و تاریخ در زمان ثبت مشخص نمی‌شود. فایل
+            پیوست (مثلاً لیست پرداخت‌ها) الزامی است.
+          </p>
+        )}
 
         {canSetPayerAccount ? (
           <FormField
@@ -187,6 +254,28 @@ export function PaymentRequestPaymentOrderForm({
           </p>
         )}
 
+        <FormField
+          control={form.control}
+          name="paymentMethod"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>روش پرداخت</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="انتخاب روش پرداخت" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={PaymentMethod.CHECK}>چک</SelectItem>
+                  <SelectItem value={PaymentMethod.TRANSFER}>حواله</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -195,8 +284,16 @@ export function PaymentRequestPaymentOrderForm({
               <FormItem>
                 <FormLabel>مبلغ (ریال)</FormLabel>
                 <FormControl>
-                  <FormattedNumberInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} />
+                  <FormattedNumberInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    disabled={isCollective}
+                  />
                 </FormControl>
+                {isCollective ? (
+                  <p className="text-xs text-muted-foreground">در دستور جمعی مبلغ از پیوست استخراج می‌شود.</p>
+                ) : null}
                 <FormMessage />
               </FormItem>
             )}
@@ -208,8 +305,11 @@ export function PaymentRequestPaymentOrderForm({
               <FormItem>
                 <FormLabel>تاریخ</FormLabel>
                 <FormControl>
-                  <JalaliDateInput value={field.value} onChange={field.onChange} />
+                  <JalaliDateInput value={field.value} onChange={field.onChange} disabled={isCollective} />
                 </FormControl>
+                {isCollective ? (
+                  <p className="text-xs text-muted-foreground">در دستور جمعی تاریخ در زمان ثبت لازم نیست.</p>
+                ) : null}
                 <FormMessage />
               </FormItem>
             )}
@@ -231,15 +331,19 @@ export function PaymentRequestPaymentOrderForm({
         />
 
         <div className="space-y-2">
-          <FormLabel>پیوست (اختیاری)</FormLabel>
-          <Input
-            type="file"
-            multiple
-            className="cursor-pointer"
-            onChange={(e) => {
-              if (e.target.files) setFiles(Array.from(e.target.files));
+          <FormLabel>
+            پیوست
+            {isCollective ? <span className="text-destructive"> *</span> : null}
+            {!isCollective ? ' (اختیاری)' : ''}
+          </FormLabel>
+          <AttachmentFileInput
+            files={files}
+            onFilesChange={(next) => {
+              setFiles(next);
+              if (next.length > 0) setFilesError(null);
             }}
           />
+          {filesError ? <p className="text-sm text-destructive">{filesError}</p> : null}
         </div>
       </form>
     </Form>

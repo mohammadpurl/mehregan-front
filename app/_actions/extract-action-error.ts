@@ -65,6 +65,17 @@ function formatValidationErrors(errors: Record<string, unknown> | undefined): st
   return lines.length > 0 ? lines.join('\n') : undefined;
 }
 
+/** استخراج پیام از بدنهٔ استاندارد API */
+function pickApiErrorMessage(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  const o = data as { message?: unknown; detail?: unknown; title?: unknown };
+  return (
+    formatErrorDetail(o.message) ||
+    formatErrorDetail(o.detail) ||
+    formatErrorDetail(o.title)
+  );
+}
+
 /** استخراج پیام خطا از پاسخ API یا شیء پرتاب‌شده توسط http-error-strategies — همیشه string */
 export function extractActionErrorMessage(err: unknown, fallback: string): string {
   if (err == null) return fallback;
@@ -74,11 +85,14 @@ export function extractActionErrorMessage(err: unknown, fallback: string): strin
     message?: unknown;
     detail?: unknown;
     title?: unknown;
+    code?: unknown;
     errors?: Record<string, unknown>;
     response?: { data?: { message?: unknown; detail?: unknown; title?: unknown; errors?: Record<string, unknown> } };
   };
 
   const candidates = [
+    pickApiErrorMessage(e),
+    pickApiErrorMessage(e.response?.data),
     formatErrorDetail(e.response?.data?.detail),
     formatErrorDetail(e.response?.data?.message),
     formatValidationErrors(e.response?.data?.errors),

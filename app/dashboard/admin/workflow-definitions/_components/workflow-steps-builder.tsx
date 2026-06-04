@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Plus,
   Trash2,
-  User,
   UserCheck,
   Users,
   Loader2,
@@ -28,7 +27,7 @@ import { getUsersAction } from '@/app/_actions/user-actions';
 import { getProfileAction } from '@/app/_actions/profile-actions';
 import { getWorkflowAssigneesPreviewAction } from '@/app/_actions/workflow-definition-actions';
 import type { ProfileDto } from '@/app/_types/profile.types';
-import type { Role } from '@/app/_types/role.types';
+import { roleLabel, type Role } from '@/app/_types/role.types';
 import type { AdminUser } from '@/app/_types/user.types';
 import type {
   AssigneeStrategy,
@@ -48,25 +47,25 @@ const STRATEGY_OPTIONS: {
   {
     value: 'role_pool',
     label: 'انتخاب از نقش',
-    description: 'اولین کاربر دارای یکی از نقشهای انتخاب شده',
+    description: 'یکی از کاربران فعال که حداقل یکی از نقش‌های انتخاب‌شده را دارد',
     icon: Users,
   },
   {
     value: 'fixed_user',
-    label: 'شخص مشخص',
-    description: 'همیشه یک کاربر ثابت تأیید میکند',
+    label: 'شخص مشخص (با همان نقش)',
+    description: 'کاربر ثابت؛ باید یکی از نقش‌های انتخاب‌شده را داشته باشد',
     icon: UserCheck,
   },
   {
     value: 'submitter_manager',
-    label: 'مدیر مستقیم ثبت کننده ',
-    description: 'بر اساس managerId کاربر درخواست دهنده',
-    icon: User,
+    label: 'مدیر مستقیم ثبت‌کننده',
+    description: 'بر اساس فیلد «مدیر مستقیم» کاربر درخواست‌دهنده در مدیریت کاربران',
+    icon: UserCheck,
   },
   {
     value: 'department_head',
-    label: 'مسئول واحد سازمانی',
-    description: 'headUserId واحد departmentId ثبت کننده ',
+    label: 'مسئول واحد',
+    description: 'بر اساس واحد سازمانی ثبت‌کننده و «مسئول واحد» در ساختار سازمانی',
     icon: Building2,
   },
 ];
@@ -86,7 +85,6 @@ function userLabel(u: AdminUser): string {
 export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Props) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [customAlias, setCustomAlias] = useState<Record<number, string>>({});
   const [currentProfile, setCurrentProfile] = useState<ProfileDto | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   /** خالی = خود کاربر جاری؛ در غیر این صورت شناسه کاربر انتخاب‌شده از لیست */
@@ -143,15 +141,6 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
     updateStep(index, { role_aliases });
   };
 
-  const addCustomAlias = (index: number) => {
-    const alias = (customAlias[index] ?? '').trim();
-    if (!alias) return;
-    const step = steps[index];
-    if (step.role_aliases.includes(alias)) return;
-    updateStep(index, { role_aliases: [...step.role_aliases, alias] });
-    setCustomAlias((prev) => ({ ...prev, [index]: '' }));
-  };
-
   const previewSubmitterLabel = useCallback(() => {
     if (previewAsUserId) {
       const u = users.find((x) => String(x.id) === previewAsUserId);
@@ -204,14 +193,15 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
         </p>
         <ul className="list-inside list-disc space-y-0.5">
           <li>
-            <span className="font-medium">انتخاب از نقش:</span> اگر چند نفر آن نقش را دارند، یک نفر در inbox انتخاب
-            می‌شود (قوانین تخصیص در بک‌اند).
+            <span className="font-medium">نقش‌های مجاز:</span> تأییدکننده باید حداقل یکی از نقش‌های انتخاب‌شده را در
+            بخش کاربران داشته باشد.
           </li>
           <li>
-            <span className="font-medium">مدیر مستقیم:</span> فیلد «مدیر مستقیم» در فرم کاربران.
+            <span className="font-medium">چند نقش:</span> یعنی «یکی از این نقش‌ها» (OR) — مثلاً حسابدار یا مدیر مالی.
           </li>
           <li>
-            <span className="font-medium">مسئول واحد:</span> واحد سازمانی کاربر + مسئول واحد در درخت واحدها.
+            <span className="font-medium">نقش تک‌نفره:</span> مثل مدیرعامل — فقط یک کاربر در سیستم می‌تواند آن نقش را
+            داشته باشد.
           </li>
         </ul>
       </div>
@@ -295,6 +285,41 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
                     />
                   </div>
 
+                  <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <label className="text-xs font-medium">نقش‌های مجاز این مرحله *</label>
+                    <p className="text-[11px] text-muted-foreground">
+                      یک یا چند نقش انتخاب کنید. تأییدکننده باید کاربر فعالی باشد که حداقل یکی از این نقش‌ها را دارد.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {roles.map((role) => {
+                        const selected = step.role_aliases.includes(role.name);
+                        return (
+                          <button
+                            key={role.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => toggleRoleAlias(index, role.name)}
+                            className={cn(
+                              'rounded-md border px-2.5 py-1.5 text-xs transition-colors',
+                              selected
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-background hover:bg-accent',
+                            )}
+                            title={role.name}
+                          >
+                            {roleLabel(role)}
+                            {role.isSingleton ? (
+                              <span className="mr-1 opacity-80"> (تک‌نفره)</span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {step.role_aliases.length === 0 && (
+                      <p className="text-[11px] text-destructive">حداقل یک نقش انتخاب کنید.</p>
+                    )}
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-xs font-medium">نحوه تعیین تأییدکننده</label>
                     <Select
@@ -344,75 +369,6 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
                       </Select>
                     </div>
                   )}
-
-                  <div className="space-y-2 rounded-lg bg-muted/40 p-3">
-                    <label className="text-xs font-medium">نقشهای مجاز این مرحله</label>
-                    <p className="text-[11px] text-muted-foreground">
-                      برای استراتژی «انتخاب از نقش» الزامی است؛ برای سایر استراتژیها نقش workflow تعیین میشود.
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {roles.map((role) => {
-                        const selected = step.role_aliases.includes(role.name);
-                        return (
-                          <button
-                            key={role.id}
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => toggleRoleAlias(index, role.name)}
-                            className={cn(
-                              'rounded-md border px-2 py-1 text-xs transition-colors',
-                              selected
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border bg-background hover:bg-accent',
-                            )}
-                          >
-                            {role.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        value={customAlias[index] ?? ''}
-                        onChange={(e) => setCustomAlias((p) => ({ ...p, [index]: e.target.value }))}
-                        placeholder="alias سفارشی…"
-                        className="h-8 text-xs"
-                        dir="ltr"
-                        disabled={disabled}
-                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomAlias(index))}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={disabled}
-                        onClick={() => addCustomAlias(index)}
-                      >
-                        افزودن
-                      </Button>
-                    </div>
-                    {step.role_aliases.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {step.role_aliases.map((alias) => (
-                          <Badge key={alias} variant="outline" className="text-xs">
-                            {alias}
-                            <button
-                              type="button"
-                              className="mr-1 text-muted-foreground hover:text-destructive"
-                              disabled={disabled}
-                              onClick={() =>
-                                updateStep(index, {
-                                  role_aliases: step.role_aliases.filter((a) => a !== alias),
-                                })
-                              }
-                            >
-                              ×
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <StrategyIcon className="h-3.5 w-3.5" />

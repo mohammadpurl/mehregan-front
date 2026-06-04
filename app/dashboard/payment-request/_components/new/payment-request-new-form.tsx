@@ -12,6 +12,7 @@ import { createPaymentRequestAction } from '@/app/_actions/payment-request-actio
 import { getProfileAction } from '@/app/_actions/profile-actions';
 import type { ProfileDto } from '@/app/_types/profile.types';
 import { useFormAction } from '@/app/hooks/use-form-action';
+import { notifyAttachmentUploadFailed } from '@/app/utils/form-notify';
 import {
   PaymentRequestEmployeeCreateSchema,
   type PaymentRequestEmployeeCreateValues,
@@ -23,6 +24,8 @@ import { employeeFormToCreatePayload, profileToReceiverAccount } from '../../_ut
 import { useSessionStore } from '@/app/_store/auth-store';
 import { getRequesterIdFromClientSession } from '../../_utils/payment-request-session';
 import { WorkflowSameAssigneeAlert } from '@/app/dashboard/workflow/_components/workflow-same-assignee-alert';
+import { WorkflowFirstApproverAlert } from '@/app/dashboard/workflow/_components/workflow-first-approver-alert';
+import { useWorkflowAssigneesPreview } from '@/app/dashboard/workflow/_hooks/use-workflow-assignees-preview';
 import { useWorkflowAssigneesPreviewWarning } from '@/app/dashboard/workflow/_hooks/use-workflow-assignees-preview-warning';
 import { todayGregorianIso } from '@/app/utils/jalali-date';
 
@@ -79,15 +82,23 @@ export function PaymentRequestNewForm({ formId = 'payment-request-new-form', onS
   }, [isPending, profileLoading, orderBusy, kind, onBusyChange]);
 
   const receiverPreview = profile ? profileToReceiverAccount(profile) : null;
-  const sameAssigneeWarning = useWorkflowAssigneesPreviewWarning('payment_request', profile?.id ?? null);
+  const submitterId = profile?.id ?? null;
+  const assigneePreview = useWorkflowAssigneesPreview('payment_request', submitterId);
+  const sameAssigneeWarning = useWorkflowAssigneesPreviewWarning('payment_request', submitterId);
 
   const onSubmitEmployee = async (values: PaymentRequestEmployeeCreateValues) => {
     if (!profile) {
       notifyError('اطلاعات پروفایل بارگذاری نشد');
       return;
     }
-    const requesterId = getRequesterIdFromClientSession(session);
-    const requesterName = session?.fullName ?? session?.userName ?? '';
+    if (assigneePreview.submitterSelfApproval) {
+      notifyError(
+        'تأییدکننده اول خود شماست. مدیر مستقیم در سیستم ثبت نشده — قبل از ثبت درخواست آن را در مدیریت کاربران تنظیم کنید.',
+      );
+      return;
+    }
+    const requesterId = profile.id ? String(profile.id) : getRequesterIdFromClientSession(session);
+    const requesterName = profile.full_name?.trim() || session?.fullName || session?.userName || '';
 
     const payload = employeeFormToCreatePayload(
       values,
@@ -105,7 +116,7 @@ export function PaymentRequestNewForm({ formId = 'payment-request-new-form', onS
       const result = await createPaymentRequestAction(payload.data);
       if (result.success) {
         notifySuccess('درخواست مالی ثبت شد');
-        if (result.attachmentError) notifyError(`پیوست: ${result.attachmentError}`);
+        if (result.attachmentError) notifyAttachmentUploadFailed(result.attachmentError);
         onSuccess?.();
       } else {
         notifyError(result.error || 'ثبت ناموفق بود');
@@ -121,6 +132,11 @@ export function PaymentRequestNewForm({ formId = 'payment-request-new-form', onS
 
   return (
     <div className="space-y-4">
+      <WorkflowFirstApproverAlert
+        loading={assigneePreview.loading || profileLoading}
+        firstStep={assigneePreview.firstStep}
+        submitterSelfApproval={assigneePreview.submitterSelfApproval}
+      />
       <WorkflowSameAssigneeAlert show={sameAssigneeWarning} />
       <div className="space-y-2">
         <Label>نوع درخواست</Label>
@@ -166,6 +182,7 @@ export function PaymentRequestNewForm({ formId = 'payment-request-new-form', onS
                     }
                   : undefined
               }
+              selectedFiles={files}
               onFilesChange={setFiles}
             />
           )}

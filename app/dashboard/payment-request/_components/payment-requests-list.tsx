@@ -10,6 +10,7 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { AdvancedDataGrid } from '@/app/components/Table/Table';
+import type { VisibilityState } from '@tanstack/react-table';
 import { deletePaymentRequestAction } from '@/app/_actions/payment-request-actions';
 import { useDeleteAction } from '@/app/hooks/use-delete-action';
 import { canEmployeeEditOwn } from '../_utils/payment-request-form.utils';
@@ -18,18 +19,44 @@ import {
   usePaymentRequestsList,
   type PaymentRequestsListScope,
 } from '../_hooks/use-payment-requests-list';
+import {
+  paymentRequestScopeLabel,
+  usePaymentRequestListCapabilities,
+} from '../_hooks/use-payment-request-list-capabilities';
 import { getPaymentRequestsTableColumns } from './payment-requests-table-columns';
 import { PaymentRequestFormModal } from './payment-request-form-modal';
 
-export function PaymentRequestsList() {
+type PaymentRequestsListProps = {
+  /** فیلتر ثابت نوع پرداخت (مثلاً procurement) */
+  fixedPaymentType?: string;
+  title?: string;
+  subtitle?: string;
+  showCreateButton?: boolean;
+};
+
+export function PaymentRequestsList({
+  fixedPaymentType,
+  title = 'درخواست‌های مالی',
+  subtitle = 'وام، مساعده، تنخواه و پرداخت',
+  showCreateButton = true,
+}: PaymentRequestsListProps = {}) {
   const searchParams = useSearchParams();
   const initialPaymentId = searchParams.get('paymentId')?.trim() || '';
+  const initialScope = (searchParams.get('scope')?.trim() || 'mine') as PaymentRequestsListScope;
   const { executeDelete, deletePending } = useDeleteAction();
   const [modalOpen, setModalOpen] = useState(Boolean(initialPaymentId));
   const [editing, setEditing] = useState<PaymentRequestResponse | null>(null);
   const [filterId, setFilterId] = useState(initialPaymentId);
-  const [listScope, setListScope] = useState<PaymentRequestsListScope>('mine');
+  const { scopes: availableScopes } = usePaymentRequestListCapabilities();
+  const [listScope, setListScope] = useState<PaymentRequestsListScope>(initialScope);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!availableScopes.includes(listScope)) {
+      setListScope(availableScopes[0] ?? 'mine');
+    }
+  }, [availableScopes, listScope]);
 
   const {
     items,
@@ -48,7 +75,11 @@ export function PaymentRequestsList() {
     appliedColumnFilters,
     setAppliedColumnFilters,
     load,
-  } = usePaymentRequestsList({ initialId: initialPaymentId, scope: listScope });
+  } = usePaymentRequestsList({
+    initialId: initialPaymentId,
+    scope: listScope,
+    paymentType: fixedPaymentType,
+  });
 
   const triggerLoad = useCallback(() => {
     startTransition(() => void load());
@@ -104,6 +135,8 @@ export function PaymentRequestsList() {
     [listScope],
   );
 
+  const showRequester = listScope !== 'mine';
+
   const columns = useMemo(
     () =>
       getPaymentRequestsTableColumns({
@@ -111,8 +144,9 @@ export function PaymentRequestsList() {
         onDelete: handleDelete,
         deletePending,
         canEdit: canEditRow,
+        showRequester,
       }),
-    [canEditRow, deletePending, handleDelete],
+    [canEditRow, deletePending, handleDelete, showRequester],
   );
 
   const applyFilters = () => {
@@ -128,20 +162,27 @@ export function PaymentRequestsList() {
     <DashboardPageShell>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">درخواست‌های مالی</h1>
-          <p className="text-sm text-muted-foreground">وام، مساعده، تنخواه و پرداخت</p>
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {fixedPaymentType === 'procurement' ? (
+            <Button type="button" variant="outline" asChild>
+              <Link href="/dashboard/procurement/requests">درخواست‌های خرید</Link>
+            </Button>
+          ) : null}
           <Button type="button" variant="outline" asChild>
             <Link href="/dashboard/workflow/inbox">
               <Inbox className="ml-2 h-4 w-4" />
               کارتابل تأیید
             </Link>
           </Button>
-          <Button type="button" onClick={openCreate}>
-            <Plus className="ml-2 h-4 w-4" />
-            درخواست جدید
-          </Button>
+          {showCreateButton ? (
+            <Button type="button" onClick={openCreate}>
+              <Plus className="ml-2 h-4 w-4" />
+              درخواست جدید
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -173,10 +214,12 @@ export function PaymentRequestsList() {
               setPagination((p) => ({ ...p, pageIndex: 0 }));
             }}
           >
-            <TabsList>
-              <TabsTrigger value="mine">درخواست‌های من</TabsTrigger>
-              <TabsTrigger value="approver">نیاز به تأیید من</TabsTrigger>
-              <TabsTrigger value="participated">شرکت‌کرده در تأیید</TabsTrigger>
+            <TabsList className="flex h-auto flex-wrap">
+              {availableScopes.map((scope) => (
+                <TabsTrigger key={scope} value={scope}>
+                  {paymentRequestScopeLabel(scope)}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </Tabs>
         </CardHeader>
@@ -184,7 +227,7 @@ export function PaymentRequestsList() {
           <AdvancedDataGrid<PaymentRequestResponse>
             columns={columns}
             data={items}
-            rowCount={total}
+            totalItems={total}
             isLoading={isLoading}
             pagination={pagination}
             onPaginationChange={setPagination}
@@ -194,6 +237,12 @@ export function PaymentRequestsList() {
             onGlobalFilterChange={setGlobalFilter}
             columnFilters={columnFilters}
             onColumnFiltersChange={setColumnFilters}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+            entityName={title}
+            columnSizingStorageKey="payment-requests-table"
+            onRefresh={() => load()}
+            onExport={async () => items}
           />
         </CardContent>
       </Card>

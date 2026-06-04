@@ -112,9 +112,9 @@ export default function InventoryStockPage() {
       <Card>
         <CardHeader>
           <CardTitle>موجودی انبار</CardTitle>
-          <CardDescription>
+          {/* <CardDescription>
             داده از <code className="rounded bg-muted px-1 text-xs">GET /inventory/stock</code> خوانده می‌شود؛ در صورت خطای API از فهرست کالا به‌عنوان پشتیبان استفاده می‌شود.
-          </CardDescription>
+          </CardDescription> */}
         </CardHeader>
         <CardContent>
           <AdvancedDataGrid<StockRow>

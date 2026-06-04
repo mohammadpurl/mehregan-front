@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, type ComponentType } from 'react';
 import { useForm, FormProvider, Controller } from 'react-hook-form';
 import { JalaliDateInput } from '@/app/components/ui/jalali-date-input';
 import { FormattedNumberInput } from '@/app/components/ui/formatted-number-input';
@@ -99,13 +100,24 @@ function resolveEqualRowCellSpan(field: FormField, rowColumns: GridSpan): GridSp
   return Math.min(raw, rowColumns) as GridSpan;
 }
 
+interface FormCustomFieldProps {
+  field: FormField;
+  value: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  disabled?: boolean;
+}
+
 interface FormGeneratorProps {
   schema: FormSchema;
   onSubmit: (data: any) => void;
   isLoading?: boolean;
   defaultValues?: Record<string, any>;
   formId?: string;
+  customFields?: Record<string, ComponentType<FormCustomFieldProps>>;
 }
+
+export type { FormCustomFieldProps };
 
 export function FormGenerator({
   schema,
@@ -113,6 +125,7 @@ export function FormGenerator({
   isLoading = false,
   defaultValues = {},
   formId = 'dynamic-form',
+  customFields,
 }: FormGeneratorProps) {
   const zodShape = schema.fields.reduce((acc, field) => {
     let fieldSchema: z.ZodTypeAny =
@@ -137,6 +150,10 @@ export function FormGenerator({
     resolver: zodResolver(z.object(zodShape)),
     defaultValues,
   });
+
+  useEffect(() => {
+    form.reset(defaultValues);
+  }, [defaultValues, form]);
 
   const fieldsByRow = schema.fields.reduce((acc, field) => {
     const row = field.row ?? 999;
@@ -193,22 +210,59 @@ export function FormGenerator({
                       placeholder={field.placeholder}
                       disabled={field.disabled}
                     />
+                  ) : field.type === 'custom' && customFields?.[field.name] ? (
+                    (() => {
+                      const CustomField = customFields[field.name];
+                      return (
+                        <Controller
+                          name={field.name}
+                          control={form.control}
+                          render={({ field: f }) => (
+                            <CustomField
+                              field={field}
+                              value={
+                                typeof f.value === 'string'
+                                  ? f.value
+                                  : f.value != null
+                                    ? String(f.value)
+                                    : ''
+                              }
+                              onChange={f.onChange}
+                              onBlur={f.onBlur}
+                              disabled={field.disabled || isLoading}
+                            />
+                          )}
+                        />
+                      );
+                    })()
                   ) : field.type === 'select' ? (
-                    <select
-                      {...form.register(field.name)}
-                      className={cn(
-                        "w-full min-h-9 rounded-md border border-input bg-background px-2.5 py-2 text-sm leading-snug text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 dark:bg-zinc-950",
-                        field.inputClassName
+                    <Controller
+                      name={field.name}
+                      control={form.control}
+                      render={({ field: f }) => (
+                        <select
+                          name={f.name}
+                          ref={f.ref}
+                          onBlur={f.onBlur}
+                          onChange={f.onChange}
+                          value={typeof f.value === 'string' ? f.value : f.value != null ? String(f.value) : ''}
+                          className={cn(
+                            'w-full min-h-9 rounded-md border border-input bg-background px-2.5 py-2 text-sm leading-snug text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 dark:bg-zinc-950',
+                            field.inputClassName,
+                          )}
+                          disabled={field.disabled || isLoading || field.loading}
+                        >
+                          <option value="">
+                            {field.loading ? 'در حال بارگذاری…' : 'انتخاب کنید...'}
+                          </option>
+                          {field.options?.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
                       )}
-                      disabled={field.disabled}
-                    >
-                      <option value="">انتخاب کنید...</option>
-                      {field.options?.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   ) : field.type === 'date' ? (
                     <Controller
                       name={field.name}

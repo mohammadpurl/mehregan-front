@@ -3,10 +3,12 @@ export type GridSpan = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 export type FormField = {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'amount' | 'email' | 'password' | 'select' | 'textarea' | 'date' | 'checkbox' | 'switch' | 'file';
+  type: 'text' | 'number' | 'amount' | 'email' | 'password' | 'select' | 'textarea' | 'date' | 'checkbox' | 'switch' | 'file' | 'custom';
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
+  /** برای select — نمایش حالت بارگذاری */
+  loading?: boolean;
   options?: { label: string; value: any }[]; // برای select
 
   /** شماره ردیف (از ۰). فیلدهای یک row با هم در یک ردیف قرار می‌گیرند. */

@@ -68,9 +68,9 @@ export default function InventoryTransactionsPage() {
       <Card>
         <CardHeader>
           <CardTitle>تراکنش‌های انبار</CardTitle>
-          <CardDescription>
+          {/* <CardDescription>
             داده از <code className="rounded bg-muted px-1 text-xs">GET /inventory/transactions</code> بارگذاری می‌شود.
-          </CardDescription>
+          </CardDescription> */}
         </CardHeader>
         <CardContent>
           <AdvancedDataGrid<InventoryTransaction>

@@ -2,6 +2,7 @@
 
 import { DashboardPageShell } from '@/app/components/layout/DashboardPageShell';
 import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { AdvancedDataGrid } from '@/app/components/Table/Table';
@@ -9,11 +10,13 @@ import { ColumnDef, ColumnFiltersState, PaginationState, SortingState, Visibilit
 import { useToast } from '@/hooks/use-toast';
 import { getNotificationsAction, markNotificationReadAction } from '@/app/_actions/notification-actions';
 import { NotificationCenterItem } from '@/app/_types/notification-center.types';
-import { BadgeCheck, BellRing } from 'lucide-react';
+import { BadgeCheck, BellRing, Eye } from 'lucide-react';
 import { useNotificationCenterStore } from '@/app/_store/notification-center.store';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
+import { buildNotificationHref } from '@/app/utils/notification-href';
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [items, setItems] = useState<NotificationCenterItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -85,44 +88,56 @@ export default function NotificationsPage() {
     void loadNotifications();
   };
 
+  const openItem = (item: NotificationCenterItem) => {
+    const href = buildNotificationHref(item);
+    if (!href) {
+      toast({ title: 'مسیر نامشخص', description: 'برای این اعلان صفحهٔ نمایش تعریف نشده است.', variant: 'destructive' });
+      return;
+    }
+    if (!item.is_read && !item.id.startsWith('inbox-')) {
+      void markAsRead(item.id);
+    }
+    router.push(href);
+  };
+
   const columns: ColumnDef<NotificationCenterItem>[] = [
-      {
-        accessorKey: 'title',
-        header: 'عنوان',
-        cell: ({ row }) => (
-          <div className={row.original.is_read ? '' : 'font-semibold'}>{row.original.title || row.original.message}</div>
-        ),
-      },
-      { accessorKey: 'message', header: 'متن' },
-      { accessorKey: 'level', header: 'سطح' },
-      {
-        accessorKey: 'is_read',
-        header: 'خوانده شده',
-        cell: ({ row }) => (row.original.is_read ? 'بله' : 'خیر'),
-      },
-      {
-        accessorKey: 'created_at',
-        header: 'زمان',
-        cell: ({ row }) => formatJalaliDate(row.original.created_at, { withTime: true }),
-      },
-      {
-        id: 'actions',
-        header: 'عملیات',
-        cell: ({ row }) => (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={row.original.is_read}
-              onClick={() => void markAsRead(row.original.id)}
-            >
+    {
+      accessorKey: 'title',
+      header: 'عنوان',
+      cell: ({ row }) => (
+        <div className={row.original.is_read ? '' : 'font-semibold'}>{row.original.title || row.original.message}</div>
+      ),
+    },
+    { accessorKey: 'message', header: 'متن' },
+    { accessorKey: 'level', header: 'سطح' },
+    {
+      accessorKey: 'is_read',
+      header: 'خوانده شده',
+      cell: ({ row }) => (row.original.is_read ? 'بله' : 'خیر'),
+    },
+    {
+      accessorKey: 'created_at',
+      header: 'زمان',
+      cell: ({ row }) => formatJalaliDate(row.original.created_at, { withTime: true }),
+    },
+    {
+      id: 'actions',
+      header: 'عملیات',
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button type="button" size="sm" variant="outline" onClick={() => openItem(row.original)}>
+            <Eye className="ml-1 h-4 w-4" />
+            نمایش
+          </Button>
+          {!row.original.is_read && !row.original.id.startsWith('inbox-') && (
+            <Button type="button" size="sm" variant="ghost" onClick={() => void markAsRead(row.original.id)}>
               <BadgeCheck className="h-4 w-4" />
             </Button>
-          </div>
-        ),
-      },
-    ];
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <DashboardPageShell>

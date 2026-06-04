@@ -14,7 +14,7 @@ const Sidebar = ({ pathname }: SidebarProps) => {
   return (    
     <aside
     className={`
-      fixed top-0 right-0 bottom-0 z-50 flex h-dvh max-h-dvh flex-col gradient-primary text-sidebar-foreground
+      fixed top-0 right-0 bottom-0 z-50 flex h-dvh max-h-dvh flex-col erp-sidebar-shell
       transition-all duration-300 ease-in-out
       lg:sticky lg:top-0 lg:h-dvh lg:max-h-dvh lg:min-h-0
       ${sidebarOpen ? "w-64" : "w-20"}

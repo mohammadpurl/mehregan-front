@@ -33,6 +33,11 @@ export interface CreateUserModel {
   sheba_number?: string;
 }
 
+export interface ManagerLookupItem {
+  id: number;
+  label: string;
+}
+
 export interface UpdateUserModel {
   username?: string;
   email?: string;

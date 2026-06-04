@@ -1,23 +1,27 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { getInboxAction, getInboxUnreadCountAction } from '@/app/_actions/inbox-actions';
-import { getNotificationsAction, getNotificationUnreadCountAction } from '@/app/_actions/notification-actions';
+import { getInboxUnreadCountAction } from '@/app/_actions/inbox-actions';
+import {
+  getNotificationFeedAction,
+  getNotificationUnreadCountAction,
+} from '@/app/_actions/notification-actions';
 import type { NotificationCenterItem } from '@/app/_types/notification-center.types';
+import type { InboxItem } from '@/app/_types/inbox.types';
 import {
   inboxItemToNotificationCenterItem,
   mergeNotificationFeedItems,
 } from '@/app/utils/inbox-to-notification-item';
 
+const FEED_CACHE_MS = 25_000;
+
 type State = {
   items: NotificationCenterItem[];
-  /** اعلان‌های خوانده‌نشده (کل، نه فقط صفحهٔ جاری) */
   notificationUnread: number;
-  /** کارهای جدید/خوانده‌نشده در inbox */
   inboxUnread: number;
   loading: boolean;
   error: string | null;
   loadedAt?: number;
-  fetchLatest: (limit?: number) => Promise<void>;
+  fetchLatest: (limit?: number, force?: boolean) => Promise<void>;
   refreshBadgeCounts: () => Promise<void>;
   setReadLocal: (id: string) => void;
 };
@@ -42,35 +46,37 @@ export const useNotificationCenterStore = create<State>()(
       });
     },
 
-    fetchLatest: async (limit = 6) => {
+    fetchLatest: async (limit = 6, force = false) => {
+      const state = get();
+      if (
+        !force &&
+        state.loadedAt &&
+        Date.now() - state.loadedAt < FEED_CACHE_MS &&
+        state.items.length > 0
+      ) {
+        return;
+      }
+
       set({ loading: true, error: null });
       try {
-        const [notifRes, inboxRes, notifCountRes, inboxCountRes] = await Promise.all([
-          getNotificationsAction({ page: 1, pageSize: limit }),
-          getInboxAction({ page: 1, pageSize: limit, sortBy: 'created_at', sortOrder: 'desc' }),
-          getNotificationUnreadCountAction(),
-          getInboxUnreadCountAction(),
-        ]);
+        const feedRes = await getNotificationFeedAction(limit);
+        if (!feedRes.success) {
+          set({ error: feedRes.error || 'خطا در بارگذاری اعلان‌ها' });
+          return;
+        }
 
-        const notificationItems =
-          notifRes.success && notifRes.data ? notifRes.data.items ?? [] : [];
-        const inboxItems =
-          inboxRes.success && inboxRes.data
-            ? (inboxRes.data.items ?? []).map(inboxItemToNotificationCenterItem)
-            : [];
-
+        const inboxItems = (feedRes.inbox ?? []).map((row) =>
+          inboxItemToNotificationCenterItem(row as InboxItem),
+        );
+        const notificationItems = feedRes.notifications ?? [];
         const merged = mergeNotificationFeedItems(inboxItems, notificationItems, limit);
-
-        const errors: string[] = [];
-        if (!notifRes.success && notifRes.error) errors.push(notifRes.error);
-        if (!inboxRes.success && inboxRes.error) errors.push(inboxRes.error);
 
         set({
           items: merged,
-          notificationUnread: notifCountRes.success ? notifCountRes.count : 0,
-          inboxUnread: inboxCountRes.success ? inboxCountRes.count : 0,
+          notificationUnread: feedRes.notificationUnread,
+          inboxUnread: feedRes.inboxUnread,
           loadedAt: Date.now(),
-          error: errors.length && merged.length === 0 ? errors.join(' — ') : null,
+          error: merged.length === 0 ? null : null,
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'خطا در بارگذاری اعلان‌ها';
@@ -100,7 +106,6 @@ export const useNotificationCenterStore = create<State>()(
   })),
 );
 
-/** تعداد نمایشی روی آیکون زنگ — کارتابل + اعلان */
 export function selectHeaderBadgeCount(state: State): number {
   return state.inboxUnread + state.notificationUnread;
 }

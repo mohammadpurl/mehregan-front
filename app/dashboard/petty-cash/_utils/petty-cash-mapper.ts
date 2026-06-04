@@ -1,3 +1,4 @@
+import { collectAttachmentItems } from '@/app/utils/attachment-display.utils';
 import type {
   PettyCashExpenseLine,
   PettyCashExpenseLineInput,
@@ -37,6 +38,11 @@ export function normalizePettyCashFromApi(row: unknown): PettyCashResponse | nul
     ? rawLines.map(normalizeExpenseLine).filter(Boolean)
     : [];
 
+  const attachmentItems = collectAttachmentItems({
+    documentsUrls: pick<string[]>(r, 'documents_urls', 'documentsUrls'),
+    attachments: pick(r, 'attachments') as PettyCashResponse['attachments'],
+  });
+
   return {
     id,
     amount: Number(pick<number>(r, 'amount') ?? 0),
@@ -50,8 +56,20 @@ export function normalizePettyCashFromApi(row: unknown): PettyCashResponse | nul
     expenseLines: expenseLines as PettyCashExpenseLine[],
     totalExpenses: pick<number>(r, 'total_expenses', 'totalExpenses'),
     remainingAmount: pick<number>(r, 'remaining_amount', 'remainingAmount'),
+    requestedDate: pick<string>(r, 'requested_date', 'requestedDate') ?? null,
     createdAt: pick<string>(r, 'created_at', 'createdAt'),
     updatedAt: pick<string>(r, 'updated_at', 'updatedAt'),
+    documentsUrls: attachmentItems.map((a) => a.fileUrl),
+    attachments: attachmentItems.map((a) => ({
+      id: a.id,
+      fileName: a.fileName,
+      fileUrl: a.fileUrl,
+    })),
+    attachmentCount:
+      typeof pick<number>(r, 'attachment_count', 'attachmentCount') === 'number'
+        ? pick<number>(r, 'attachment_count', 'attachmentCount')
+        : attachmentItems.length,
+    expenseLineCount: pick<number>(r, 'expense_line_count', 'expenseLineCount'),
   };
 }
 

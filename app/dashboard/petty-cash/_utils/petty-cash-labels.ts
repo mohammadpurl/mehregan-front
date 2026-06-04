@@ -16,6 +16,12 @@ export function pettyCashStatusLabel(status: string): string {
 }
 
 export function pettyCashSettlementLabel(status: string | null | undefined): string {
-  if (!status) return '—';
-  return PETTY_CASH_SETTLEMENT_LABEL[status] ?? PETTY_CASH_SETTLEMENT_LABEL[status.toUpperCase()] ?? status;
+  if (!status || status.toUpperCase() === 'NONE') return '—';
+  const key = status.toLowerCase();
+  return (
+    PETTY_CASH_SETTLEMENT_LABEL[key] ??
+    PETTY_CASH_SETTLEMENT_LABEL[status] ??
+    PETTY_CASH_SETTLEMENT_LABEL[status.toUpperCase()] ??
+    status
+  );
 }

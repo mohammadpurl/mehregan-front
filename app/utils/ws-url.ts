@@ -13,6 +13,14 @@ export function getWebSocketBaseUrl(): string {
   return `ws://${withoutApi}`;
 }
 
-export function buildUserWebSocketUrl(userId: number | string): string {
-  return `${getWebSocketBaseUrl()}/ws/${userId}`;
+export function buildUserWebSocketUrl(userId: number | string, accessToken?: string | null): string {
+  const base = `${getWebSocketBaseUrl()}/ws/${userId}`;
+  const token = accessToken?.trim();
+  if (!token) return base;
+  return `${base}?token=${encodeURIComponent(token)}`;
+}
+
+/** اتصال امن با JWT — user_id از سرور استخراج می‌شود. */
+export function buildAuthenticatedWebSocketUrl(accessToken: string): string {
+  return `${getWebSocketBaseUrl()}/ws?token=${encodeURIComponent(accessToken.trim())}`;
 }

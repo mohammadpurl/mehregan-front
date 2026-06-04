@@ -43,16 +43,17 @@ export function UserFormModal({ open, editingUser, onOpenChange, onSaved }: User
         </div>
       }
     >
-      {isEdit && editingUser ? (
-        <UserEditForm
-          userId={editingUser.id}
-          user={editingUser}
-          onSuccess={handleSuccess}
-          onBusyChange={setFormBusy}
-        />
-      ) : (
-        <UserNewForm onSuccess={handleSuccess} onBusyChange={setFormBusy} />
-      )}
+      {open &&
+        (isEdit && editingUser ? (
+          <UserEditForm
+            userId={editingUser.id}
+            user={editingUser}
+            onSuccess={handleSuccess}
+            onBusyChange={setFormBusy}
+          />
+        ) : (
+          <UserNewForm onSuccess={handleSuccess} onBusyChange={setFormBusy} />
+        ))}
     </AdvancedModal>
   );
 }

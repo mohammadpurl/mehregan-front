@@ -1,6 +1,8 @@
 import { paymentTypeLabel } from '@/app/dashboard/payment-request/_utils/payment-type-labels';
 import type { PaymentRequestResponse } from '@/app/dashboard/payment-request/_types/payment-request.types';
 import type { PettyCashResponse } from '@/app/dashboard/petty-cash/_types/petty-cash.types';
+import type { MissionRequestResponse } from '@/app/dashboard/mission-requests/_types/mission-request.types';
+import { missionStatusLabel } from '@/app/dashboard/mission-requests/_utils/mission-request-labels';
 import { pettyCashSettlementLabel, pettyCashStatusLabel } from '@/app/dashboard/petty-cash/_utils/petty-cash-labels';
 import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.types';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
@@ -21,9 +23,14 @@ export type ResolvedWorkflowForm = {
 const REF_LABELS: Record<WorkflowBusinessRefType, string> = {
   workflow_form: 'فرم گردش‌کار',
   payment_request: 'درخواست پرداخت',
+  payment_order: 'دستور پرداخت',
+  financial_document: 'سند مالی',
   petty_cash: 'تنخواه',
+  mission_request: 'درخواست ماموریت',
   warehouse_form: 'فرم انبار',
-  request: 'درخواست خرید/انبار',
+  request: 'درخواست خرید',
+  purchase_request: 'درخواست خرید کالا',
+  procurement_proforma: 'پیش‌فاکتور خرید',
 };
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
@@ -39,8 +46,14 @@ export function buildPaymentRequestResolved(
   refId: number,
   data: PaymentRequestResponse,
 ): ResolvedWorkflowForm {
+  const orderKind = data.paymentOrderKind;
   const summary: Record<string, string> = {
     نوع: paymentTypeLabel(data.type),
+    ...(orderKind
+      ? {
+          'نوع دستور': orderKind === 'collective' ? 'جمعی' : 'انفرادی',
+        }
+      : {}),
     مبلغ: formatAmount(data.amount, { unit: 'ریال' }),
     'درخواست‌کننده': formatRequesterSummary(data.requesterInfo) || data.requesterName || '—',
     دلیل: data.reason || '—',
@@ -56,6 +69,11 @@ export function buildPaymentRequestResolved(
   }
   if (data.counterparty?.name) {
     summary['طرف‌حساب'] = data.counterparty.name;
+  } else if (orderKind === 'collective') {
+    summary['طرف‌حساب'] = '— (پرداخت جمعی)';
+  }
+  if (data.paymentMarkedAt) {
+    summary['زمان ثبت پرداخت'] = formatJalaliDate(data.paymentMarkedAt);
   }
   if (data.receiverAccountDetail) {
     const r = data.receiverAccountDetail;
@@ -104,6 +122,27 @@ export function buildPettyCashResolved(
       شرح: data.reason || '—',
       وضعیت: pettyCashStatusLabel(data.status),
       تسویه: pettyCashSettlementLabel(data.settlementStatus),
+      'درخواست‌کننده': data.requesterName || '—',
+      تاریخ: data.createdAt ? formatJalaliDate(data.createdAt) : '—',
+    },
+    raw: data,
+  };
+}
+
+export function buildMissionRequestResolved(
+  refType: WorkflowBusinessRefType,
+  refId: number,
+  data: MissionRequestResponse,
+): ResolvedWorkflowForm {
+  return {
+    refType,
+    refId,
+    label: REF_LABELS[refType],
+    summary: {
+      'محل ماموریت': data.destination,
+      'وسیله نقلیه': data.vehicle,
+      دلیل: data.reason || '—',
+      وضعیت: missionStatusLabel(data.status),
       'درخواست‌کننده': data.requesterName || '—',
       تاریخ: data.createdAt ? formatJalaliDate(data.createdAt) : '—',
     },

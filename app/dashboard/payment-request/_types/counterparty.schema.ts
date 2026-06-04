@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PaymentMethod } from '../_utils/payment-method';
 
 const trimStr = z.string().trim();
 
@@ -12,23 +13,66 @@ export const CounterpartyFormSchema = z.object({
 
 export type CounterpartyFormValues = z.infer<typeof CounterpartyFormSchema>;
 
+export const PaymentOrderKind = {
+  INDIVIDUAL: 'individual',
+  COLLECTIVE: 'collective',
+} as const;
+
+export type PaymentOrderKindType = (typeof PaymentOrderKind)[keyof typeof PaymentOrderKind];
+
 export function paymentOrderCreateSchema(requirePayerCompanyAccount: boolean) {
-  return z.object({
-    counterpartyId: z.number({ invalid_type_error: 'طرف حساب را انتخاب کنید' }).int().min(1, 'طرف حساب را انتخاب کنید'),
-    counterpartyBankAccountId: z
-      .number({ invalid_type_error: 'حساب طرف‌حساب را انتخاب کنید' })
-      .int()
-      .min(1, 'حساب طرف‌حساب را انتخاب کنید'),
+  return z
+    .object({
+      paymentOrderKind: z.enum([PaymentOrderKind.INDIVIDUAL, PaymentOrderKind.COLLECTIVE], {
+        message: 'نوع دستور پرداخت را انتخاب کنید',
+      }),
+      counterpartyId: z.number().int().min(0).optional(),
+      counterpartyBankAccountId: z.number().int().min(0).optional(),
     payerCompanyAccountId: requirePayerCompanyAccount
       ? z
           .number({ invalid_type_error: 'حساب مبدأ شرکت را انتخاب کنید' })
           .int()
           .min(1, 'حساب مبدأ شرکت را انتخاب کنید')
       : z.number().int().min(0).optional(),
-    paymentDate: trimStr.min(1, 'تاریخ را وارد کنید'),
+    paymentDate: trimStr,
     reason: trimStr.min(5, 'شرح درخواست حداقل ۵ کاراکتر').max(2000),
-    amount: z.number({ invalid_type_error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ باید بیشتر از ۰ باشد'),
-  });
+    amount: z.number({ invalid_type_error: 'مبلغ نامعتبر است' }).min(0),
+    paymentMethod: z.enum([PaymentMethod.CHECK, PaymentMethod.TRANSFER], {
+      message: 'روش پرداخت را انتخاب کنید (چک یا حواله)',
+    }),
+  })
+    .superRefine((data, ctx) => {
+      if (data.paymentOrderKind === PaymentOrderKind.INDIVIDUAL) {
+        if (!data.paymentDate?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'تاریخ را وارد کنید',
+            path: ['paymentDate'],
+          });
+        }
+        if (!data.amount || data.amount < 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'مبلغ باید بیشتر از ۰ باشد',
+            path: ['amount'],
+          });
+        }
+        if (!data.counterpartyId || data.counterpartyId < 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'طرف حساب را انتخاب کنید',
+            path: ['counterpartyId'],
+          });
+        }
+        if (!data.counterpartyBankAccountId || data.counterpartyBankAccountId < 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'حساب طرف‌حساب را انتخاب کنید',
+            path: ['counterpartyBankAccountId'],
+          });
+        }
+      }
+    });
 }
 
 /** @deprecated از paymentOrderCreateSchema(requirePayer) استفاده کنید */

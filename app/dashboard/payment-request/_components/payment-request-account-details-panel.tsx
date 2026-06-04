@@ -2,22 +2,31 @@
 
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import type { PaymentRequestResponse } from '../_types/payment-request.types';
+import { PaymentRequestType } from '../_types/payment-request.types';
 import { BankAccountDetailAlert } from './bank-account/bank-account-detail-alert';
 import { formatPaymentAccountLines, isPlaceholderPaymentAccount } from '../_utils/payment-request-display.utils';
 import { isPaymentRequestPayerUnset } from '../_utils/payment-request-mapper';
+import { paymentMethodLabel } from '../_utils/payment-method';
 
 type Props = {
   record: PaymentRequestResponse;
-  /** وقتی dropdown انتخاب حساب در فرم تأیید نمایش داده می‌شود */
   hidePayerSection?: boolean;
 };
 
 export function PaymentRequestAccountDetailsPanel({ record, hidePayerSection = false }: Props) {
   const receiverLines = formatPaymentAccountLines(record.receiver, record.receiverAccountDetail);
   const payerUnset = isPaymentRequestPayerUnset(record);
+  const showPaymentMethod = record.type === PaymentRequestType.PAYMENT_ORDER;
 
   return (
     <div className="space-y-3">
+      {showPaymentMethod ? (
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <p className="mb-1 text-sm font-medium">روش پرداخت</p>
+          <p className="text-sm text-muted-foreground">{paymentMethodLabel(record.paymentMethod)}</p>
+        </div>
+      ) : null}
+
       <div className="rounded-lg border bg-muted/20 p-3">
         <p className="mb-2 text-sm font-medium">حساب واریز (مقصد)</p>
         {record.receiverAccountDetail ? (
@@ -33,7 +42,7 @@ export function PaymentRequestAccountDetailsPanel({ record, hidePayerSection = f
         )}
       </div>
 
-      {!hidePayerSection && (
+      {!hidePayerSection ? (
         <div className="rounded-lg border bg-muted/20 p-3">
           <p className="mb-2 text-sm font-medium">حساب مبدأ پرداخت (شرکت)</p>
           {payerUnset ? (
@@ -53,7 +62,7 @@ export function PaymentRequestAccountDetailsPanel({ record, hidePayerSection = f
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

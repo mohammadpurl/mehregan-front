@@ -1,8 +1,5 @@
-'use client';
-
-import ProductRequestListPage from '@/app/dashboard/product-request/page';
+import { ProcurementRequestsList } from './_components/procurement-requests-list';
 
 export default function ProcurementRequestsPage() {
-  return <ProductRequestListPage />;
+  return <ProcurementRequestsList />;
 }
-

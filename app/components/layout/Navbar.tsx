@@ -102,10 +102,7 @@ const NavItem = ({
           aria-label={sidebarOpen ? `${item.label}، ${isOpen ? 'بستن زیرمنو' : 'باز کردن زیرمنو'}` : item.label}
           className={`
             flex min-h-11 w-full touch-manipulation items-center gap-3 rounded-lg px-3 py-3 text-right transition-all duration-200
-            ${isChildActive 
-              ? "bg-sidebar-accent text-sidebar-primary font-semibold" 
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-            }
+            ${isChildActive ? 'erp-nav-item-active font-semibold' : 'erp-nav-item-idle'}
           `}
         >
           <item.icon className="w-5 h-5 shrink-0" />
@@ -132,10 +129,7 @@ const NavItem = ({
                   href={child.href!}
                   className={`
                     flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all
-                    ${childActive 
-                      ? "bg-sidebar-accent/70 text-sidebar-primary font-medium" 
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/30"
-                    }
+                    ${childActive ? 'erp-nav-child-active font-medium' : 'erp-nav-child-idle'}
                   `}
                 >
                   <child.icon className="w-4 h-4" />
@@ -155,9 +149,9 @@ const NavItem = ({
             <div
               ref={flyoutRef}
               style={{ top: flyoutPosition.top, left: flyoutPosition.left }}
-              className="fixed z-50 w-64 rounded-xl border border-zinc-200 bg-white p-2 text-zinc-900 shadow-lg dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              className="erp-sidebar-shell fixed z-50 w-64 rounded-xl border border-[oklch(0.3783_0.0647_256.94)] p-2 shadow-xl"
             >
-              <div className="px-2 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400">{item.label}</div>
+              <div className="px-2 py-1.5 text-xs font-medium opacity-60">{item.label}</div>
               <div className="space-y-1">
                 {item.children?.map((child) => {
                   const childActive = pathname === child.href;
@@ -168,11 +162,11 @@ const NavItem = ({
                       onClick={() => setIsOpen(false)}
                       className={
                         childActive
-                          ? 'flex min-h-11 touch-manipulation items-center gap-3 rounded-lg bg-sky-100 px-3 py-2.5 text-sm font-medium text-sky-900 dark:bg-sky-900/40 dark:text-sky-100'
-                          : 'flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-zinc-800 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800/80'
+                          ? 'erp-nav-item-active flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium'
+                          : 'erp-nav-item-idle flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors'
                       }
                     >
-                      <child.icon className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-300" />
+                      <child.icon className="h-4 w-4 shrink-0 opacity-80" />
                       <span className="min-w-0 whitespace-normal leading-5">{child.label}</span>
                     </Link>
                   );
@@ -191,10 +185,7 @@ const NavItem = ({
       href={item.href!}
       className={`
         flex min-h-11 touch-manipulation items-center gap-3 rounded-lg px-3 py-3 transition-all duration-200
-        ${isActive
-          ? "bg-sidebar-accent text-sidebar-primary font-semibold"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-        }
+        ${isActive ? 'erp-nav-item-active font-semibold' : 'erp-nav-item-idle'}
       `}
     >
       <item.icon className="w-5 h-5 shrink-0" />

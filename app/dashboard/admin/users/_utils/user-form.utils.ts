@@ -94,6 +94,21 @@ export function updateFormToModel(data: AdminUserUpdateFormValues): UpdateUserMo
   };
 }
 
+type SelectOption = { label: string; value: string };
+
+/** اگر مقدار فعلی در لیست گزینه‌ها نیست، یک گزینه اضافه می‌کند (برای نمایش در ویرایش) */
+export function ensureSelectOption(
+  options: SelectOption[],
+  value: string | undefined,
+  fallbackLabel: string | undefined,
+): SelectOption[] {
+  const v = value?.trim();
+  if (!v) return options;
+  if (options.some((o) => o.value === v)) return options;
+  const label = fallbackLabel?.trim() || `شناسه ${v}`;
+  return [...options, { label, value: v }];
+}
+
 export function userToFormDefaults(user?: {
   username?: string;
   email?: string;

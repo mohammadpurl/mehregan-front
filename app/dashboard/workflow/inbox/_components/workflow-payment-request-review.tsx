@@ -4,6 +4,7 @@ import { forwardRef, useImperativeHandle, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import type { PaymentRequestResponse } from '@/app/dashboard/payment-request/_types/payment-request.types';
 import { PaymentRequestType } from '@/app/dashboard/payment-request/_types/payment-request.types';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
@@ -12,16 +13,22 @@ import { PaymentRequestExtendedFields } from '@/app/dashboard/payment-request/_c
 import { CompanyBankAccountSelect } from '@/app/dashboard/payment-request/_components/bank-account/company-bank-account-select';
 import { PaymentRequestAccountDetailsPanel } from '@/app/dashboard/payment-request/_components/payment-request-account-details-panel';
 import { PaymentRequestRequesterInfoCard } from '@/app/dashboard/payment-request/_components/payment-request-requester-info-card';
+import { WorkflowFinancialApproverFields } from '@/app/dashboard/workflow/inbox/_components/workflow-financial-approver-fields';
 import { formatPaymentAccountLines } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
+import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
 import {
   paymentResponseToAdvanceApproverValues,
   paymentResponseToEmployeeFormValues,
   paymentResponseToLoanApproverValues,
+  paymentResponseToPaymentOrderApproverValues,
 } from '@/app/dashboard/payment-request/_utils/payment-request-mapper';
+import { PaymentMethod } from '@/app/dashboard/payment-request/_utils/payment-method';
 import type { WorkflowApprovePayload } from '@/app/_actions/workflow-runtime-actions';
 import {
+  FinancialApproverAmountDateSchema,
   PaymentRequestAdvanceApproverSchema,
   PaymentRequestLoanApproverSchema,
+  PaymentOrderApproverSchema,
   PayerCompanyAccountIdSchema,
 } from '@/app/dashboard/payment-request/_types/payment-request.schema';
 
@@ -32,6 +39,8 @@ export type WorkflowPaymentRequestReviewHandle = {
 type Props = {
   record: PaymentRequestResponse;
   needsPayer?: boolean;
+  /** مرحله مالی — تکمیل اقساط/تسویه */
+  needsFinancialTerms?: boolean;
   /** نمایش و ارسال حساب مبدأ شرکت (وام/مساعده در مرحله مالی، دستور پرداخت، …) */
   showCompanyPayerSelect?: boolean;
 };
@@ -41,7 +50,10 @@ const PayerCompanySchema = z.object({
 });
 
 export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestReviewHandle, Props>(
-  function WorkflowPaymentRequestReview({ record, needsPayer = false, showCompanyPayerSelect = false }, ref) {
+  function WorkflowPaymentRequestReview(
+    { record, needsPayer = false, needsFinancialTerms = false, showCompanyPayerSelect = false },
+    ref,
+  ) {
     const employeeDefaults = useMemo(() => paymentResponseToEmployeeFormValues(record), [record]);
     const employeeForm = useForm({ defaultValues: employeeDefaults });
 
@@ -55,8 +67,20 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
       if (isAdvance) {
         return { type: record.type, ...paymentResponseToAdvanceApproverValues(record), payerCompanyAccountId: payerId };
       }
-      return { type: record.type, payerCompanyAccountId: payerId };
-    }, [record, isLoan, isAdvance]);
+      if (isPaymentOrder) {
+        return {
+          type: record.type,
+          ...paymentResponseToPaymentOrderApproverValues(record),
+          payerCompanyAccountId: payerId,
+        };
+      }
+      return {
+        type: record.type,
+        amount: record.amount,
+        paymentDate: record.paymentDate ?? '',
+        payerCompanyAccountId: payerId,
+      };
+    }, [record, isLoan, isAdvance, isPaymentOrder]);
 
     const approverForm = useForm({ defaultValues: approverDefaults });
 
@@ -65,21 +89,45 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
         const values = approverForm.getValues();
         const payload: WorkflowApprovePayload = {};
 
-        if (isLoan) {
+        const baseParsed = FinancialApproverAmountDateSchema.safeParse({
+          amount: values.amount,
+          paymentDate: values.paymentDate,
+        });
+        if (!baseParsed.success) {
+          return {
+            ok: false as const,
+            error: baseParsed.error.issues[0]?.message ?? 'مبلغ و تاریخ پرداخت را تکمیل کنید',
+          };
+        }
+        payload.amount = baseParsed.data.amount;
+        payload.payment_date = baseParsed.data.paymentDate;
+
+        if (needsFinancialTerms && isLoan) {
           const parsed = PaymentRequestLoanApproverSchema.safeParse(values);
           if (!parsed.success) {
             return { ok: false as const, error: parsed.error.issues[0]?.message ?? 'شرایط وام را تکمیل کنید' };
           }
-          payload.amount = parsed.data.amount;
           payload.installment_count = parsed.data.loanInstallmentCount;
           payload.first_installment_date = parsed.data.loanFirstInstallmentDate;
-        } else if (isAdvance) {
+        } else if (needsFinancialTerms && isAdvance) {
           const parsed = PaymentRequestAdvanceApproverSchema.safeParse(values);
           if (!parsed.success) {
-            return { ok: false as const, error: parsed.error.issues[0]?.message ?? 'شرایط مساعده را تکمیل کنید' };
+            return { ok: false as const, error: parsed.error.issues[0]?.message ?? 'تاریخ تسویه را وارد کنید' };
           }
-          payload.amount = parsed.data.amount;
           payload.settlement_date = parsed.data.advanceExpectedRepaymentDate;
+        }
+
+        if (isPaymentOrder) {
+          const methodParsed = PaymentOrderApproverSchema.safeParse({
+            paymentMethod: values.paymentMethod,
+          });
+          if (!methodParsed.success) {
+            return {
+              ok: false as const,
+              error: methodParsed.error.issues[0]?.message ?? 'روش پرداخت را انتخاب کنید',
+            };
+          }
+          payload.payment_method = methodParsed.data.paymentMethod;
         }
 
         const requirePayer = showCompanyPayerSelect || needsPayer || isPaymentOrder;
@@ -100,13 +148,8 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
       },
     }));
 
-    const attachmentLinks =
-      record.documentsUrls?.length > 0
-        ? record.documentsUrls
-        : (record.attachments?.map((a) => a.fileUrl).filter(Boolean) as string[]) ?? [];
-
     const showPayerSelect = showCompanyPayerSelect || needsPayer || isPaymentOrder;
-    const showApproverBlock = isLoan || isAdvance || showPayerSelect;
+    const showLoanAdvanceTerms = needsFinancialTerms && (isLoan || isAdvance);
     const cp = record.counterparty;
 
     return (
@@ -124,10 +167,14 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
         )}
 
         <PaymentRequestRequesterInfoCard record={record} />
+        <RequestAttachmentsPanel
+          documentsUrls={record.documentsUrls}
+          attachments={record.attachments}
+        />
         <PaymentRequestAccountDetailsPanel record={record} hidePayerSection={showPayerSelect} />
 
         <div className="rounded-lg border bg-muted/20 p-4">
-          <p className="mb-3 text-sm font-medium">جزئیات درخواست</p>
+          <p className="mb-3 text-sm font-medium">جزئیات درخواست (ثبت‌شده)</p>
           <Form {...employeeForm}>
             <PaymentRequestEmployeeFields
               control={employeeForm.control}
@@ -138,48 +185,67 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
                 title: 'حساب واریز',
                 lines: formatPaymentAccountLines(record.receiver, record.receiverAccountDetail),
               }}
-              attachmentLinks={attachmentLinks}
+              attachmentLinks={[]}
             />
           </Form>
         </div>
 
-        {showApproverBlock && (
-          <Form {...approverForm}>
-            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-4">
-              <p className="text-sm font-medium">تأیید توسط مسئول</p>
-              {(isLoan || isAdvance) && (
-                <p className="text-xs text-muted-foreground">
-                  مبلغ نهایی و شرایط را مشخص کنید؛ حساب مبدأ شرکت را انتخاب کنید.
-                </p>
-              )}
-              {(isLoan || isAdvance) && (
-                <PaymentRequestExtendedFields control={approverForm.control} mode="approver" />
-              )}
+        <Form {...approverForm}>
+          <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm font-medium">تأیید توسط مسئول</p>
+            <p className="text-xs text-muted-foreground">
+              مبلغ و تاریخ پرداخت را در صورت نیاز اصلاح کنید؛ این مقادیر در تأیید شما ثبت می‌شوند.
+            </p>
+            <WorkflowFinancialApproverFields control={approverForm.control} />
 
-              {showPayerSelect && (
-                <FormField
-                  control={approverForm.control}
-                  name="payerCompanyAccountId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>حساب مبدأ پرداخت (شرکت) *</FormLabel>
+            {showLoanAdvanceTerms && (
+              <PaymentRequestExtendedFields control={approverForm.control} mode="approver" />
+            )}
+
+            {isPaymentOrder && (
+              <FormField
+                control={approverForm.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>روش پرداخت *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
-                        <CompanyBankAccountSelect
-                          value={field.value ?? 0}
-                          onChange={field.onChange}
-                        />
+                        <SelectTrigger>
+                          <SelectValue placeholder="انتخاب روش پرداخت" />
+                        </SelectTrigger>
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">
-                        حسابی که مبلغ وام از آن پرداخت می‌شود را انتخاب کنید.
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-            </div>
-          </Form>
-        )}
+                      <SelectContent>
+                        <SelectItem value={PaymentMethod.CHECK}>چک</SelectItem>
+                        <SelectItem value={PaymentMethod.TRANSFER}>حواله</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {showPayerSelect && (
+              <FormField
+                control={approverForm.control}
+                name="payerCompanyAccountId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>حساب مبدأ پرداخت (شرکت) *</FormLabel>
+                    <FormControl>
+                      <CompanyBankAccountSelect
+                        value={field.value ?? 0}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
+        </Form>
       </div>
     );
   },

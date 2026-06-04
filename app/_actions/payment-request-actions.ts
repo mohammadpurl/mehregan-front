@@ -1,6 +1,7 @@
 'use server';
 
 import { extractActionErrorMessage } from '@/app/_actions/extract-action-error';
+import { getProfileAction } from '@/app/_actions/profile-actions';
 import { createDataWithAuth, readDataWithAuth, patchDataWithAuth, deleteDataWithAuth, uploadDataWithAuth } from '@/app/core/http-service/http-service';
 import { getRequesterFromSession } from '@/app/utils/requester-from-session';
 import type { PaymentRequestFormData, PaymentRequestResponse } from '@/app/dashboard/payment-request/_types/payment-request.types';
@@ -17,6 +18,7 @@ import {
 } from '@/app/dashboard/payment-request/_utils/payment-request-mapper';
 import type { PaymentOrderCreateValues } from '@/app/dashboard/payment-request/_types/counterparty.schema';
 import { enrichPaymentRequestForApprover } from '@/app/dashboard/payment-request/_utils/enrich-payment-request-for-approver';
+import { validateAttachmentFiles } from '@/app/utils/validate-attachment';
 
 const log = (level: 'info' | 'error' | 'warn', message: string, data?: unknown) => {
   const timestamp = new Date().toISOString();
@@ -24,19 +26,8 @@ const log = (level: 'info' | 'error' | 'warn', message: string, data?: unknown) 
   console.log(`[PAYMENT-REQUEST-ACTION] [${timestamp}] [${level.toUpperCase()}] ${message}`, logData || '');
 };
 
-/** قرارداد فرضی بک‌اند: POST multipart با کلید تکراری `files`. در صورت تفاوت مسیر/نام فیلد، همین‌جا اصلاح شود. */
-const paymentRequestAttachmentsUrl = (id: string) => `/payment-requests/${id}/attachments/`;
-
-const ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024;
-
-function validateAttachmentFiles(files: File[]): string | null {
-  for (const f of files) {
-    if (f.size > ATTACHMENT_MAX_BYTES) {
-      return `فایل «${f.name}» بزرگ‌تر از حد مجاز (${ATTACHMENT_MAX_BYTES / 1024 / 1024} مگابایت) است.`;
-    }
-  }
-  return null;
-}
+/** بک‌اند: POST multipart با فیلد `file` — یک فایل در هر درخواست */
+const paymentRequestAttachmentsUrl = (id: string) => `/payment-requests/${id}/attachments`;
 
 async function tryUploadPaymentAttachments(paymentRequestId: string, files: File[] | undefined): Promise<string | undefined> {
   if (!files?.length) return undefined;
@@ -50,11 +41,12 @@ async function tryUploadPaymentAttachments(paymentRequestId: string, files: File
     }
     return undefined;
   } catch (e: unknown) {
-    const ex = e as { message?: string; response?: { status?: number; data?: { message?: string } } };
-    const msg =
-      ex?.response?.data?.message ||
-      ex?.message ||
-      (ex?.response?.status === 404 ? 'مسیر آپلود پیوست روی سرور تعریف نشده (404).' : 'آپلود پیوست ناموفق بود.');
+    const ex = e as { response?: { status?: number } };
+    const fallback =
+      ex?.response?.status === 404
+        ? 'مسیر آپلود پیوست روی سرور یافت نشد.'
+        : 'آپلود پیوست ناموفق بود. فرمت یا حجم فایل را بررسی کنید.';
+    const msg = extractActionErrorMessage(e, fallback);
     log('warn', 'tryUploadPaymentAttachments failed', { paymentRequestId, msg });
     return msg;
   }
@@ -67,6 +59,16 @@ export async function uploadPaymentRequestAttachmentsAction(paymentRequestId: st
   const msg = await tryUploadPaymentAttachments(paymentRequestId, files);
   if (msg) return { success: false as const, error: msg };
   return { success: true as const };
+}
+
+async function resolveNumericRequesterId(requesterId: string): Promise<number | undefined> {
+  const n = Number(requesterId);
+  if (Number.isFinite(n) && n > 0) return n;
+  const profile = await getProfileAction();
+  if (profile.success && profile.data?.id && profile.data.id > 0) {
+    return profile.data.id;
+  }
+  return undefined;
 }
 
 export async function createPaymentRequestAction(data: PaymentRequestFormData) {
@@ -93,11 +95,15 @@ export async function createPaymentRequestAction(data: PaymentRequestFormData) {
     let response: unknown;
 
     if (core.type === PaymentRequestType.LOAN || core.type === PaymentRequestType.ADVANCE) {
-      const laBody: LoanAdvanceRequestBody = employeeValuesToLoanAdvanceBody({
-        amount: core.amount,
-        paymentDate: core.paymentDate,
-        reason: core.reason,
-      });
+      const requesterIdNum = await resolveNumericRequesterId(core.requesterId);
+      const laBody: LoanAdvanceRequestBody = employeeValuesToLoanAdvanceBody(
+        {
+          amount: core.amount,
+          paymentDate: core.paymentDate,
+          reason: core.reason,
+        },
+        requesterIdNum,
+      );
       const path = core.type === PaymentRequestType.LOAN ? '/payment-requests/loan' : '/payment-requests/advance';
       response = await createDataWithAuth<LoanAdvanceRequestBody, unknown>(path, laBody);
     } else if (core.type === PaymentRequestType.PAYMENT_ORDER) {
@@ -128,21 +134,27 @@ export async function createPaymentRequestAction(data: PaymentRequestFormData) {
     return { success: true as const, data: normalized, attachmentError: attachmentError ?? undefined };
   } catch (err: unknown) {
     const duration = Date.now() - startTime;
-    const error = err as { message?: string; response?: { data?: { message?: string } } };
+    const message = extractActionErrorMessage(err, 'خطا در ایجاد درخواست پرداخت');
     log('error', 'createPaymentRequestAction failed', {
       duration: `${duration}ms`,
-      error: error?.message || error?.response?.data?.message,
+      error: message,
     });
 
     return {
       success: false as const,
-      error: error?.response?.data?.message || error?.message || 'خطا در ایجاد درخواست پرداخت',
+      error: message,
     };
   }
 }
 
 export async function createPaymentOrderAction(values: PaymentOrderCreateValues, files?: File[]) {
   try {
+    if (values.paymentOrderKind === 'collective' && !files?.length) {
+      return {
+        success: false as const,
+        error: 'برای دستور پرداخت جمعی بارگذاری حداقل یک پیوست الزامی است',
+      };
+    }
     const body: PaymentOrderRequestBody = paymentOrderValuesToBody(values);
     const response = await createDataWithAuth<PaymentOrderRequestBody, unknown>(
       '/payment-requests/payment-order',
@@ -155,10 +167,9 @@ export async function createPaymentOrderAction(values: PaymentOrderCreateValues,
     const attachmentError = await tryUploadPaymentAttachments(normalized.id, files);
     return { success: true as const, data: normalized, attachmentError: attachmentError ?? undefined };
   } catch (err: unknown) {
-    const error = err as { message?: string; response?: { data?: { message?: string } } };
     return {
       success: false as const,
-      error: error?.response?.data?.message || error?.message || 'خطا در ثبت دستور پرداخت',
+      error: extractActionErrorMessage(err, 'خطا در ثبت دستور پرداخت'),
     };
   }
 }
@@ -203,13 +214,15 @@ export async function getPaymentRequestAction(id: string) {
     return { success: true as const, data: enriched };
   } catch (err: unknown) {
     const duration = Date.now() - startTime;
-    const error = err as { message?: string };
     log('error', 'getPaymentRequestAction failed', {
       duration: `${duration}ms`,
-      error: error?.message,
+      error: extractActionErrorMessage(err, 'خطا در دریافت درخواست پرداخت'),
     });
 
-    return { success: false, error: error?.message || 'خطا در دریافت درخواست پرداخت' };
+    return {
+      success: false,
+      error: extractActionErrorMessage(err, 'خطا در دریافت درخواست پرداخت'),
+    };
   }
 }
 export async function getPaymentRequestsAction(page: number = 1, pageSize: number = 10) {
@@ -232,13 +245,15 @@ export async function getPaymentRequestsAction(page: number = 1, pageSize: numbe
     return { success: true as const, data: { ...response, items } };
   } catch (err: unknown) {
     const duration = Date.now() - startTime;
-    const error = err as { message?: string };
     log('error', 'getPaymentRequestsAction failed', {
       duration: `${duration}ms`,
-      error: error?.message,
+      error: extractActionErrorMessage(err, 'خطا در دریافت لیست درخواست‌های پرداخت'),
     });
 
-    return { success: false, error: error?.message || 'خطا در دریافت لیست درخواست‌های پرداخت' };
+    return {
+      success: false,
+      error: extractActionErrorMessage(err, 'خطا در دریافت لیست درخواست‌های پرداخت'),
+    };
   }
 }
 export async function getPaymentRequestsQueryAction(params?: {
@@ -248,8 +263,8 @@ export async function getPaymentRequestsQueryAction(params?: {
   id?: string;
   status?: string;
   type?: string;
-  /** mine (default) | approver | participated */
-  scope?: 'approver' | 'participated';
+  /** mine (default) | team | all | approver | participated */
+  scope?: 'mine' | 'team' | 'all' | 'approver' | 'participated';
 }) {
   const page = params?.page ?? 1;
   const pageSize = params?.pageSize ?? 10;
@@ -259,8 +274,11 @@ export async function getPaymentRequestsQueryAction(params?: {
   if (params?.search) query.set('search', params.search);
   if (params?.id) query.set('id', params.id);
   if (params?.status) query.set('status', params.status);
-  if (params?.type) query.set('type', params.type);
-  if (params?.scope) query.set('scope', params.scope);
+  if (params?.type) {
+    query.set('filterBy', 'payment_type');
+    query.set('filterValue', params.type);
+  }
+  if (params?.scope && params.scope !== 'mine') query.set('scope', params.scope);
 
   const url = `/payment-requests?${query.toString()}`;
   const startTime = Date.now();
@@ -276,13 +294,35 @@ export async function getPaymentRequestsQueryAction(params?: {
     return { success: true as const, data: { ...response, items } };
   } catch (err: unknown) {
     const duration = Date.now() - startTime;
-    const error = err as { message?: string };
     log('error', 'getPaymentRequestsQueryAction failed', {
       duration: `${duration}ms`,
-      error: error?.message,
+      error: extractActionErrorMessage(err, 'خطا در دریافت لیست درخواست‌های پرداخت'),
       url,
     });
-    return { success: false, error: error?.message || 'خطا در دریافت لیست درخواست‌های پرداخت' };
+    return {
+      success: false,
+      error: extractActionErrorMessage(err, 'خطا در دریافت لیست درخواست‌های پرداخت'),
+    };
+  }
+}
+
+export type PaymentRequestListScope =
+  | 'mine'
+  | 'team'
+  | 'all'
+  | 'approver'
+  | 'participated';
+
+export async function getPaymentRequestListCapabilitiesAction() {
+  try {
+    const data = await readDataWithAuth<{ scopes?: string[] }>('/payment-requests/list-capabilities');
+    const scopes = Array.isArray(data?.scopes) ? data.scopes : ['mine', 'approver', 'participated'];
+    return { success: true as const, data: { scopes: scopes as PaymentRequestListScope[] } };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'خطا در دریافت دسترسی‌های لیست'),
+    };
   }
 }
 
@@ -330,15 +370,15 @@ export async function updatePaymentRequestAction(id: string, data: Partial<Payme
     return { success: true as const, data: normalized, attachmentError: attachmentError ?? undefined };
   } catch (err: unknown) {
     const duration = Date.now() - startTime;
-    const error = err as { message?: string; response?: { data?: { message?: string } } };
+    const message = extractActionErrorMessage(err, 'خطا در به‌روزرسانی درخواست پرداخت');
     log('error', 'updatePaymentRequestAction failed', {
       duration: `${duration}ms`,
-      error: error?.message || error?.response?.data?.message,
+      error: message,
     });
 
     return {
       success: false,
-      error: error?.response?.data?.message || error?.message || 'خطا در به‌روزرسانی درخواست پرداخت',
+      error: message,
     };
   }
 }
@@ -358,12 +398,14 @@ export async function deletePaymentRequestAction(id: string) {
     return { success: true };
   } catch (err: unknown) {
     const duration = Date.now() - startTime;
-    const error = err as { message?: string };
     log('error', 'deletePaymentRequestAction failed', {
       duration: `${duration}ms`,
-      error: error?.message,
+      error: extractActionErrorMessage(err, 'خطا در حذف درخواست پرداخت'),
     });
-    
-    return { success: false, error: error?.message || 'خطا در حذف درخواست پرداخت' };
+
+    return {
+      success: false,
+      error: extractActionErrorMessage(err, 'خطا در حذف درخواست پرداخت'),
+    };
   }
 }

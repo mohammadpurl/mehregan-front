@@ -1,12 +1,16 @@
 'use server';
 
 import {
+  attachmentProxyDownloadPath,
+  extractAttachmentId,
+} from '@/app/utils/attachment-display.utils';
+import {
   createDataWithAuth,
-  deleteDataWithAuth,
   readDataWithAuth,
   updateDataWithAuth,
+  uploadDataWithAuth,
 } from '@/app/core/http-service/http-service';
-import { CreateGrnModel, Grn, UpdateGrnModel } from '@/app/_types/grn.types';
+import type { CreateGrnModel, Grn, UpdateGrnModel } from '@/app/_types/grn.types';
 
 type PaginatedResponse<T> = {
   items: T[];
@@ -15,85 +19,180 @@ type PaginatedResponse<T> = {
   pageSize?: number;
 };
 
-const log = (level: 'info' | 'error', message: string, data?: unknown) => {
-  const timestamp = new Date().toISOString();
-  const logData = data ? JSON.stringify(data, null, 2) : '';
-  console.log(`[GRN-ACTION] [${timestamp}] [${level.toUpperCase()}] ${message}`, logData || '');
-};
+function mapGrnDownloadUrl(raw: Record<string, unknown>): string | undefined {
+  const backendUrl = String(raw.download_url ?? raw.downloadUrl ?? '').trim();
+  const attachmentId = extractAttachmentId(backendUrl);
+  if (attachmentId) return attachmentProxyDownloadPath(attachmentId);
+  return backendUrl || undefined;
+}
+
+function mapGrn(raw: Record<string, unknown>): Grn {
+  const lines = Array.isArray(raw.lines)
+    ? (raw.lines as Record<string, unknown>[]).map((li) => ({
+        id: li.id as number | undefined,
+        requestItemId: (li.request_item_id ?? li.requestItemId) as number | null | undefined,
+        itemId: Number(li.item_id ?? li.itemId),
+        itemName: (li.item_name ?? li.itemName) as string | null | undefined,
+        quantityReceived: Number(li.quantity_received ?? li.quantityReceived ?? 0),
+        unitPrice: li.unit_price != null ? Number(li.unit_price) : (li.unitPrice as number | undefined),
+      }))
+    : [];
+  return {
+    id: Number(raw.id),
+    grnNo: (raw.grn_no ?? raw.grnNo) as string | null | undefined,
+    requestId: Number(raw.request_id ?? raw.requestId),
+    supplierId: Number(raw.supplier_id ?? raw.supplierId),
+    supplierName: (raw.supplier_name ?? raw.supplierName) as string | null | undefined,
+    warehouseId: Number(raw.warehouse_id ?? raw.warehouseId),
+    warehouseName: (raw.warehouse_name ?? raw.warehouseName) as string | null | undefined,
+    proformaId: (raw.proforma_id ?? raw.proformaId) as number | null | undefined,
+    status: String(raw.status ?? 'draft') as Grn['status'],
+    invoiceNotes: (raw.invoice_notes ?? raw.invoiceNotes) as string | null | undefined,
+    receiptDate: (raw.receipt_date ?? raw.receiptDate) as string | null | undefined,
+    createdAt: (raw.created_at ?? raw.createdAt) as string | null | undefined,
+    postedAt: (raw.posted_at ?? raw.postedAt) as string | null | undefined,
+    lines,
+    requestStatus: (raw.request_status ?? raw.requestStatus) as string | null | undefined,
+    fileName: (raw.file_name ?? raw.fileName) as string | null | undefined,
+    downloadUrl: mapGrnDownloadUrl(raw),
+  };
+}
+
+function toCreateBody(model: CreateGrnModel) {
+  return {
+    request_id: model.requestId,
+    warehouse_id: model.warehouseId,
+    supplier_id: model.supplierId,
+    receipt_date: model.receiptDate,
+    invoice_notes: model.invoiceNotes,
+    lines: model.lines?.map((l) => ({
+      request_item_id: l.requestItemId,
+      item_id: l.itemId,
+      item_name: l.itemName,
+      quantity_received: l.quantityReceived,
+      unit_price: l.unitPrice,
+    })),
+  };
+}
 
 export async function getGrnsAction(params?: {
   page?: number;
   pageSize?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  requestId?: number;
   search?: string;
-  id?: number;
-  po_id?: string;
-  supplier_name?: string;
   status?: string;
 }) {
-  const page = params?.page ?? 1;
-  const pageSize = params?.pageSize ?? 10;
   const query = new URLSearchParams();
-  query.set('page', String(page));
-  query.set('pageSize', String(pageSize));
-  if (params?.sortBy) query.set('sortBy', params.sortBy);
-  if (params?.sortOrder) query.set('sortOrder', params.sortOrder);
+  query.set('page', String(params?.page ?? 1));
+  query.set('pageSize', String(params?.pageSize ?? 10));
+  if (params?.requestId) query.set('requestId', String(params.requestId));
   if (params?.search) query.set('search', params.search);
-  if (params?.id !== undefined && params.id !== null && Number.isFinite(params.id)) query.set('id', String(params.id));
-  if (params?.po_id) query.set('po_id', params.po_id);
-  if (params?.supplier_name) query.set('supplier_name', params.supplier_name);
-  if (params?.status) query.set('status', params.status);
-
-  const url = `/grn?${query.toString()}`;
+  if (params?.status) query.set('filterBy', 'status');
+  if (params?.status) query.set('filterValue', params.status);
   try {
-    log('info', 'getGrnsAction request', { url, params });
-    const data = await readDataWithAuth<PaginatedResponse<Grn>>(url);
-    log('info', 'getGrnsAction success', { total: data?.total, itemCount: data?.items?.length });
-    return { success: true, data };
+    const data = await readDataWithAuth<PaginatedResponse<Record<string, unknown>>>(`/grn?${query}`);
+    return {
+      success: true as const,
+      data: {
+        ...data,
+        items: (data.items ?? []).map(mapGrn),
+      },
+    };
   } catch (err: unknown) {
     const error = err as { message?: string };
-    log('error', 'getGrnsAction failed', { error: error?.message, url });
-    return { success: false, error: error?.message || 'خطا در دریافت رسیدهای کالا' };
+    return { success: false as const, error: error?.message || 'خطا در دریافت رسیدها' };
+  }
+}
+
+export async function getGrnAction(id: number) {
+  try {
+    const data = await readDataWithAuth<Record<string, unknown>>(`/grn/${id}`);
+    return { success: true as const, data: mapGrn(data) };
+  } catch (err: unknown) {
+    const error = err as { message?: string };
+    return { success: false as const, error: error?.message || 'رسید یافت نشد' };
   }
 }
 
 export async function createGrnAction(model: CreateGrnModel) {
   try {
-    const data = await createDataWithAuth<CreateGrnModel, Grn>('/grn', model);
-    return { success: true, data };
+    const data = await createDataWithAuth<ReturnType<typeof toCreateBody>, Record<string, unknown>>(
+      '/grn',
+      toCreateBody(model),
+    );
+    return { success: true as const, data: mapGrn(data) };
   } catch (err: unknown) {
-    const error = err as { message?: string; response?: { data?: { message?: string } } };
-    log('error', 'createGrnAction failed', { error: error?.message });
+    const error = err as { message?: string; response?: { data?: { detail?: string } } };
     return {
-      success: false,
-      error: error?.response?.data?.message || error?.message || 'خطا در ایجاد رسید کالا',
+      success: false as const,
+      error: error?.response?.data?.detail || error?.message || 'خطا در ایجاد رسید',
     };
   }
 }
 
 export async function updateGrnAction(id: number, model: UpdateGrnModel) {
   try {
-    const data = await updateDataWithAuth<UpdateGrnModel, Grn>(`/grn/${id}`, model);
-    return { success: true, data };
+    const body: Record<string, unknown> = {};
+    if (model.warehouseId != null) body.warehouse_id = model.warehouseId;
+    if (model.receiptDate != null) body.receipt_date = model.receiptDate;
+    if (model.invoiceNotes != null) body.invoice_notes = model.invoiceNotes;
+    if (model.lines) {
+      body.lines = model.lines.map((l) => ({
+        request_item_id: l.requestItemId,
+        item_id: l.itemId,
+        item_name: l.itemName,
+        quantity_received: l.quantityReceived,
+        unit_price: l.unitPrice,
+      }));
+    }
+    const data = await updateDataWithAuth<typeof body, Record<string, unknown>>(`/grn/${id}`, body);
+    return { success: true as const, data: mapGrn(data) };
   } catch (err: unknown) {
-    const error = err as { message?: string; response?: { data?: { message?: string } } };
-    log('error', 'updateGrnAction failed', { error: error?.message });
+    const error = err as { message?: string; response?: { data?: { detail?: string } } };
     return {
-      success: false,
-      error: error?.response?.data?.message || error?.message || 'خطا در به‌روزرسانی رسید کالا',
+      success: false as const,
+      error: error?.response?.data?.detail || error?.message || 'خطا در به‌روزرسانی رسید',
     };
   }
 }
 
-export async function deleteGrnAction(id: number) {
+export async function uploadGrnInvoiceAction(grnId: number, file: File) {
   try {
-    await deleteDataWithAuth(`/grn/${id}`);
-    return { success: true };
+    const formData = new FormData();
+    formData.set('file', file);
+    const data = await uploadDataWithAuth<Record<string, unknown>>(`/grn/${grnId}/invoice`, formData);
+    return { success: true as const, data: mapGrn(data) };
   } catch (err: unknown) {
-    const error = err as { message?: string };
-    log('error', 'deleteGrnAction failed', { error: error?.message });
-    return { success: false, error: error?.message || 'خطا در حذف رسید کالا' };
+    const error = err as { message?: string; response?: { data?: { detail?: string } } };
+    return {
+      success: false as const,
+      error: error?.response?.data?.detail || error?.message || 'خطا در آپلود فاکتور',
+    };
   }
 }
 
+export async function postGrnAction(grnId: number) {
+  try {
+    const data = await createDataWithAuth<Record<string, never>, Record<string, unknown>>(
+      `/grn/${grnId}/post`,
+      {},
+    );
+    return { success: true as const, data: mapGrn(data) };
+  } catch (err: unknown) {
+    const error = err as { message?: string; response?: { data?: { detail?: string } } };
+    return {
+      success: false as const,
+      error: error?.response?.data?.detail || error?.message || 'خطا در ثبت نهایی رسید',
+    };
+  }
+}
+
+export async function getGrnWarehousesAction() {
+  try {
+    const data = await readDataWithAuth<{ items: { id: number; name: string }[] }>('/grn/meta/warehouses');
+    return { success: true as const, data: data.items ?? [] };
+  } catch (err: unknown) {
+    const error = err as { message?: string };
+    return { success: false as const, error: error?.message || 'خطا در دریافت انبارها' };
+  }
+}

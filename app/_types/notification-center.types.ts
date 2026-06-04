@@ -5,6 +5,8 @@ export type NotificationEntity =
   | 'warehouse'
   | 'supplier'
   | 'payment-request'
+  | 'petty-cash'
+  | 'petty_cash'
   | 'system'
   | 'other';
 
@@ -22,6 +24,11 @@ export interface NotificationCenterItem {
   href?: string | null;
   is_read: boolean;
   created_at: string; // ISO
+  /** زمان ثبت درخواست کسب‌وکار (وام، مساعده، تنخواه، …) */
+  request_created_at?: string | null;
+  request_type_label?: string | null;
+  requester_name?: string | null;
+  business_ref_id?: string | number | null;
 }
 
 export interface NotificationCenterListResponse {

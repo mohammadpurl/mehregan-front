@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PaymentRequestType } from './payment-request.types';
+import { PaymentMethod } from '../_utils/payment-method';
 
 const trimStr = z.string().trim();
 
@@ -36,22 +37,37 @@ export const PaymentRequestEmployeeCreateSchema =
 
 export type PaymentRequestEmployeeCreateValues = z.infer<typeof PaymentRequestEmployeeCreateSchema>;
 
-/** تأیید وام در workflow — مبلغ نهایی + اقساط */
+/** مبلغ و تاریخ پرداخت — قابل تغییر توسط هر تأییدکننده */
+export const FinancialApproverAmountDateSchema = z.object({
+  amount: z.number({ invalid_type_error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ الزامی است'),
+  paymentDate: trimStr.min(1, 'تاریخ پرداخت الزامی است'),
+});
+
+export type FinancialApproverAmountDateValues = z.infer<typeof FinancialApproverAmountDateSchema>;
+
+/** تأیید وام در workflow — اقساط (مرحله مالی) */
 export const PaymentRequestLoanApproverSchema = z.object({
-  amount: z.number({ invalid_type_error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ وام الزامی است'),
   loanInstallmentCount: z.number().int().min(1, 'تعداد اقساط الزامی است').max(360),
   loanFirstInstallmentDate: trimStr.min(1, 'تاریخ شروع قسط اول الزامی است'),
 });
 
 export type PaymentRequestLoanApproverValues = z.infer<typeof PaymentRequestLoanApproverSchema>;
 
-/** تأیید مساعده در workflow */
+/** تأیید مساعده در workflow — تاریخ تسویه (مرحله مالی) */
 export const PaymentRequestAdvanceApproverSchema = z.object({
-  amount: z.number({ invalid_type_error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ مساعده الزامی است'),
   advanceExpectedRepaymentDate: trimStr.min(1, 'تاریخ تسویه الزامی است'),
 });
 
 export type PaymentRequestAdvanceApproverValues = z.infer<typeof PaymentRequestAdvanceApproverSchema>;
+
+/** تأیید دستور پرداخت — روش پرداخت (چک / حواله) */
+export const PaymentOrderApproverSchema = z.object({
+  paymentMethod: z.enum([PaymentMethod.CHECK, PaymentMethod.TRANSFER], {
+    message: 'روش پرداخت را انتخاب کنید',
+  }),
+});
+
+export type PaymentOrderApproverValues = z.infer<typeof PaymentOrderApproverSchema>;
 
 /** حساب مبدأ شرکت هنگام تأیید */
 export const PayerCompanyAccountIdSchema = z

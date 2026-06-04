@@ -9,11 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button';
 import { AdvancedDataGrid } from '@/app/components/Table/Table';
 import { AdvancedModal } from '@/app/components/Modal';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, VisibilityState } from '@tanstack/react-table';
 import { deletePettyCashAction, getPettyCashByIdAction, getPettyCashEligibilityAction } from '@/app/_actions/petty-cash-actions';
 import { useDeleteAction } from '@/app/hooks/use-delete-action';
 import type { PettyCashEligibility, PettyCashResponse } from '../_types/petty-cash.types';
+import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { usePettyCashList } from '../_hooks/use-petty-cash-list';
+import {
+  pettyCashScopeLabel,
+  usePettyCashListCapabilities,
+} from '../_hooks/use-petty-cash-list-capabilities';
+import type { PettyCashListScope } from '@/app/_actions/petty-cash-actions';
 import { pettyCashSettlementLabel, pettyCashStatusLabel } from '../_utils/petty-cash-labels';
 import { formatAmount } from '@/app/utils/number-format';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
@@ -25,8 +31,11 @@ import { canSettlePettyCash } from '../_utils/petty-cash-mapper';
 export function PettyCashList() {
   const searchParams = useSearchParams();
   const initialId = searchParams.get('pettyCashId')?.trim() || '';
+  const initialScope = (searchParams.get('scope')?.trim() || 'mine') as PettyCashListScope;
+  const { scopes: availableScopes } = usePettyCashListCapabilities();
+  const [listScope, setListScope] = useState<PettyCashListScope>(initialScope);
   const { executeDelete, deletePending } = useDeleteAction();
-  const { items, total, isLoading, pagination, setPagination, load } = usePettyCashList();
+  const { items, total, isLoading, pagination, setPagination, load } = usePettyCashList(listScope);
   const [, startTransition] = useTransition();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -34,15 +43,22 @@ export function PettyCashList() {
   const [selected, setSelected] = useState<PettyCashResponse | null>(null);
   const [formBusy, setFormBusy] = useState(false);
   const [eligibility, setEligibility] = useState<PettyCashEligibility | null>(null);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const triggerLoad = useCallback(() => {
     startTransition(() => void load());
   }, [load, startTransition]);
 
   useEffect(() => {
+    if (!availableScopes.includes(listScope)) {
+      setListScope(availableScopes[0] ?? 'mine');
+    }
+  }, [availableScopes, listScope]);
+
+  useEffect(() => {
     const t = setTimeout(() => triggerLoad(), 0);
     return () => clearTimeout(t);
-  }, [triggerLoad, pagination.pageIndex, pagination.pageSize]);
+  }, [triggerLoad, pagination.pageIndex, pagination.pageSize, listScope]);
 
   useEffect(() => {
     void getPettyCashEligibilityAction().then((r) => {
@@ -157,6 +173,12 @@ export function PettyCashList() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" asChild>
+            <Link href="/dashboard/petty-cash/ledger">دفتر تنخواه</Link>
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/dashboard/petty-cash/settlement">ثبت خرج تنخواه</Link>
+          </Button>
+          <Button type="button" variant="outline" asChild>
             <Link href="/dashboard/workflow/inbox">
               <Inbox className="ml-2 h-4 w-4" />
               کارتابل تأیید
@@ -198,14 +220,31 @@ export function PettyCashList() {
       )}
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium">درخواست‌های من</CardTitle>
+        <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="text-base font-medium">لیست تنخواه</CardTitle>
+          {availableScopes.length > 1 ? (
+            <Tabs
+              value={listScope}
+              onValueChange={(v) => {
+                setListScope(v as PettyCashListScope);
+                setPagination((p) => ({ ...p, pageIndex: 0 }));
+              }}
+            >
+              <TabsList className="flex h-auto flex-wrap">
+                {availableScopes.map((scope) => (
+                  <TabsTrigger key={scope} value={scope}>
+                    {pettyCashScopeLabel(scope)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          ) : null}
         </CardHeader>
         <CardContent>
           <AdvancedDataGrid<PettyCashResponse>
             columns={columns}
             data={items}
-            rowCount={total}
+            totalItems={total}
             isLoading={isLoading}
             pagination={pagination}
             onPaginationChange={setPagination}
@@ -215,6 +254,12 @@ export function PettyCashList() {
             onGlobalFilterChange={() => {}}
             columnFilters={[]}
             onColumnFiltersChange={() => {}}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+            entityName="تنخواه"
+            columnSizingStorageKey="petty-cash-table"
+            onRefresh={() => load()}
+            onExport={async () => items}
           />
         </CardContent>
       </Card>

@@ -18,6 +18,23 @@ const httpService = axios.create({
     },
 });
 
+httpService.interceptors.request.use((config) => {
+    if (config.data instanceof FormData) {
+        const headers = config.headers;
+        if (headers && typeof headers === 'object') {
+            if ('delete' in headers && typeof headers.delete === 'function') {
+                headers.delete('Content-Type');
+                headers.delete('content-type');
+            } else {
+                const h = headers as Record<string, unknown>;
+                delete h['Content-Type'];
+                delete h['content-type'];
+            }
+        }
+    }
+    return config;
+});
+
 httpService.interceptors.response.use(
     (response) => {
         return response;

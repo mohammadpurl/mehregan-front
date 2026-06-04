@@ -158,6 +158,7 @@ export function paymentResponseToLoanApproverValues(r: PaymentRequestResponse) {
   const ext = loanTermsFromRecord(r);
   return {
     amount: r.amount,
+    paymentDate: r.paymentDate ?? '',
     loanInstallmentCount: ext.loanInstallmentCount ?? undefined,
     loanFirstInstallmentDate: ext.loanFirstInstallmentDate ?? '',
   };
@@ -167,7 +168,16 @@ export function paymentResponseToAdvanceApproverValues(r: PaymentRequestResponse
   const ext = advanceTermsFromRecord(r);
   return {
     amount: r.amount,
+    paymentDate: r.paymentDate ?? '',
     advanceExpectedRepaymentDate: ext.advanceExpectedRepaymentDate ?? '',
+  };
+}
+
+export function paymentResponseToPaymentOrderApproverValues(r: PaymentRequestResponse) {
+  return {
+    amount: r.amount,
+    paymentDate: r.paymentDate ?? '',
+    paymentMethod: r.paymentMethod ?? 'transfer',
   };
 }
 
@@ -211,6 +221,7 @@ export type PaymentRequestCreateBody = {
 
 export type PaymentRequestPatchBody = Partial<PaymentRequestCreateBody> & {
   payer_company_account_id?: number;
+  payment_method?: string;
 };
 
 /** POST `/payment-requests/loan` و `/advance` */
@@ -218,33 +229,45 @@ export type LoanAdvanceRequestBody = {
   amount: number;
   payment_date: string | null;
   reason: string | null;
+  /** کاربر درخواست‌دهنده — برای workflow و submitter_manager */
+  requester_id?: number;
 };
 
 /** POST `/payment-requests/payment-order` */
 export type PaymentOrderRequestBody = {
-  counterparty_id: number;
-  counterparty_bank_account_id: number;
+  payment_order_kind: string;
+  counterparty_id?: number;
+  counterparty_bank_account_id?: number;
   payer_company_account_id?: number;
+  payment_method: string;
   amount: number;
   payment_date: string | null;
   reason: string | null;
 };
 
 export function paymentOrderValuesToBody(values: {
-  counterpartyId: number;
-  counterpartyBankAccountId: number;
+  paymentOrderKind: string;
+  counterpartyId?: number;
+  counterpartyBankAccountId?: number;
   payerCompanyAccountId?: number;
+  paymentMethod: string;
   amount: number;
   paymentDate: string;
   reason: string;
 }): PaymentOrderRequestBody {
+  const kind = values.paymentOrderKind || 'individual';
+  const isCollective = kind === 'collective';
   const body: PaymentOrderRequestBody = {
-    counterparty_id: values.counterpartyId,
-    counterparty_bank_account_id: values.counterpartyBankAccountId,
-    amount: values.amount,
-    payment_date: values.paymentDate?.trim() ? values.paymentDate.trim() : null,
+    payment_order_kind: kind,
+    payment_method: values.paymentMethod,
+    amount: isCollective ? 0 : values.amount,
+    payment_date: isCollective ? null : values.paymentDate?.trim() ? values.paymentDate.trim() : null,
     reason: values.reason?.trim() ? values.reason.trim() : null,
   };
+  if (kind === 'individual') {
+    body.counterparty_id = values.counterpartyId;
+    body.counterparty_bank_account_id = values.counterpartyBankAccountId;
+  }
   if (values.payerCompanyAccountId != null && values.payerCompanyAccountId > 0) {
     body.payer_company_account_id = values.payerCompanyAccountId;
   }
@@ -253,18 +276,24 @@ export function paymentOrderValuesToBody(values: {
 
 export function employeeValuesToLoanAdvanceBody(
   values: Pick<PaymentRequestEmployeeCreateValues, 'amount' | 'paymentDate' | 'reason'>,
+  requesterId?: number,
 ): LoanAdvanceRequestBody {
-  return {
+  const body: LoanAdvanceRequestBody = {
     amount: values.amount,
     payment_date: values.paymentDate?.trim() ? values.paymentDate.trim() : null,
     reason: values.reason?.trim() ? values.reason.trim() : null,
   };
+  if (requesterId != null && Number.isFinite(requesterId) && requesterId > 0) {
+    body.requester_id = requesterId;
+  }
+  return body;
 }
 
 export function partialFormDataToPatch(data: Partial<PaymentRequestFormData>): PaymentRequestPatchBody {
   const patch: PaymentRequestPatchBody = {};
   if (data.type !== undefined) patch.payment_type = data.type;
   if (data.amount !== undefined) patch.amount = data.amount;
+  if (data.paymentMethod) patch.payment_method = data.paymentMethod;
   if (data.payerCompanyAccountId != null && data.payerCompanyAccountId > 0) {
     patch.payer_company_account_id = data.payerCompanyAccountId;
   } else if (data.payer) {
@@ -442,9 +471,27 @@ export function normalizePaymentRequestFromApi(raw: unknown): PaymentRequestResp
       ? Number(counterpartyIdRaw)
       : null;
   const counterparty = normalizeCounterpartyFromApi(r.counterparty);
+  const paymentMethodRaw = r.paymentMethod ?? r.payment_method;
+  const paymentMethod =
+    typeof paymentMethodRaw === 'string' && paymentMethodRaw.trim()
+      ? (paymentMethodRaw.trim().toLowerCase() as PaymentRequestResponse['paymentMethod'])
+      : null;
+
+  const paymentOrderKindRaw = r.paymentOrderKind ?? r.payment_order_kind;
+  const paymentOrderKind =
+    typeof paymentOrderKindRaw === 'string' && paymentOrderKindRaw.trim()
+      ? (paymentOrderKindRaw.trim().toLowerCase() as PaymentRequestResponse['paymentOrderKind'])
+      : null;
+
+  const paymentMarkedAtRaw = r.paymentMarkedAt ?? r.payment_marked_at;
+  const paymentMarkedAt =
+    typeof paymentMarkedAtRaw === 'string' && paymentMarkedAtRaw ? paymentMarkedAtRaw : null;
 
   return {
     id,
+    paymentMethod,
+    paymentOrderKind,
+    paymentMarkedAt,
     counterpartyId,
     counterparty,
     payerCompanyAccountId,
@@ -479,9 +526,11 @@ function parseAttachments(raw: unknown): PaymentAttachment[] {
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
     const o = item as Record<string, unknown>;
-    const fileUrl = coerceString(o.fileUrl ?? o.file_url ?? o.url);
+    const fileUrl = coerceString(
+      o.fileUrl ?? o.file_url ?? o.download_url ?? o.downloadUrl ?? o.url,
+    );
     const fileName = coerceString(o.fileName ?? o.file_name ?? o.name);
-    if (!fileUrl && !fileName) continue;
+    if (!fileUrl && !fileName && o.id == null) continue;
     out.push({
       id: o.id != null ? String(o.id) : undefined,
       fileName: fileName || undefined,

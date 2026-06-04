@@ -5,6 +5,7 @@ import type { PettyCashResponse } from '../_types/petty-cash.types';
 import { pettyCashSettlementLabel, pettyCashStatusLabel } from '../_utils/petty-cash-labels';
 import { formatAmount } from '@/app/utils/number-format';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
+import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
 import { PettyCashExpenseSettlement } from './petty-cash-expense-settlement';
 import { isPettyCashSettled } from '../_utils/petty-cash-mapper';
 
@@ -44,6 +45,8 @@ export function PettyCashDetailPanel({ record, onUpdated }: Props) {
           </p>
         )}
       </div>
+
+      <RequestAttachmentsPanel documentsUrls={record.documentsUrls} attachments={record.attachments} />
 
       {isPettyCashSettled(record) && (
         <Alert className="border-green-200 bg-green-50/50">

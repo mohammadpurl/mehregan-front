@@ -21,6 +21,9 @@ export function normalizeNotificationItem(raw: RawNotification): NotificationCen
   if (eventType === 'workflow.rejected') level = 'error';
   if (eventType === 'sla.escalated') level = 'warning';
 
+  const requestCreatedAt = raw.request_created_at ?? raw.requestCreatedAt;
+  const requestTypeLabel = raw.request_type_label ?? raw.requestTypeLabel;
+
   const item: NotificationCenterItem = {
     id: String(raw.id ?? ''),
     title: String(raw.title ?? ''),
@@ -31,6 +34,17 @@ export function normalizeNotificationItem(raw: RawNotification): NotificationCen
     entity_id: refId != null ? (refId as string | number) : null,
     is_read: Boolean(raw.is_read ?? raw.isRead ?? false),
     created_at: String(raw.created_at ?? raw.createdAt ?? new Date().toISOString()),
+    request_created_at:
+      requestCreatedAt != null ? String(requestCreatedAt) : null,
+    request_type_label:
+      requestTypeLabel != null ? String(requestTypeLabel) : null,
+    requester_name:
+      raw.requester_name != null
+        ? String(raw.requester_name)
+        : raw.requesterName != null
+          ? String(raw.requesterName)
+          : null,
+    business_ref_id: raw.business_ref_id ?? raw.businessRefId ?? null,
     href: typeof raw.href === 'string' ? raw.href : null,
   };
 

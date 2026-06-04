@@ -2,11 +2,11 @@
 
 import { useCallback, useState } from 'react';
 import type { PaginationState } from '@tanstack/react-table';
-import { getPettyCashListAction } from '@/app/_actions/petty-cash-actions';
+import { getPettyCashListAction, type PettyCashListScope } from '@/app/_actions/petty-cash-actions';
 import { showNotification } from '@/app/_store/notification.store';
 import type { PettyCashResponse } from '../_types/petty-cash.types';
 
-export function usePettyCashList() {
+export function usePettyCashList(scope: PettyCashListScope = 'mine') {
   const [items, setItems] = useState<PettyCashResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,7 +16,11 @@ export function usePettyCashList() {
     async (pageIndex?: number) => {
       setIsLoading(true);
       const idx = pageIndex ?? pagination.pageIndex;
-      const result = await getPettyCashListAction({ page: idx + 1, pageSize: pagination.pageSize });
+      const result = await getPettyCashListAction({
+        page: idx + 1,
+        pageSize: pagination.pageSize,
+        scope,
+      });
       if (result.success && result.data) {
         setItems(result.data.items);
         setTotal(result.data.total);
@@ -25,7 +29,7 @@ export function usePettyCashList() {
       }
       setIsLoading(false);
     },
-    [pagination.pageIndex, pagination.pageSize],
+    [pagination.pageIndex, pagination.pageSize, scope],
   );
 
   return { items, total, isLoading, pagination, setPagination, load };

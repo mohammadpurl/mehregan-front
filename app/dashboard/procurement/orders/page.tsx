@@ -13,8 +13,8 @@ import { FormSchema } from '@/app/components/form-input/form-generator/form-gene
 import { ColumnDef, ColumnFiltersState, PaginationState, SortingState, VisibilityState } from '@tanstack/react-table';
 import Link from 'next/link';
 import { Loader2, PackageCheck, Pencil, Trash2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { useDeleteAction } from '@/app/hooks/use-delete-action';
+import { useFormAction } from '@/app/hooks/use-form-action';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import {
   createPurchaseOrderAction,
@@ -46,7 +46,7 @@ type PurchaseOrderFormSubmit = {
 export default function ProcurementOrdersPage() {
   const searchParams = useSearchParams();
   const initialRequestId = searchParams.get('requestId')?.trim() || '';
-  const { toast } = useToast();
+  const { notifyError, notifySuccess } = useFormAction();
   const { executeDelete } = useDeleteAction();
 
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
@@ -107,11 +107,11 @@ export default function ProcurementOrdersPage() {
         setOrders(result.data.items || []);
         setTotal(result.data.total || 0);
       } else {
-        toast({ title: 'خطا', description: result.error || 'خطا در دریافت سفارش‌های خرید', variant: 'destructive' });
+        notifyError(result.error || 'خطا در دریافت سفارش‌های خرید');
       }
       setLoading(false);
     },
-    [appliedColumnFilters, appliedGlobalFilter, pagination.pageIndex, pagination.pageSize, sorting, toast],
+    [appliedColumnFilters, appliedGlobalFilter, pagination.pageIndex, pagination.pageSize, sorting, notifyError],
   );
 
   const triggerLoad = useCallback(() => {
@@ -166,7 +166,7 @@ export default function ProcurementOrdersPage() {
     setSaving(true);
     const parsed = editingId ? PurchaseOrderUpdateSchema.safeParse(formData) : PurchaseOrderCreateSchema.safeParse(formData);
     if (!parsed.success) {
-      toast({ title: 'خطا', description: parsed.error.issues[0]?.message || 'مقادیر فرم نامعتبر است', variant: 'destructive' });
+      notifyError(parsed.error.issues[0]?.message || 'مقادیر فرم نامعتبر است');
       setSaving(false);
       return;
     }
@@ -184,11 +184,11 @@ export default function ProcurementOrdersPage() {
 
     const result = editingId ? await updatePurchaseOrderAction(editingId, payload) : await createPurchaseOrderAction(payload);
     if (result.success) {
-      toast({ title: 'موفق', description: editingId ? 'سفارش خرید ویرایش شد' : 'سفارش خرید ایجاد شد' });
+      notifySuccess(editingId ? 'سفارش خرید ویرایش شد' : 'سفارش خرید ایجاد شد');
       closeModal();
       triggerLoad();
     } else {
-      toast({ title: 'خطا', description: result.error || 'عملیات ناموفق بود', variant: 'destructive' });
+      notifyError(result.error || 'عملیات ناموفق بود');
     }
     setSaving(false);
   };
@@ -254,9 +254,14 @@ export default function ProcurementOrdersPage() {
 
   return (
     <DashboardPageShell>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">سفارش‌های خرید (PO)</h1>
+        <p className="text-sm text-muted-foreground">ایجاد و پیگیری سفارش پس از تأیید درخواست خرید</p>
+      </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle>سفارش‌های خرید (PO)</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">لیست سفارش‌ها</CardTitle>
         </CardHeader>
         <CardContent>
           <AdvancedDataGrid<PurchaseOrder>

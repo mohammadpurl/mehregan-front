@@ -58,18 +58,23 @@ function NotificationBell() {
   const fetchLatest = useNotificationCenterStore((s) => s.fetchLatest);
   const setReadLocal = useNotificationCenterStore((s) => s.setReadLocal);
 
+  const refreshBadgeCounts = useNotificationCenterStore((s) => s.refreshBadgeCounts);
+
   useEffect(() => {
-    void fetchLatest(8);
-    const interval = setInterval(() => void fetchLatest(8), 45_000);
+    void refreshBadgeCounts();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshBadgeCounts();
+      }
+    }, 60_000);
     return () => clearInterval(interval);
-  }, [fetchLatest]);
+  }, [refreshBadgeCounts]);
 
   const handleBellToggle = () => {
-    setOpen((wasOpen) => {
-      const next = !wasOpen;
-      if (next) void fetchLatest(8);
-      return next;
-    });
+    if (!open) {
+      void fetchLatest(8, true);
+    }
+    setOpen((wasOpen) => !wasOpen);
   };
 
   const handleItemClick = async (id: string, href?: string | null) => {

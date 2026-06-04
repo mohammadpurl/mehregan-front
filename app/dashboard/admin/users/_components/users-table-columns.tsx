@@ -35,11 +35,11 @@ export function getUsersTableColumns({
     },
     {
       accessorKey: 'username',
-      header: 'نام کاربری',
+      header: 'شناسه فنی',
       meta: {
         filterComponent: ({ onFilterChange, value }: { onFilterChange: (value: unknown) => void; value: unknown }) => (
           <Input
-            placeholder="نام کاربری..."
+            placeholder="شناسه فنی..."
             defaultValue={String(value ?? '')}
             onChange={(e) => onFilterChange(e.target.value)}
           />
@@ -61,7 +61,7 @@ export function getUsersTableColumns({
     },
     {
       accessorKey: 'full_name',
-      header: 'نام کامل',
+      header: 'نام نمایشی',
       cell: ({ row }) => displayUserFullName(row.original),
     },
     {
@@ -93,7 +93,10 @@ export function getUsersTableColumns({
     {
       id: 'role',
       header: 'نقش',
-      cell: ({ row }) => row.original.role_name ?? (row.original.role_id != null ? `#${row.original.role_id}` : '—'),
+      cell: ({ row }) =>
+        row.original.role_display_name ??
+        row.original.role_name ??
+        (row.original.role_id != null ? `#${row.original.role_id}` : '—'),
     },
     {
       id: 'department',

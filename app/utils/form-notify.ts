@@ -16,6 +16,23 @@ export function notifyFormSuccess(message: string, duration?: number) {
   pushNotification('success', message, duration);
 }
 
+/** هشدار (مثلاً فایل بزرگ یا فرمت نامعتبر — بدون توقف کل فرآیند) */
+export function notifyFormWarning(message: unknown, duration?: number) {
+  pushNotification(
+    'warning',
+    extractActionErrorMessage(message, 'توجه'),
+    duration ?? 7000,
+  );
+}
+
+/** پیام پس از ثبت موفق درخواست، وقتی پیوست آپلود نشده */
+export function notifyAttachmentUploadFailed(detail: string) {
+  notifyFormWarning(
+    `درخواست ثبت شد، اما فایل پیوست آپلود نشد. ${detail}`,
+    9000,
+  );
+}
+
 /** نوتیفیکیشن خطا پس از عملیات فرم */
 export function notifyFormError(message: unknown, duration?: number) {
   pushNotification(

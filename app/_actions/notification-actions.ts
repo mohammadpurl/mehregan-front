@@ -4,11 +4,33 @@ import { readDataWithAuth, updateDataWithAuth } from '@/app/core/http-service/ht
 import { NotificationCenterListResponse } from '@/app/_types/notification-center.types';
 import { normalizeNotificationItem } from '@/app/utils/normalize-notification';
 
-const log = (level: 'info' | 'error', message: string, data?: unknown) => {
-  const timestamp = new Date().toISOString();
-  const logData = data ? JSON.stringify(data, null, 2) : '';
-  console.log(`[NOTIFICATION-ACTION] [${timestamp}] [${level.toUpperCase()}] ${message}`, logData || '');
-};
+export async function getNotificationFeedAction(limit = 8) {
+  try {
+    const data = await readDataWithAuth<{
+      inbox?: unknown[];
+      notifications?: unknown[];
+      inboxUnread?: number;
+      notificationUnread?: number;
+    }>(`/notification-center/feed?limit=${limit}`);
+    const inboxRaw = Array.isArray(data.inbox) ? data.inbox : [];
+    const notifRaw = Array.isArray(data.notifications) ? data.notifications : [];
+    return {
+      success: true as const,
+      inbox: inboxRaw,
+      notifications: notifRaw.map((item) =>
+        normalizeNotificationItem(item as Record<string, unknown>),
+      ),
+      inboxUnread: Number(data.inboxUnread ?? 0),
+      notificationUnread: Number(data.notificationUnread ?? 0),
+    };
+  } catch (err: unknown) {
+    const error = err as { message?: string };
+    return {
+      success: false as const,
+      error: error?.message || 'خطا در دریافت اعلان‌ها',
+    };
+  }
+}
 
 export async function getNotificationsAction(params?: {
   page?: number;
@@ -26,7 +48,6 @@ export async function getNotificationsAction(params?: {
 
   const url = `/notifications?${query.toString()}`;
   try {
-    log('info', 'getNotificationsAction request', { url, params });
     const data = await readDataWithAuth<NotificationCenterListResponse>(url);
     const rawItems = Array.isArray(data.items) ? data.items : [];
     const enriched: NotificationCenterListResponse = {
@@ -41,15 +62,9 @@ export async function getNotificationsAction(params?: {
         })
         .filter((item): item is NotificationCenterListResponse['items'][0] => item != null),
     };
-    log('info', 'getNotificationsAction success', {
-      total: enriched?.total,
-      unread: enriched?.unread,
-      itemCount: enriched?.items?.length,
-    });
     return { success: true, data: enriched };
   } catch (err: unknown) {
     const error = err as { message?: string };
-    log('error', 'getNotificationsAction failed', { error: error?.message, url });
     return { success: false, error: error?.message || 'خطا در دریافت اعلان‌ها' };
   }
 }
@@ -70,7 +85,6 @@ export async function markNotificationReadAction(id: string) {
     return { success: true, data };
   } catch (err: unknown) {
     const error = err as { message?: string };
-    log('error', 'markNotificationReadAction failed', { error: error?.message, id });
     return { success: false, error: error?.message || 'خطا در تغییر وضعیت اعلان' };
   }
 }

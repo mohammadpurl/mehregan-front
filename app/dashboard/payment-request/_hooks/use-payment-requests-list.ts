@@ -2,15 +2,26 @@
 
 import { useCallback, useState } from 'react';
 import type { ColumnFiltersState, PaginationState, SortingState } from '@tanstack/react-table';
-import { getPaymentRequestsQueryAction } from '@/app/_actions/payment-request-actions';
+import {
+  getPaymentRequestsQueryAction,
+  type PaymentRequestListScope,
+} from '@/app/_actions/payment-request-actions';
 import { showNotification } from '@/app/_store/notification.store';
 import type { PaymentRequestResponse } from '../_types/payment-request.types';
 
-export type PaymentRequestsListScope = 'mine' | 'approver' | 'participated';
+export type PaymentRequestsListScope = PaymentRequestListScope;
 
-type Options = { initialId?: string; scope?: PaymentRequestsListScope };
+type Options = {
+  initialId?: string;
+  scope?: PaymentRequestsListScope;
+  paymentType?: string;
+};
 
-export function usePaymentRequestsList({ initialId = '', scope = 'mine' }: Options = {}) {
+export function usePaymentRequestsList({
+  initialId = '',
+  scope = 'mine',
+  paymentType,
+}: Options = {}) {
   const [items, setItems] = useState<PaymentRequestResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +53,8 @@ export function usePaymentRequestsList({ initialId = '', scope = 'mine' }: Optio
         pageSize: pagination.pageSize,
         search: search?.trim() || undefined,
         id: typeof idFilter === 'string' ? idFilter.trim() : undefined,
-        scope: scope === 'mine' ? undefined : scope,
+        scope,
+        type: paymentType,
       });
 
       if (result.success && result.data) {
@@ -58,7 +70,14 @@ export function usePaymentRequestsList({ initialId = '', scope = 'mine' }: Optio
       }
       setIsLoading(false);
     },
-    [appliedColumnFilters, appliedGlobalFilter, pagination.pageIndex, pagination.pageSize, scope],
+    [
+      appliedColumnFilters,
+      appliedGlobalFilter,
+      pagination.pageIndex,
+      pagination.pageSize,
+      paymentType,
+      scope,
+    ],
   );
 
   return {

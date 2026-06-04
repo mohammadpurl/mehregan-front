@@ -1,15 +1,24 @@
 'use server';
 
 import { getPaymentRequestAction, getPaymentRequestByWorkflowInstanceAction } from '@/app/_actions/payment-request-actions';
+import { getFinancialDocumentByWorkflowInstanceAction } from '@/app/_actions/financial-document-actions';
 import { getPettyCashByIdAction, getPettyCashByWorkflowInstanceAction } from '@/app/_actions/petty-cash-actions';
+import {
+  getMissionRequestByIdAction,
+  getMissionRequestByWorkflowInstanceAction,
+} from '@/app/_actions/mission-request-actions';
 import { getWorkflowApprovalPlanAction } from '@/app/_actions/workflow-runtime-actions';
-import { getProductRequestAction } from '@/app/_actions/product-request-actions';
+import {
+  getPurchaseRequestAction,
+  getPurchaseRequestByWorkflowInstanceAction,
+} from '@/app/_actions/purchase-request-actions';
 import { getWarehouseAction } from '@/app/_actions/warehouse-actions';
 import { getWorkflowAction } from '@/app/_actions/workflow-actions';
 import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.types';
 import {
   buildPaymentRequestResolved,
   buildPettyCashResolved,
+  buildMissionRequestResolved,
   REF_LABELS,
   type ResolvedWorkflowForm,
 } from '@/app/utils/resolve-workflow-form.utils';
@@ -59,6 +68,14 @@ export async function resolveWorkflowFormAction(
         data: buildPettyCashResolved(refType, refId, r.data),
       };
     }
+    case 'mission_request': {
+      const r = await getMissionRequestByIdAction(id);
+      if (!r.success || !r.data) return { success: false, error: r.error };
+      return {
+        success: true,
+        data: buildMissionRequestResolved(refType, refId, r.data),
+      };
+    }
     case 'warehouse_form': {
       const r = await getWarehouseAction(id);
       if (!r.success || !r.data) return { success: false, error: r.error };
@@ -78,9 +95,12 @@ export async function resolveWorkflowFormAction(
         },
       };
     }
-    case 'request': {
-      const r = await getProductRequestAction(id);
+    case 'request':
+    case 'purchase_request':
+    case 'procurement_proforma': {
+      const r = await getPurchaseRequestAction(id);
       if (!r.success || !r.data) return { success: false, error: r.error };
+      const lines = r.data.items.map((i) => `${i.itemName}×${i.quantity}`).join('، ');
       return {
         success: true,
         data: {
@@ -88,10 +108,10 @@ export async function resolveWorkflowFormAction(
           refId,
           label: REF_LABELS[refType],
           summary: {
-            نوع: r.data.productType,
-            درخواست‌کننده: r.data.requesterName,
+            درخواست‌کننده: r.data.requesterName ?? '—',
             وضعیت: r.data.status,
-            دلیل: r.data.reason,
+            اقلام: lines || '—',
+            توضیح: r.data.reason ?? '—',
           },
           raw: r.data,
         },
@@ -106,41 +126,132 @@ export async function resolveWorkflowFormAction(
 export async function resolveWorkflowFormFromInstanceAction(
   workflowInstanceId: number,
 ): Promise<{ success: boolean; data?: ResolvedWorkflowForm; error?: string; approvalPlanStatus?: string }> {
-  const [paymentResult, pettyCashResult] = await Promise.all([
-    getPaymentRequestByWorkflowInstanceAction(workflowInstanceId),
-    getPettyCashByWorkflowInstanceAction(workflowInstanceId),
-  ]);
-
-  if (pettyCashResult.success && pettyCashResult.data) {
-    const pc = pettyCashResult.data;
-    return {
-      success: true,
-      data: buildPettyCashResolved('petty_cash', Number(pc.id), pc),
-    };
-  }
-
-  if (paymentResult.success && paymentResult.data) {
-    const pr = paymentResult.data;
-    return {
-      success: true,
-      data: buildPaymentRequestResolved('payment_request', Number(pr.id), pr),
-    };
-  }
-
   const planResult = await getWorkflowApprovalPlanAction(workflowInstanceId);
-  if (planResult.success && planResult.data) {
-    const plan = planResult.data;
-    const refType = String(plan.refType).toLowerCase() as WorkflowBusinessRefType;
-    const formResult = await resolveWorkflowFormAction(refType, plan.refId);
-    return { ...formResult, approvalPlanStatus: plan.status };
+  if (!planResult.success || !planResult.data) {
+    return {
+      success: false,
+      error: planResult.error || 'مسیر تأیید بارگذاری نشد',
+    };
   }
 
-  const parts: string[] = [];
-  if (pettyCashResult.error) parts.push(`تنخواه: ${pettyCashResult.error}`);
-  if (paymentResult.error) parts.push(`درخواست مالی: ${paymentResult.error}`);
-  if (planResult.error) parts.push(`مسیر تأیید: ${planResult.error}`);
-  return {
-    success: false,
-    error: parts.join(' — ') || 'جزئیات این کار در دسترس نیست',
-  };
+  const plan = planResult.data;
+  const refType = String(plan.refType).toLowerCase() as WorkflowBusinessRefType;
+
+  if (refType === 'financial_document') {
+    const fdResult = await getFinancialDocumentByWorkflowInstanceAction(workflowInstanceId);
+    if (fdResult.success && fdResult.data) {
+      const d = fdResult.data;
+      return {
+        success: true,
+        data: {
+          refType,
+          refId: Number(d.id),
+          label: REF_LABELS[refType],
+          summary: {
+            نوع: d.documentType === 'check' ? 'چک' : 'سایر',
+            مبلغ: d.amount != null ? String(d.amount) : '—',
+            'ثبت‌کننده': d.requesterName ?? '—',
+            شرح: d.description ?? '—',
+            وضعیت: d.status,
+          },
+          raw: d,
+        },
+        approvalPlanStatus: plan.status,
+      };
+    }
+    return {
+      success: false,
+      error: fdResult.error || 'سند مالی برای این نمونه workflow یافت نشد',
+      approvalPlanStatus: plan.status,
+    };
+  }
+
+  if (refType === 'petty_cash') {
+    const pettyCashResult = await getPettyCashByWorkflowInstanceAction(workflowInstanceId);
+    if (pettyCashResult.success && pettyCashResult.data) {
+      return {
+        success: true,
+        data: buildPettyCashResolved('petty_cash', Number(pettyCashResult.data.id), pettyCashResult.data),
+        approvalPlanStatus: plan.status,
+      };
+    }
+    return {
+      success: false,
+      error: pettyCashResult.error || 'تنخواه برای این نمونه workflow یافت نشد',
+      approvalPlanStatus: plan.status,
+    };
+  }
+
+  if (refType === 'mission_request') {
+    const missionResult = await getMissionRequestByWorkflowInstanceAction(workflowInstanceId);
+    if (missionResult.success && missionResult.data) {
+      return {
+        success: true,
+        data: buildMissionRequestResolved(
+          'mission_request',
+          Number(missionResult.data.id),
+          missionResult.data,
+        ),
+        approvalPlanStatus: plan.status,
+      };
+    }
+    return {
+      success: false,
+      error: missionResult.error || 'درخواست ماموریت برای این نمونه workflow یافت نشد',
+      approvalPlanStatus: plan.status,
+    };
+  }
+
+  if (refType === 'payment_request' || refType === 'payment_order') {
+    const paymentResult = await getPaymentRequestByWorkflowInstanceAction(workflowInstanceId);
+    if (paymentResult.success && paymentResult.data) {
+      return {
+        success: true,
+        data: buildPaymentRequestResolved(
+          refType,
+          Number(paymentResult.data.id),
+          paymentResult.data,
+        ),
+        approvalPlanStatus: plan.status,
+      };
+    }
+    return {
+      success: false,
+      error: paymentResult.error || 'درخواست مالی برای این نمونه workflow یافت نشد',
+      approvalPlanStatus: plan.status,
+    };
+  }
+
+  if (refType === 'request' || refType === 'purchase_request' || refType === 'procurement_proforma') {
+    const purchaseResult = await getPurchaseRequestByWorkflowInstanceAction(workflowInstanceId);
+    if (purchaseResult.success && purchaseResult.data) {
+      const lines = purchaseResult.data.items
+        .map((i) => `${i.itemName}×${i.quantity}`)
+        .join('، ');
+      return {
+        success: true,
+        data: {
+          refType,
+          refId: plan.refId,
+          label: REF_LABELS[refType],
+          summary: {
+            درخواست‌کننده: purchaseResult.data.requesterName ?? '—',
+            وضعیت: purchaseResult.data.status,
+            اقلام: lines || '—',
+            توضیح: purchaseResult.data.reason ?? '—',
+          },
+          raw: purchaseResult.data,
+        },
+        approvalPlanStatus: plan.status,
+      };
+    }
+    return {
+      success: false,
+      error: purchaseResult.error || 'درخواست خرید برای این نمونه workflow یافت نشد',
+      approvalPlanStatus: plan.status,
+    };
+  }
+
+  const formResult = await resolveWorkflowFormAction(refType, plan.refId);
+  return { ...formResult, approvalPlanStatus: plan.status };
 }

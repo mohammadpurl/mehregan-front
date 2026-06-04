@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
-import { Input } from '@/app/components/ui/input';
+import { FormattedNumberInput } from '@/app/components/ui/formatted-number-input';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import { createPettyCashAction, getPettyCashEligibilityAction } from '@/app/_actions/petty-cash-actions';
@@ -94,12 +94,13 @@ export function PettyCashNewForm({ formId = 'petty-cash-new-form', onSuccess, on
               <FormItem>
                 <FormLabel>مبلغ تنخواه (ریال) *</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
+                  <FormattedNumberInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
                     disabled={blocked}
-                    {...field}
-                    onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                    min={1}
+                    placeholder="مثلاً ۱٬۰۰۰٬۰۰۰"
                   />
                 </FormControl>
                 <FormMessage />

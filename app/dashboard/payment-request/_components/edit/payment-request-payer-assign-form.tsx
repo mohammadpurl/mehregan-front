@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
+import { AttachmentFileInput } from '@/app/components/attachments/attachment-file-input';
+import { notifyAttachmentUploadFailed } from '@/app/utils/form-notify';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
@@ -54,7 +56,7 @@ export function PaymentRequestPayerAssignForm({
       });
       if (result.success) {
         notifySuccess('حساب مبدأ ثبت شد');
-        if (result.attachmentError) notifyError(`پیوست: ${result.attachmentError}`);
+        if (result.attachmentError) notifyAttachmentUploadFailed(result.attachmentError);
         onSuccess?.();
       } else {
         notifyError(result.error || 'ذخیره ناموفق بود');
@@ -90,14 +92,7 @@ export function PaymentRequestPayerAssignForm({
 
         <div className="space-y-2">
           <FormLabel>پیوست (اختیاری)</FormLabel>
-          <Input
-            type="file"
-            multiple
-            className="cursor-pointer"
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              if (e.target.files) setFiles(Array.from(e.target.files));
-            }}
-          />
+          <AttachmentFileInput files={files} onFilesChange={setFiles} />
         </div>
       </form>
     </Form>

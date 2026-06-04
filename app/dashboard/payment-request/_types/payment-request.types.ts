@@ -10,6 +10,8 @@ export enum PaymentRequestType {
   ADVANCE = 'advance',
   /** دستور پرداخت به طرف‌حساب */
   PAYMENT_ORDER = 'payment_order',
+  /** پرداخت ناشی از درخواست خرید (تدارکات) */
+  PROCUREMENT = 'procurement',
   CASH = 'cash',
   /** @deprecated — از payment_order استفاده کنید */
   PAYMENT = 'payment',
@@ -65,8 +67,15 @@ export interface PaymentRequestFormData {
   cashExpenseCategory?: string;
 }
 
+export type PaymentMethodType = 'check' | 'transfer';
+
+export type PaymentOrderKindType = 'individual' | 'collective';
+
 export interface PaymentRequestResponse {
   id: string;
+  paymentMethod?: PaymentMethodType | null;
+  paymentOrderKind?: PaymentOrderKindType | null;
+  paymentMarkedAt?: string | null;
   counterpartyId?: number | null;
   counterparty?: Counterparty | null;
   payerCompanyAccountId?: number | null;

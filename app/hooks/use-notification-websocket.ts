@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { buildUserWebSocketUrl } from '@/app/utils/ws-url';
+import { useSessionStore } from '@/app/_store/auth-store';
+import { buildAuthenticatedWebSocketUrl, buildUserWebSocketUrl } from '@/app/utils/ws-url';
 import { useNotificationCenterStore } from '@/app/_store/notification-center.store';
 import { useNotificationStore } from '@/app/_store/notification.store';
 
@@ -16,30 +17,36 @@ type WorkflowWsPayload = {
 const RECONNECT_MS = 5000;
 
 export function useNotificationWebSocket(userId: number | null | undefined) {
+  const accessToken = useSessionStore((s) => s.session?.accesstoken);
+  const refreshBadgeCounts = useNotificationCenterStore((s) => s.refreshBadgeCounts);
   const fetchLatest = useNotificationCenterStore((s) => s.fetchLatest);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!userId || userId < 1) return;
+    if (!accessToken?.trim()) return;
 
     let cancelled = false;
 
     const connect = () => {
       if (cancelled) return;
-      const url = buildUserWebSocketUrl(userId);
+      const url = accessToken.trim()
+        ? buildAuthenticatedWebSocketUrl(accessToken)
+        : buildUserWebSocketUrl(userId, accessToken);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        void fetchLatest(6);
+        void refreshBadgeCounts();
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(String(event.data)) as WorkflowWsPayload;
           if (data.type === 'workflow.next_step' || data.type === 'workflow') {
-            void fetchLatest(6);
+            void refreshBadgeCounts();
+            void fetchLatest(6, true);
             const title = data.title || 'کار جدید در کارتابل';
             const body = data.message || 'یک درخواست منتظر بررسی شماست.';
             useNotificationStore.getState().showNotification({
@@ -47,20 +54,22 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
               message: `${title}\n${body}`,
             });
           } else if (data.type === 'workflow.rejected') {
-            void fetchLatest(6);
+            void refreshBadgeCounts();
+            void fetchLatest(6, true);
             useNotificationStore.getState().showNotification({
               type: 'error',
               message: `${data.title || 'درخواست رد شد'}\n${data.message || 'درخواست شما توسط تأییدکننده رد شد.'}`,
             });
           } else if (data.type === 'sla.escalated') {
-            void fetchLatest(6);
+            void refreshBadgeCounts();
+            void fetchLatest(6, true);
             useNotificationStore.getState().showNotification({
               type: 'warning',
               message: `${data.title || 'تأخیر SLA'}\n${data.message || 'اقدام فوری لازم است.'}`,
             });
           }
         } catch {
-          void fetchLatest(6);
+          void refreshBadgeCounts();
         }
       };
 
@@ -84,5 +93,5 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [userId, fetchLatest]);
+  }, [userId, accessToken, fetchLatest, refreshBadgeCounts]);
 }

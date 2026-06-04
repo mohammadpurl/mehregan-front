@@ -1,7 +1,11 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { FormGenerator } from '@/app/components/form-input/form-generator/form-generator';
+import { useEffect, useMemo, type ComponentType } from 'react';
+import {
+  FormGenerator,
+  type FormCustomFieldProps,
+} from '@/app/components/form-input/form-generator/form-generator';
+import { InfiniteScrollCombobox } from '@/app/components/form-input/infinite-scroll-combobox';
 import { createUserAction, updateUserAction } from '@/app/_actions/user-actions';
 import { useFormAction } from '@/app/hooks/use-form-action';
 import {
@@ -11,9 +15,12 @@ import {
 } from '../_types/user.schema';
 import { buildUserFormSchema } from './user-form-schema';
 import { createFormToModel, updateFormToModel, userToFormDefaults } from '../_utils/user-form.utils';
-import { useRolesOptions } from '../_hooks/use-roles-options';
-import { useDepartmentsOptions } from '../_hooks/use-departments-options';
-import { useUsersOptions } from '../_hooks/use-users-options';
+import { userFormQueryKeys } from '../_queries/keys';
+import {
+  fetchDepartmentsPage,
+  fetchManagersPage,
+  fetchRolesPage,
+} from '../_queries/fetchers';
 
 type UserFormBaseProps = {
   formId?: string;
@@ -39,21 +46,72 @@ export function UserForm({
 }: UserFormProps) {
   const isEdit = mode === 'edit';
   const { isPending, runAction, notifyError } = useFormAction();
-  const { roles, isLoading: rolesLoading } = useRolesOptions();
-  const { options: departmentOptions, isLoading: departmentsLoading } = useDepartmentsOptions();
-  const { options: managerOptions, isLoading: managersLoading } = useUsersOptions(
-    isEdit ? userId : null,
-  );
-  const formBusy = isPending || rolesLoading || departmentsLoading || managersLoading;
 
   useEffect(() => {
-    onBusyChange?.(formBusy);
-  }, [formBusy, onBusyChange]);
-  const formSchema = useMemo(
-    () => buildUserFormSchema(roles, departmentOptions, managerOptions, isEdit),
-    [roles, departmentOptions, managerOptions, isEdit],
-  );
+    onBusyChange?.(isPending);
+  }, [isPending, onBusyChange]);
+
+  const formSchema = useMemo(() => buildUserFormSchema(isEdit), [isEdit]);
   const defaultValues = useMemo(() => userToFormDefaults(initialUser), [initialUser]);
+
+  const customFields = useMemo((): Record<string, ComponentType<FormCustomFieldProps>> => {
+    function RoleField(props: FormCustomFieldProps) {
+      return (
+        <InfiniteScrollCombobox
+          value={props.value}
+          onChange={props.onChange}
+          onBlur={props.onBlur}
+          disabled={props.disabled}
+          placeholder="انتخاب نقش…"
+          searchPlaceholder="جستجوی نقش…"
+          noneOption={{ label: '— بدون نقش —', value: '' }}
+          selectedFallbackLabel={initialUser?.role_name ?? undefined}
+          queryKey={userFormQueryKeys.rolesInfinite()}
+          fetchPage={fetchRolesPage}
+        />
+      );
+    }
+
+    function DepartmentField(props: FormCustomFieldProps) {
+      return (
+        <InfiniteScrollCombobox
+          value={props.value}
+          onChange={props.onChange}
+          onBlur={props.onBlur}
+          disabled={props.disabled}
+          placeholder="انتخاب واحد…"
+          searchPlaceholder="جستجوی واحد…"
+          noneOption={{ label: '— بدون واحد —', value: '' }}
+          selectedFallbackLabel={initialUser?.department_name ?? undefined}
+          queryKey={userFormQueryKeys.departmentsInfinite()}
+          fetchPage={fetchDepartmentsPage}
+        />
+      );
+    }
+
+    function ManagerField(props: FormCustomFieldProps) {
+      return (
+        <InfiniteScrollCombobox
+          value={props.value}
+          onChange={props.onChange}
+          onBlur={props.onBlur}
+          disabled={props.disabled}
+          placeholder="انتخاب مدیر مستقیم…"
+          searchPlaceholder="جستجوی نام یا نام کاربری…"
+          noneOption={{ label: '— بدون مدیر مستقیم —', value: '' }}
+          selectedFallbackLabel={initialUser?.manager_name ?? undefined}
+          queryKey={userFormQueryKeys.managersInfinite(isEdit ? userId : null)}
+          fetchPage={(page, search) => fetchManagersPage(page, search, isEdit ? userId : undefined)}
+        />
+      );
+    }
+
+    return {
+      role_id: RoleField,
+      department_id: DepartmentField,
+      manager_id: ManagerField,
+    };
+  }, [initialUser?.department_name, initialUser?.manager_name, initialUser?.role_name, isEdit, userId]);
 
   const handleSubmit = (formData: AdminUserFormValues) => {
     if (!isEdit) {
@@ -88,12 +146,13 @@ export function UserForm({
 
   return (
     <FormGenerator
-      key={userId ?? 'new-user'}
+      key={isEdit ? `edit-user-${userId}` : 'new-user'}
       schema={formSchema}
       formId={formId}
       defaultValues={defaultValues}
       onSubmit={handleSubmit}
-      isLoading={formBusy}
+      isLoading={isPending}
+      customFields={customFields}
     />
   );
 }

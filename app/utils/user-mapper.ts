@@ -22,7 +22,10 @@ export function normalizeAdminUser(raw: unknown): AdminUser {
     phone: (r.phone ?? r.mobile) as string | null | undefined,
     is_active: r.is_active !== undefined ? Boolean(r.is_active) : r.isActive !== undefined ? Boolean(r.isActive) : true,
     role_id: (r.role_id ?? r.roleId) as number | null | undefined,
-    role_name: (r.role_name ?? r.roleName) as string | null | undefined,
+    role_name: (r.role_name ?? r.roleName ?? r.role_display_name ?? r.roleDisplayName) as
+      | string
+      | null
+      | undefined,
     department_id: (r.department_id ?? r.departmentId) as number | null | undefined,
     department_name: (r.department_name ?? r.departmentName) as string | null | undefined,
     manager_id: (r.manager_id ?? r.managerId) as number | null | undefined,

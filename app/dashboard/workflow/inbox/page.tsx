@@ -2,7 +2,7 @@
 
 import { DashboardPageShell } from '@/app/components/layout/DashboardPageShell';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -14,32 +14,24 @@ import type { InboxItem } from '@/app/_types/inbox.types';
 import { getInboxAction, markInboxDoneAction, markInboxReadAction } from '@/app/_actions/inbox-actions';
 import {
   approveWorkflowAction,
-  getWorkflowApprovalPlanAction,
+  getWorkflowApprovalHistoryAction,
   rejectWorkflowAction,
+  uploadWorkflowStepAttachmentAction,
 } from '@/app/_actions/workflow-runtime-actions';
-import { getPaymentRequestByWorkflowInstanceAction } from '@/app/_actions/payment-request-actions';
-import { getPettyCashByWorkflowInstanceAction } from '@/app/_actions/petty-cash-actions';
-import { resolveWorkflowFormAction } from '@/app/utils/resolve-workflow-form';
-import {
-  buildPaymentRequestResolved,
-  buildPettyCashResolved,
-  type ResolvedWorkflowForm,
-} from '@/app/utils/resolve-workflow-form.utils';
-import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.types';
-import type { WorkflowApprovalPlan } from '@/app/_types/workflow-approval-plan.types';
+import { resolveWorkflowFormFromInstanceAction } from '@/app/utils/resolve-workflow-form';
+import type { ResolvedWorkflowForm } from '@/app/utils/resolve-workflow-form.utils';
+import type { WorkflowApprovalHistory } from '@/app/_types/workflow-approval-plan.types';
 import { useFormAction } from '@/app/hooks/use-form-action';
 import { useSessionStore } from '@/app/_store/auth-store';
 import { useNotificationCenterStore } from '@/app/_store/notification-center.store';
 import type { PaymentRequestResponse } from '@/app/dashboard/payment-request/_types/payment-request.types';
 import { PaymentRequestType } from '@/app/dashboard/payment-request/_types/payment-request.types';
-import { needsApproverReview } from '@/app/dashboard/payment-request/_utils/payment-request-form.utils';
 import {
   isAdvanceTermsUnset,
   isLoanTermsUnset,
   isPaymentRequestPayerUnset,
 } from '@/app/dashboard/payment-request/_utils/payment-request-mapper';
 import {
-  isApproverRole,
   isFinanceRole,
   isFinanceWorkflowStepRole,
 } from '@/app/dashboard/payment-request/_utils/payment-request-roles';
@@ -48,15 +40,54 @@ import {
   WorkflowPaymentRequestReview,
   type WorkflowPaymentRequestReviewHandle,
 } from './_components/workflow-payment-request-review';
-import { WorkflowPettyCashReview } from './_components/workflow-petty-cash-review';
+import {
+  WorkflowPettyCashReview,
+  type WorkflowPettyCashReviewHandle,
+} from './_components/workflow-petty-cash-review';
+import {
+  WorkflowFinancialDocumentReview,
+  type WorkflowFinancialDocumentReviewHandle,
+} from './_components/workflow-financial-document-review';
+import type { FinancialDocumentResponse } from '@/app/dashboard/financial-documents/_types/financial-document.types';
+import { WorkflowPurchaseRequestReview } from './_components/workflow-purchase-request-review';
+import type { PurchaseRequest } from '@/app/_types/purchase-request.types';
 import type { PettyCashResponse } from '@/app/dashboard/petty-cash/_types/petty-cash.types';
-import { WorkflowApprovalPlanTimeline } from './_components/workflow-approval-plan';
-import { WorkflowSameAssigneeAlert } from '@/app/dashboard/workflow/_components/workflow-same-assignee-alert';
+import { WorkflowInboxReviewPanel } from './_components/workflow-inbox-review-panel';
+import { RelatedRequestsPanel } from '@/app/dashboard/workflow/_components/related-requests-panel';
+import { WorkflowRejectModal } from './_components/workflow-inbox-decision';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
+import type { WorkflowSummaryField } from './_components/workflow-inbox-summary-header';
+
+function workflowStatusTone(
+  status?: string,
+): 'pending' | 'approved' | 'rejected' | 'neutral' {
+  const s = (status ?? '').toLowerCase();
+  if (s === 'approved') return 'approved';
+  if (s === 'rejected' || s === 'returned') return 'rejected';
+  if (s === 'pending' || s === 'in_progress' || s === 'active') return 'pending';
+  return 'neutral';
+}
+
+function workflowStatusLabelFa(status?: string): string {
+  const s = (status ?? '').toLowerCase();
+  if (s === 'approved') return 'تأیید شده';
+  if (s === 'rejected') return 'رد شده';
+  if (s === 'returned') return 'برگشت به درخواست‌کننده';
+  if (s === 'in_progress' || s === 'active') return 'در حال تأیید';
+  if (s === 'pending') return 'در انتظار';
+  return status ?? '—';
+}
+
+function inboxRefTypeLabel(refType: string | undefined): string {
+  if (refType === 'ad_hoc_task') return 'کار پیش‌بینی‌نشده';
+  if (refType === 'workflow') return 'گردش تأیید';
+  return refType ?? '—';
+}
 
 export default function WorkflowInboxPage() {
   const { toast } = useToast();
   const { runAction } = useFormAction();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const session = useSessionStore((s) => s.session);
   const refreshBadgeCounts = useNotificationCenterStore((s) => s.refreshBadgeCounts);
@@ -65,25 +96,31 @@ export default function WorkflowInboxPage() {
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [actionPending, setActionPending] = useState(false);
+  const [approveComment, setApproveComment] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('transfer');
+  const [stepAttachmentFiles, setStepAttachmentFiles] = useState<File[]>([]);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedInbox, setSelectedInbox] = useState<InboxItem | null>(null);
-  const [approvalPlan, setApprovalPlan] = useState<WorkflowApprovalPlan | null>(null);
+  const [approvalHistory, setApprovalHistory] = useState<WorkflowApprovalHistory | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [resolvedForm, setResolvedForm] = useState<ResolvedWorkflowForm | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const paymentReviewRef = useRef<WorkflowPaymentRequestReviewHandle>(null);
+  const pettyCashReviewRef = useRef<WorkflowPettyCashReviewHandle>(null);
+  const financialDocumentReviewRef = useRef<WorkflowFinancialDocumentReviewHandle>(null);
   const deepLinkHandled = useRef(false);
 
   const loadInbox = useCallback(async () => {
     setLoading(true);
-    const sortBy = sorting[0]?.id;
-    const sortOrder = sorting[0]?.desc ? 'desc' : 'asc';
+    const sortBy = sorting[0]?.id ?? 'created_at';
+    const sortOrder = sorting[0]?.desc === false ? 'asc' : 'desc';
     const result = await getInboxAction({
       page: pagination.pageIndex + 1,
       pageSize: pagination.pageSize,
@@ -110,87 +147,143 @@ export default function WorkflowInboxPage() {
 
   const loadInstanceDetails = useCallback(async (instanceId: number) => {
     setPlanLoading(true);
-    const [paymentResult, pettyCashResult, planResult] = await Promise.all([
-      getPaymentRequestByWorkflowInstanceAction(instanceId),
-      getPettyCashByWorkflowInstanceAction(instanceId),
-      getWorkflowApprovalPlanAction(instanceId),
+    const [historyResult, formResult] = await Promise.all([
+      getWorkflowApprovalHistoryAction(instanceId),
+      resolveWorkflowFormFromInstanceAction(instanceId),
     ]);
     setPlanLoading(false);
 
-    if (planResult.success && planResult.data) {
-      setApprovalPlan(planResult.data);
+    if (historyResult.success && historyResult.data) {
+      setApprovalHistory(historyResult.data);
       setPlanError(null);
     } else {
-      setApprovalPlan(null);
-      setPlanError(planResult.error || 'مسیر تأیید بارگذاری نشد');
+      setApprovalHistory(null);
+      setPlanError(historyResult.error || 'تاریخچه تأیید بارگذاری نشد');
     }
 
-    if (pettyCashResult.success && pettyCashResult.data) {
-      const pc = pettyCashResult.data;
-      setResolvedForm(buildPettyCashResolved('petty_cash', Number(pc.id), pc));
+    if (formResult.success && formResult.data) {
+      setResolvedForm(formResult.data);
       setFormError(null);
-    } else if (paymentResult.success && paymentResult.data) {
-      const pr = paymentResult.data;
-      setResolvedForm(buildPaymentRequestResolved('payment_request', Number(pr.id), pr));
-      setFormError(null);
-    } else if (planResult.success && planResult.data) {
-      const refType = String(planResult.data.refType).toLowerCase() as WorkflowBusinessRefType;
-      const formResult = await resolveWorkflowFormAction(refType, planResult.data.refId);
-      if (formResult.success && formResult.data) {
-        setResolvedForm(formResult.data);
-        setFormError(null);
-      } else {
-        setResolvedForm(null);
-        setFormError(formResult.error || 'جزئیات فرم بارگذاری نشد');
-      }
     } else {
       setResolvedForm(null);
-      setFormError(
-        pettyCashResult.error ||
-          paymentResult.error ||
-          'جزئیات درخواست برای این کار یافت نشد.',
-      );
+      setFormError(formResult.error || 'جزئیات درخواست برای این کار یافت نشد.');
     }
 
-    return { paymentResult, pettyCashResult, planResult };
+    return { historyResult, formResult };
   }, []);
 
-  const openDetails = useCallback(
+  const openAdHocTask = useCallback(
+    (row: InboxItem) => {
+      void markInboxReadAction(row.id).then(() => void refreshBadgeCounts());
+      router.push(`/dashboard/ad-hoc-tasks/${row.ref_id}`);
+    },
+    [router, refreshBadgeCounts],
+  );
+
+  const openWorkflowDetails = useCallback(
     async (row: InboxItem) => {
       setSelectedInbox(row);
       setDetailsOpen(true);
-      setApprovalPlan(null);
+      setApprovalHistory(null);
       setResolvedForm(null);
       setPlanError(null);
       setFormError(null);
+      setApproveComment('');
+      setPaymentMethod('transfer');
+      setStepAttachmentFiles([]);
       void markInboxReadAction(row.id).then(() => void refreshBadgeCounts());
       await loadInstanceDetails(row.ref_id);
     },
     [loadInstanceDetails, refreshBadgeCounts],
   );
 
+  const openInboxItem = useCallback(
+    (row: InboxItem) => {
+      if (row.ref_type === 'ad_hoc_task') {
+        openAdHocTask(row);
+        return;
+      }
+      void openWorkflowDetails(row);
+    },
+    [openAdHocTask, openWorkflowDetails],
+  );
+
   useEffect(() => {
+    if (deepLinkHandled.current || loading || items.length === 0) return;
+
+    const adHocTaskIdParam = searchParams.get('adHocTaskId');
+    if (adHocTaskIdParam) {
+      const taskId = Number(adHocTaskIdParam);
+      if (!Number.isFinite(taskId)) return;
+      const match = items.find((i) => i.ref_type === 'ad_hoc_task' && i.ref_id === taskId);
+      if (match) {
+        deepLinkHandled.current = true;
+        const timer = window.setTimeout(() => openAdHocTask(match), 0);
+        return () => window.clearTimeout(timer);
+      }
+    }
+
     const instanceIdParam = searchParams.get('instanceId');
-    if (!instanceIdParam || deepLinkHandled.current || loading || items.length === 0) return;
+    if (!instanceIdParam) return;
     const instanceId = Number(instanceIdParam);
     if (!Number.isFinite(instanceId)) return;
-    const match = items.find((i) => i.ref_id === instanceId);
+    const match = items.find((i) => i.ref_type !== 'ad_hoc_task' && i.ref_id === instanceId);
     if (match) {
       deepLinkHandled.current = true;
       const timer = window.setTimeout(() => {
-        void openDetails(match);
+        void openWorkflowDetails(match);
       }, 0);
       return () => window.clearTimeout(timer);
     }
-  }, [searchParams, items, loading, openDetails]);
+  }, [searchParams, items, loading, openAdHocTask, openWorkflowDetails]);
 
   const paymentRecord =
-    resolvedForm?.refType === 'payment_request' ? (resolvedForm.raw as PaymentRequestResponse) : null;
+    resolvedForm?.refType === 'payment_request' || resolvedForm?.refType === 'payment_order'
+      ? (resolvedForm.raw as PaymentRequestResponse)
+      : null;
   const pettyCashRecord =
     resolvedForm?.refType === 'petty_cash' ? (resolvedForm.raw as PettyCashResponse) : null;
-  const pendingPlanStep = approvalPlan?.steps.find((s) => s.status === 'pending');
+  const financialDocumentRecord =
+    resolvedForm?.refType === 'financial_document'
+      ? (resolvedForm.raw as FinancialDocumentResponse)
+      : null;
+  const purchaseRecord =
+    resolvedForm?.refType === 'request' ||
+    resolvedForm?.refType === 'procurement_proforma' ||
+    resolvedForm?.refType === 'purchase_request'
+      ? (resolvedForm.raw as PurchaseRequest)
+      : null;
+  const currentSection =
+    approvalHistory?.sections.find((s) => s.isCurrent) ??
+    approvalHistory?.sections[approvalHistory.sections.length - 1];
+  const pendingPlanStep = currentSection?.steps.find((s) => s.status === 'pending');
+  const pendingStepId = pendingPlanStep?.id;
+  const canReturnRejectToPrevious = (pendingPlanStep?.order ?? 0) > 1;
+
+  const uploadPendingStepAttachments = async (instanceId: number) => {
+    if (!pendingStepId || stepAttachmentFiles.length === 0) return;
+    for (const file of stepAttachmentFiles) {
+      const up = await uploadWorkflowStepAttachmentAction(instanceId, pendingStepId, file);
+      if (!up.success) {
+        toast({
+          title: 'خطا در آپلود پیوست',
+          description: up.error,
+          variant: 'destructive',
+        });
+        throw new Error(up.error);
+      }
+    }
+    setStepAttachmentFiles([]);
+  };
   const isFinanceApprovalStep = isFinanceWorkflowStepRole(pendingPlanStep?.roleName);
   const isFinanceContext = isFinanceRole(session?.roles) || isFinanceApprovalStep;
+
+  const paymentNeedsFinancialTerms =
+    paymentRecord != null &&
+    isFinanceApprovalStep &&
+    paymentRecord.status === 'pending' &&
+    ((paymentRecord.type === PaymentRequestType.LOAN && isLoanTermsUnset(paymentRecord)) ||
+      (paymentRecord.type === PaymentRequestType.ADVANCE && isAdvanceTermsUnset(paymentRecord)));
 
   const paymentNeedsPayer =
     paymentRecord != null &&
@@ -209,67 +302,188 @@ export default function WorkflowInboxPage() {
         isLoanTermsUnset(paymentRecord) ||
         isAdvanceTermsUnset(paymentRecord)));
 
+  const isProformaApproval =
+    resolvedForm?.refType === 'procurement_proforma' ||
+    (resolvedForm?.refType === 'purchase_request' &&
+      purchaseRecord?.status === 'proforma_review');
+  const pendingStepAction = pendingPlanStep?.stepAction ?? null;
+  const isMarkPaymentStep = pendingStepAction === 'mark_payment';
+  const isOperationalInboxStep =
+    pendingStepAction === 'upload_proforma' || pendingStepAction === 'upload_invoice';
   const detailsReady = Boolean(resolvedForm || paymentRecord);
-  const canDecide = detailsReady && !planLoading;
+  const canDecide = detailsReady && !planLoading && !isOperationalInboxStep && !isMarkPaymentStep;
 
-  const paymentApprovalBlocked =
-    paymentRecord != null &&
-    needsApproverReview({
-      isApprover: isApproverRole(session?.roles),
-      isFinance: isFinanceRole(session?.roles),
-      isFinanceStep: isFinanceApprovalStep,
-      status: paymentRecord.status,
-      record: paymentRecord,
-      payerUnset: isPaymentRequestPayerUnset(paymentRecord),
+  const workflowStatus = currentSection?.status ?? approvalHistory?.sections[0]?.status;
+  const summaryFields: WorkflowSummaryField[] = [];
+  if (purchaseRecord) {
+    summaryFields.push({
+      label: 'تعداد اقلام',
+      value: `${purchaseRecord.items.length} قلم`,
     });
+    if (purchaseRecord.reason) {
+      summaryFields.push({ label: 'توضیح', value: purchaseRecord.reason });
+    }
+  }
+  if (paymentRecord) {
+    summaryFields.push({ label: 'نوع', value: paymentRecord.type });
+    if (paymentRecord.amount != null) {
+      summaryFields.push({ label: 'مبلغ', value: String(paymentRecord.amount) });
+    }
+  }
+
+  const requesterName =
+    purchaseRecord?.requesterName ??
+    paymentRecord?.requesterName ??
+    (resolvedForm?.summary['درخواست‌کننده'] as string | undefined) ??
+    null;
+
+  const recordCreatedAt =
+    purchaseRecord?.createdAt ??
+    paymentRecord?.createdAt ??
+    null;
+
+  const detailsContent =
+    paymentRecord || pettyCashRecord || financialDocumentRecord || purchaseRecord || resolvedForm ? (
+      <>
+        {paymentRecord && (
+          <WorkflowPaymentRequestReview
+            ref={paymentReviewRef}
+            record={paymentRecord}
+            needsPayer={paymentNeedsPayer}
+            needsFinancialTerms={paymentNeedsFinancialTerms}
+            showCompanyPayerSelect={paymentShowCompanyPayer}
+          />
+        )}
+        {pettyCashRecord && <WorkflowPettyCashReview ref={pettyCashReviewRef} record={pettyCashRecord} />}
+        {financialDocumentRecord && (
+          <WorkflowFinancialDocumentReview ref={financialDocumentReviewRef} record={financialDocumentRecord} />
+        )}
+        {purchaseRecord && (
+          <WorkflowPurchaseRequestReview
+            record={purchaseRecord}
+            refType={resolvedForm?.refType}
+          />
+        )}
+        {resolvedForm &&
+          !paymentRecord &&
+          !pettyCashRecord &&
+          !financialDocumentRecord &&
+          !purchaseRecord && (
+          <div className="space-y-2 text-right text-sm">
+            <p className="font-medium">{resolvedForm.label}</p>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {Object.entries(resolvedForm.summary).map(([k, v]) => (
+                <div key={k}>
+                  <span className="text-muted-foreground">{k}:</span> {v}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    ) : null;
 
   const sessionUserId = getNumericUserIdFromClientSession(session);
   const willAutoSkipNextStep =
     sessionUserId > 0 &&
     pendingPlanStep?.assignedUserId === sessionUserId &&
-    (approvalPlan?.steps.some((s) => s.status === 'approved') ?? false);
+    (currentSection?.steps.some((s) => s.status === 'approved') ?? false);
 
   const handleApprove = async () => {
     if (!selectedInbox) return;
 
-    let approvePayload: Parameters<typeof approveWorkflowAction>[1] | undefined;
-    if (paymentRecord) {
-      const built = paymentReviewRef.current?.buildApprovePayload();
-      const needsPayload =
-        paymentApprovalBlocked ||
-        paymentRecord.type === PaymentRequestType.LOAN ||
-        paymentRecord.type === PaymentRequestType.ADVANCE ||
-        paymentRecord.type === PaymentRequestType.PAYMENT_ORDER ||
-        paymentNeedsPayer ||
-        paymentShowCompanyPayer;
-      if (needsPayload) {
-        if (!built?.ok) {
-          toast({
-            title: 'تکمیل اطلاعات الزامی است',
-            description: built?.error ?? 'اطلاعات تأیید را تکمیل کنید.',
-            variant: 'destructive',
-          });
-          return;
-        }
-        approvePayload = built.payload;
+    const commentTrimmed = approveComment.trim();
+    if (isProformaApproval) {
+      if (!paymentMethod.trim()) {
+        toast({
+          title: 'روش پرداخت الزامی است',
+          variant: 'destructive',
+        });
+        return;
       }
+      if (!commentTrimmed) {
+        toast({
+          title: 'توضیح روش پرداخت الزامی است',
+          description: 'شرایط پرداخت را در کامنت بنویسید.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    let approvePayload: Parameters<typeof approveWorkflowAction>[1] | undefined;
+
+    if (paymentRecord && !isMarkPaymentStep) {
+      const built = paymentReviewRef.current?.buildApprovePayload();
+      if (!built?.ok) {
+        toast({
+          title: 'تکمیل اطلاعات الزامی است',
+          description: built?.error ?? 'مبلغ و تاریخ پرداخت را بررسی کنید.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      approvePayload = built.payload;
+    } else if (pettyCashRecord) {
+      const built = pettyCashReviewRef.current?.buildApprovePayload();
+      if (!built?.ok) {
+        toast({
+          title: 'تکمیل اطلاعات الزامی است',
+          description: built?.error ?? 'مبلغ و تاریخ پرداخت را بررسی کنید.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      approvePayload = built.payload;
+    } else if (financialDocumentRecord) {
+      const built = financialDocumentReviewRef.current?.buildApprovePayload();
+      if (!built?.ok) {
+        toast({
+          title: 'تکمیل اطلاعات الزامی است',
+          description: built?.error ?? 'مبلغ و تاریخ پرداخت را بررسی کنید.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      approvePayload = built.payload;
     }
 
     setActionPending(true);
     const inboxId = selectedInbox.id;
     const instanceId = selectedInbox.ref_id;
-    runAction(() => approveWorkflowAction(instanceId, approvePayload), {
+    if (commentTrimmed) {
+      approvePayload = { ...approvePayload, comment: commentTrimmed };
+    }
+    if (isProformaApproval) {
+      approvePayload = { ...approvePayload, payment_method: paymentMethod };
+    }
+    if (isMarkPaymentStep) {
+      approvePayload = { ...approvePayload, payment_executed: true };
+    }
+    runAction(
+      async () => {
+        await uploadPendingStepAttachments(instanceId);
+        return approveWorkflowAction(instanceId, approvePayload);
+      },
+      {
       successMessage: 'درخواست تأیید شد',
       errorMessage: 'تأیید ناموفق بود',
       onSuccess: async () => {
         void markInboxDoneAction(inboxId).then(() => void refreshBadgeCounts());
-        const { planResult, paymentResult } = await loadInstanceDetails(instanceId);
+        const { historyResult, formResult } = await loadInstanceDetails(instanceId);
         triggerLoad();
+        const rawStatus =
+          formResult.data?.raw && typeof formResult.data.raw === 'object' && 'status' in formResult.data.raw
+            ? String((formResult.data.raw as { status?: string }).status ?? '').toLowerCase()
+            : '';
+        const refreshedCurrent =
+          historyResult.data?.sections.find((s) => s.isCurrent) ??
+          historyResult.data?.sections[historyResult.data.sections.length - 1];
         const workflowDone =
-          planResult.data?.status === 'approved' ||
-          planResult.data?.status === 'rejected' ||
-          paymentResult.data?.status === 'approved' ||
-          paymentResult.data?.status === 'rejected';
+          refreshedCurrent?.status === 'approved' ||
+          refreshedCurrent?.status === 'rejected' ||
+          rawStatus === 'approved' ||
+          rawStatus === 'rejected';
         if (workflowDone) {
           toast({
             title: 'فرآیند تأیید تکمیل شد',
@@ -281,43 +495,68 @@ export default function WorkflowInboxPage() {
     });
   };
 
-  const handleReject = async () => {
+  const handleRejectConfirm = async (payload: { comment: string; returnTo: 'previous' | 'requester' }) => {
     if (!selectedInbox) return;
-    const comment = typeof window !== 'undefined' ? window.prompt('دلیل رد (اختیاری):', '') : '';
-    if (comment === null) return;
     setActionPending(true);
     const inboxId = selectedInbox.id;
-    runAction(() => rejectWorkflowAction(selectedInbox.ref_id, comment || undefined), {
-      successMessage: 'درخواست رد شد',
-      errorMessage: 'رد ناموفق بود',
-      onSuccess: () => {
-        void markInboxDoneAction(inboxId).then(() => void refreshBadgeCounts());
-        setDetailsOpen(false);
-        setSelectedInbox(null);
-        triggerLoad();
+    const instanceId = selectedInbox.ref_id;
+    runAction(
+      async () => {
+        await uploadPendingStepAttachments(instanceId);
+        return rejectWorkflowAction(instanceId, payload);
       },
-      onSettled: () => setActionPending(false),
-    });
+      {
+        successMessage:
+          payload.returnTo === 'previous'
+            ? 'درخواست به مرحله قبل برگردانده شد'
+            : 'درخواست به درخواست‌کننده برگردانده شد',
+        errorMessage: 'رد ناموفق بود',
+        onSuccess: () => {
+          setRejectModalOpen(false);
+          void markInboxDoneAction(inboxId).then(() => void refreshBadgeCounts());
+          if (payload.returnTo === 'requester') {
+            setDetailsOpen(false);
+            setSelectedInbox(null);
+          } else {
+            void loadInstanceDetails(instanceId);
+          }
+          triggerLoad();
+        },
+        onSettled: () => setActionPending(false),
+      },
+    );
   };
 
   const columns: ColumnDef<InboxItem>[] = [
     { accessorKey: 'title', header: 'عنوان', cell: ({ row }) => row.original.title || `کار #${row.original.id}` },
     {
+      accessorKey: 'ref_type',
+      header: 'نوع',
+      cell: ({ row }) => inboxRefTypeLabel(row.original.ref_type),
+    },
+    {
       accessorKey: 'ref_id',
-      header: 'شناسه نمونه',
+      header: 'شناسه مرجع',
       cell: ({ row }) => row.original.ref_id,
     },
     {
       accessorKey: 'created_at',
-      header: 'تاریخ',
-      cell: ({ row }) => formatJalaliDate(row.original.created_at),
+      header: 'زمان ورود به کارتابل',
+      enableSorting: true,
+      cell: ({ row }) =>
+        formatJalaliDate(row.original.created_at, {
+          withTime: true,
+          persianDigits: true,
+          fallback: '—',
+        }),
     },
     {
       id: 'actions',
       header: 'عملیات',
       cell: ({ row }) => (
-        <Button type="button" variant="outline" size="sm" onClick={() => void openDetails(row.original)}>
-          <Eye className="h-4 w-4" />
+        <Button type="button" variant="outline" size="sm" onClick={() => openInboxItem(row.original)}>
+          <Eye className="ml-1 h-4 w-4" />
+          نمایش
         </Button>
       ),
     },
@@ -355,8 +594,8 @@ export default function WorkflowInboxPage() {
       <AdvancedModal
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
-        title="بررسی و تأیید"
-        size="lg"
+        title="جزئیات جریان کار"
+        size="xl"
         footer={
           <div className="flex w-full flex-row-reverse flex-wrap justify-start gap-2">
             <Button type="button" variant="outline" onClick={() => setDetailsOpen(false)} disabled={actionPending}>
@@ -367,72 +606,89 @@ export default function WorkflowInboxPage() {
               variant="destructive"
               className="bg-destructive text-white hover:bg-destructive/90"
               disabled={actionPending || !canDecide}
-              onClick={() => void handleReject()}
+              onClick={() => setRejectModalOpen(true)}
             >
               <X className="ml-1 h-4 w-4" />
               رد
             </Button>
-            <Button type="button" disabled={actionPending || !canDecide} onClick={() => void handleApprove()}>
-              <Check className="ml-1 h-4 w-4" />
-              تأیید
-            </Button>
+            {isMarkPaymentStep ? (
+              <Button
+                type="button"
+                disabled={actionPending || !detailsReady || planLoading}
+                onClick={() => void handleApprove()}
+              >
+                <Check className="ml-1 h-4 w-4" />
+                پرداخت انجام شد
+              </Button>
+            ) : (
+              <Button type="button" disabled={actionPending || !canDecide} onClick={() => void handleApprove()}>
+                <Check className="ml-1 h-4 w-4" />
+                تأیید
+              </Button>
+            )}
           </div>
         }
       >
         {!selectedInbox ? (
           <p className="text-sm text-muted-foreground">موردی انتخاب نشده است.</p>
         ) : (
-          <div className="space-y-4 text-sm">
-            {selectedInbox.title && (
-              <p className="text-base font-semibold text-right">{selectedInbox.title}</p>
-            )}
-
-            {planLoading && (
-              <p className="text-sm text-muted-foreground">در حال بارگذاری جزئیات درخواست…</p>
-            )}
-
-            <WorkflowSameAssigneeAlert show={willAutoSkipNextStep} />
-
-            {formError && !resolvedForm && (
-              <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-destructive">
-                {formError}
-              </p>
-            )}
-
-            {resolvedForm && (
-              <div className="space-y-3 text-right">
-                <p className="font-medium">{resolvedForm.label}</p>
-                <div className="grid grid-cols-1 gap-2 rounded-lg border bg-muted/20 p-3 md:grid-cols-2">
-                  {Object.entries(resolvedForm.summary).map(([k, v]) => (
-                    <div key={k}>
-                      <span className="text-muted-foreground">{k}:</span> {v}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {paymentRecord && (
-              <WorkflowPaymentRequestReview
-                ref={paymentReviewRef}
-                record={paymentRecord}
-                needsPayer={paymentNeedsPayer}
-                showCompanyPayerSelect={paymentShowCompanyPayer}
-              />
-            )}
-
-            {pettyCashRecord && <WorkflowPettyCashReview record={pettyCashRecord} />}
-
-            <WorkflowApprovalPlanTimeline plan={approvalPlan} loading={planLoading} error={planError} />
-
-            {!planLoading && !detailsReady && (
-              <p className="text-sm text-muted-foreground">
-                بدون جزئیات درخواست، تأیید یا رد ممکن نیست. پس از رفع خطا، صفحه را ببندید و دوباره باز کنید.
-              </p>
-            )}
-          </div>
+          <WorkflowInboxReviewPanel
+            title={selectedInbox.title || `کار #${selectedInbox.id}`}
+            subtitle={
+              pendingPlanStep
+                ? `مرحله جاری: ${pendingPlanStep.label ?? pendingPlanStep.roleName ?? pendingPlanStep.order}`
+                : null
+            }
+            statusLabel={workflowStatusLabelFa(workflowStatus)}
+            statusTone={workflowStatusTone(workflowStatus)}
+            requesterName={requesterName}
+            createdAt={recordCreatedAt}
+            summaryFields={summaryFields}
+            approvalHistory={approvalHistory}
+            planLoading={planLoading}
+            planError={planError}
+            formError={!resolvedForm && formError ? formError : null}
+            detailsContent={detailsContent}
+            relatedRequestsContent={
+              selectedInbox.ref_type !== 'ad_hoc_task' ? (
+                <RelatedRequestsPanel instanceId={selectedInbox.ref_id} />
+              ) : null
+            }
+            showSameAssigneeAlert={willAutoSkipNextStep}
+            canDecide={canDecide}
+            approveComment={approveComment}
+            onApproveCommentChange={setApproveComment}
+            pendingStepOrder={pendingPlanStep?.order ?? null}
+            attachmentFiles={stepAttachmentFiles}
+            onAttachmentFilesChange={setStepAttachmentFiles}
+            actionPending={actionPending}
+            showPaymentMethod={isProformaApproval}
+            paymentMethod={paymentMethod}
+            onPaymentMethodChange={setPaymentMethod}
+            operationalNotice={
+              isMarkPaymentStep
+                ? 'پس از انجام واقعی پرداخت، دکمه «پرداخت انجام شد» را بزنید. تأیید معمول این مرحله از کارتابل انجام نمی‌شود.'
+                : isOperationalInboxStep
+                  ? pendingStepAction === 'upload_proforma'
+                    ? 'این مرحله «ثبت پیش‌فاکتور» است و از کارتابل تأیید نمی‌شود. به صفحه درخواست‌های خرید بروید، پیش‌فاکتور را بارگذاری و دکمه «ارسال برای تأیید» را بزنید تا گردش‌کار یک مرحله جلو برود.'
+                    : 'این مرحله «بارگذاری فاکتور» است. از صفحه درخواست‌های خرید فاکتور را آپلود کنید.'
+                  : null
+            }
+          />
         )}
       </AdvancedModal>
+
+      <WorkflowRejectModal
+        open={rejectModalOpen}
+        onOpenChange={setRejectModalOpen}
+        pendingStepOrder={pendingPlanStep?.order ?? null}
+        canReturnToPrevious={canReturnRejectToPrevious}
+        loading={actionPending}
+        onConfirm={(payload) => void handleRejectConfirm(payload)}
+      />
     </DashboardPageShell>
   );
 }
+
+
+

@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/app/components/ui/form';
 import { updatePaymentRequestAction } from '@/app/_actions/payment-request-actions';
 import { useFormAction } from '@/app/hooks/use-form-action';
+import { notifyAttachmentUploadFailed } from '@/app/utils/form-notify';
 import type { PaymentRequestResponse } from '../../_types/payment-request.types';
 import { PaymentRequestType } from '../../_types/payment-request.types';
 import {
@@ -55,7 +56,7 @@ export function PaymentRequestEmployeeEditForm({
       });
       if (result.success) {
         notifySuccess('ذخیره شد');
-        if (result.attachmentError) notifyError(`پیوست: ${result.attachmentError}`);
+        if (result.attachmentError) notifyAttachmentUploadFailed(result.attachmentError);
         onSuccess?.();
       } else {
         notifyError(result.error || 'ذخیره ناموفق بود');
@@ -80,6 +81,7 @@ export function PaymentRequestEmployeeEditForm({
             lines: [`${record.receiver.name} — ${record.receiver.accountNumber}`],
           }}
           attachmentLinks={attachmentLinks}
+          selectedFiles={files}
           onFilesChange={setFiles}
         />
       </form>

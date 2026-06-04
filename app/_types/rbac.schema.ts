@@ -1,7 +1,22 @@
 import { z } from "zod";
 
+const technicalIdSchema = z
+  .string()
+  .trim()
+  .min(2, 'شناسه فنی باید حداقل ۲ کاراکتر باشد')
+  .regex(/^[a-z][a-z0-9_-]*$/, 'شناسه فنی فقط حروف کوچک انگلیسی، عدد، _ و -');
+
 export const RoleSchema = z.object({
-  name: z.string().trim().min(2, "نام نقش باید حداقل 2 کاراکتر باشد"),
+  name: technicalIdSchema,
+  displayName: z.string().trim().min(2, 'نام نمایشی باید حداقل ۲ کاراکتر باشد'),
+  isSingleton: z.boolean().optional().default(false),
+});
+
+/** ویرایش: شناسه فنی در فرم غیرفعال است */
+export const RoleEditSchema = z.object({
+  name: z.string().trim().min(1),
+  displayName: z.string().trim().min(2, 'نام نمایشی باید حداقل ۲ کاراکتر باشد'),
+  isSingleton: z.boolean().optional().default(false),
 });
 
 export const PermissionSchema = z.object({

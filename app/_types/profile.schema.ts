@@ -19,6 +19,8 @@ export const ProfileUpdateSchema = z.object({
 
 export type ProfileUpdateFormValues = z.infer<typeof ProfileUpdateSchema>;
 
-export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-export const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
-export const AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'] as const;
+import { AVATAR_MAX_BYTES } from '@/app/constants/upload-limits';
+
+export { AVATAR_MAX_BYTES };
+export const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif';
+export const AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'] as const;

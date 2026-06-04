@@ -12,12 +12,24 @@ const authorizationRules: Array<{
   permissions?: string[];
 }> = [
   { pathPrefix: "/dashboard/admin", permissions: ["admin.manage"] },
+  {
+    pathPrefix: "/dashboard/payment-request/procurement",
+    permissions: ["payment.create", "payment.approve", "procurement.read"],
+  },
   { pathPrefix: "/dashboard/payment-request", permissions: ["payment.create", "payment.approve"] },
   { pathPrefix: "/dashboard/petty-cash", permissions: ["payment.create", "payment.approve"] },
-  { pathPrefix: "/dashboard/workflow/inbox", permissions: ["workflow.inbox.read"] },
+  {
+    pathPrefix: "/dashboard/workflow/inbox",
+    permissions: ["workflow.inbox.read", "dashboard.read"],
+  },
   { pathPrefix: "/dashboard/workflow/tracking", permissions: ["workflow.tracking.read", "workflow.all.read", "workflow.read"] },
   { pathPrefix: "/dashboard/procurement", permissions: ["procurement.read"] },
+  { pathPrefix: "/dashboard/product-request", permissions: ["procurement.read", "procurement.write"] },
   { pathPrefix: "/dashboard/inventory", permissions: ["inventory.read", "inventory.transfer"] },
+  {
+    pathPrefix: "/dashboard/master/suppliers",
+    permissions: ["procurement.read", "procurement.write", "masterdata.manage", "item.read", "item.*"],
+  },
   { pathPrefix: "/dashboard/master", permissions: ["masterdata.manage", "item.read", "item.*"] },
 ];
 

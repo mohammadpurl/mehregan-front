@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Notifications } from "./components/notification/notifications";
+import { ThemeLegacyCleanup } from "./components/theme/theme-legacy-cleanup";
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -71,11 +72,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" className={`h-full ${yekanbakh.variable} ${yekanbakh.className}`}>
+    <html lang="fa" className={`h-full ${yekanbakh.variable} ${yekanbakh.className}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var r=document.documentElement;r.classList.remove('dark','light');localStorage.removeItem('theme');}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className="h-dvh max-h-dvh overflow-hidden bg-background font-sans touch-manipulation overflow-x-hidden antialiased"
         dir="rtl"
       >
+        <ThemeLegacyCleanup />
         <Notifications />
         {children}
       </body>

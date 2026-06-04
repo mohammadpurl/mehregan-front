@@ -59,26 +59,8 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
   if (mode === 'approver' && type === PaymentRequestType.LOAN) {
     return (
       <div className="space-y-3 rounded-lg border border-sky-200/80 bg-sky-50/40 p-4 dark:border-sky-900/40">
-        <p className="text-sm font-medium text-sky-950 dark:text-sky-100">تأیید وام (مدیر)</p>
+        <p className="text-sm font-medium text-sky-950 dark:text-sky-100">شرایط وام (مرحله مالی)</p>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField
-            control={control as Control<ApproverFields & FieldValues>}
-            name={'amount' as Path<T>}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>مبلغ وام (ریال)</FormLabel>
-                <FormControl>
-                  <FormattedNumberInput
-                    value={field.value ?? 0}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    disabled={readOnly}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <FormField
             control={control as Control<ApproverFields & FieldValues>}
             name={'loanInstallmentCount' as Path<T>}
@@ -125,25 +107,7 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
   if (mode === 'approver' && type === PaymentRequestType.ADVANCE) {
     return (
       <div className="space-y-3 rounded-lg border border-amber-200/80 bg-amber-50/40 p-4 dark:border-amber-900/40">
-        <p className="text-sm font-medium">تأیید مساعده (مدیر)</p>
-        <FormField
-          control={control as Control<ApproverFields & FieldValues>}
-          name={'amount' as Path<T>}
-          render={({ field }) => (
-            <FormItem className="max-w-md">
-              <FormLabel>مبلغ مساعده (ریال)</FormLabel>
-              <FormControl>
-                <FormattedNumberInput
-                  value={field.value ?? 0}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  disabled={readOnly}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <p className="text-sm font-medium">تاریخ تسویه مساعده (مرحله مالی)</p>
         <FormField
           control={control as Control<ApproverFields & FieldValues>}
           name={'advanceExpectedRepaymentDate' as Path<T>}

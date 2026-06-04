@@ -6,7 +6,6 @@ import {
   formatNumber,
   parseFormattedNumber,
   sanitizeNumberInput,
-  toEditingNumberString,
 } from '@/app/utils/number-format';
 import { cn } from '@/lib/utils';
 
@@ -88,17 +87,25 @@ export function FormattedNumberInput({
       value={display}
       onFocus={() => {
         setFocused(true);
-        setDisplay(toEditingNumberString(value));
+        setDisplay(value ? formatNumber(value, { maximumFractionDigits }) : '');
       }}
       onChange={(e) => {
         const cleaned = sanitizeNumberInput(e.target.value);
-        setDisplay(cleaned);
         if (!cleaned) {
+          setDisplay('');
           emitChange?.(0);
           return;
         }
         const n = parseFormattedNumber(cleaned);
-        if (n != null) emitChange?.(n);
+        if (n == null) {
+          setDisplay(cleaned);
+          return;
+        }
+        let next = n;
+        if (min != null && next < min) next = min;
+        if (max != null && next > max) next = max;
+        emitChange?.(next);
+        setDisplay(formatNumber(next, { maximumFractionDigits }));
       }}
       onBlur={() => {
         commit(display);

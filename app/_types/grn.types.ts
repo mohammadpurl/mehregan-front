@@ -1,37 +1,52 @@
-export type GrnStatus = 'draft' | 'received' | 'inspected' | 'posted' | 'cancelled';
+export type GrnStatus = 'draft' | 'posted' | 'cancelled';
+
+export interface GoodsReceiptLine {
+  id?: number;
+  requestItemId?: number | null;
+  itemId: number;
+  itemName?: string | null;
+  quantityReceived: number;
+  unitPrice?: number | null;
+}
 
 export interface Grn {
   id: number;
-  grn_no?: string | null;
-  po_id?: string | null;
-  supplier_name?: string | null;
-  item_name?: string | null;
-  received_qty?: number | null;
-  warehouse_name?: string | null;
-  receipt_date?: string | null;
+  grnNo?: string | null;
+  requestId: number;
+  supplierId: number;
+  supplierName?: string | null;
+  warehouseId: number;
+  warehouseName?: string | null;
+  proformaId?: number | null;
   status: GrnStatus;
-  description?: string | null;
+  invoiceNotes?: string | null;
+  receiptDate?: string | null;
+  createdAt?: string | null;
+  postedAt?: string | null;
+  lines: GoodsReceiptLine[];
+  requestStatus?: string | null;
+  fileName?: string | null;
+  downloadUrl?: string | null;
 }
 
 export interface CreateGrnModel {
-  po_id?: string;
-  supplier_name?: string;
-  item_name?: string;
-  received_qty?: number;
-  warehouse_name?: string;
-  receipt_date?: string;
-  status?: GrnStatus;
-  description?: string;
+  requestId: number;
+  warehouseId: number;
+  supplierId?: number;
+  receiptDate?: string;
+  invoiceNotes?: string;
+  lines?: {
+    requestItemId?: number;
+    itemId?: number;
+    itemName?: string;
+    quantityReceived: number;
+    unitPrice?: number;
+  }[];
 }
 
 export interface UpdateGrnModel {
-  po_id?: string;
-  supplier_name?: string;
-  item_name?: string;
-  received_qty?: number;
-  warehouse_name?: string;
-  receipt_date?: string;
-  status?: GrnStatus;
-  description?: string;
+  warehouseId?: number;
+  receiptDate?: string;
+  invoiceNotes?: string;
+  lines?: CreateGrnModel['lines'];
 }
-

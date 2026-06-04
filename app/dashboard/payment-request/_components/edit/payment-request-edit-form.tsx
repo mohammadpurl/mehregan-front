@@ -8,6 +8,7 @@ import type { PaymentRequestResponse } from '../../_types/payment-request.types'
 import { canEmployeeEditOwn } from '../../_utils/payment-request-form.utils';
 import { isPaymentRequestOwner } from '../../_utils/payment-request-session';
 import { PaymentRequestAccountDetailsPanel } from '../payment-request-account-details-panel';
+import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
 import { PaymentRequestEmployeeEditForm } from './payment-request-employee-edit-form';
 
 type Props = {
@@ -42,6 +43,7 @@ export function PaymentRequestEditForm(props: Props) {
 
   return (
     <div className="space-y-4">
+      <RequestAttachmentsPanel documentsUrls={detail.documentsUrls} attachments={detail.attachments} />
       <PaymentRequestAccountDetailsPanel record={detail} />
       <Alert>
         <AlertTitle>قابل ویرایش نیست</AlertTitle>

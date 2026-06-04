@@ -1,7 +1,7 @@
 'use client';
 
-import type { ChangeEvent } from 'react';
 import type { Control } from 'react-hook-form';
+import { AttachmentFileInput } from '@/app/components/attachments/attachment-file-input';
 import { useWatch } from 'react-hook-form';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
 import { Input } from '@/app/components/ui/input';
@@ -34,6 +34,7 @@ type Props = {
   fixedType?: PaymentRequestType;
   receiverBanner?: { title: string; lines: string[] };
   attachmentLinks?: string[];
+  selectedFiles?: File[];
   onFilesChange?: (files: File[]) => void;
 };
 
@@ -45,6 +46,7 @@ export function PaymentRequestEmployeeFields({
   fixedType,
   receiverBanner,
   attachmentLinks,
+  selectedFiles,
   onFilesChange,
 }: Props) {
   const watchedType = useWatch({ control, name: 'type' });
@@ -192,14 +194,7 @@ export function PaymentRequestEmployeeFields({
       {!readOnly && onFilesChange && (
         <div className="space-y-2">
           <FormLabel>پیوست {attachmentLinks?.length ? '(جدید)' : '(اختیاری)'}</FormLabel>
-          <Input
-            type="file"
-            multiple
-            className="cursor-pointer"
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              if (e.target.files) onFilesChange(Array.from(e.target.files));
-            }}
-          />
+          <AttachmentFileInput files={selectedFiles} onFilesChange={onFilesChange} />
         </div>
       )}
 

@@ -12,6 +12,8 @@ import {
   WorkflowFormData,
   WorkflowResponse,
   WorkflowListResponse,
+  WorkflowInstanceListResponse,
+  WorkflowInstanceListScope,
 } from '../_types/workflow.types';
 
 const BASE = '/workflow-forms';
@@ -96,6 +98,57 @@ export async function updateWorkflowAction(id: string, data: Partial<WorkflowFor
     return { success: true as const, data: response };
   } catch (err: unknown) {
     return { success: false as const, error: extractActionErrorMessage(err, 'خطا در به‌روزرسانی فرم') };
+  }
+}
+
+export async function getWorkflowInstancesListCapabilitiesAction() {
+  try {
+    const data = await readDataWithAuth<{ scopes: WorkflowInstanceListScope[] }>(
+      '/workflow/instances/list-capabilities',
+    );
+    return { success: true as const, data };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'خطا در دریافت محدوده‌های پیگیری'),
+    };
+  }
+}
+
+export async function getWorkflowInstancesQueryAction(params?: {
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  search?: string;
+  id?: string;
+  refType?: string;
+  status?: string;
+  scope?: WorkflowInstanceListScope;
+}) {
+  const page = params?.page ?? 1;
+  const pageSize = params?.pageSize ?? 10;
+  const query = new URLSearchParams();
+  query.set('page', String(page));
+  query.set('pageSize', String(pageSize));
+  if (params?.sortBy) query.set('sortBy', params.sortBy);
+  if (params?.sortOrder) query.set('sortOrder', params.sortOrder);
+  if (params?.search) query.set('search', params.search);
+  if (params?.id) query.set('id', params.id);
+  if (params?.refType) query.set('refType', params.refType);
+  if (params?.status) query.set('status', params.status);
+  if (params?.scope) query.set('scope', params.scope);
+
+  try {
+    const data = await readDataWithAuth<WorkflowInstanceListResponse>(
+      `/workflow/instances?${query.toString()}`,
+    );
+    return { success: true as const, data };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'خطا در دریافت پیگیری گردش‌کار'),
+    };
   }
 }
 

@@ -32,6 +32,7 @@ export async function getSuppliersAction(params?: {
   code?: string;
   phone?: string;
   email?: string;
+  activeOnly?: boolean;
 }) {
   const page = params?.page ?? 1;
   const pageSize = params?.pageSize ?? 10;
@@ -48,6 +49,7 @@ export async function getSuppliersAction(params?: {
   if (params?.code) query.set('code', params.code);
   if (params?.phone) query.set('phone', params.phone);
   if (params?.email) query.set('email', params.email);
+  if (params?.activeOnly) query.set('activeOnly', 'true');
 
   const url = `/suppliers?${query.toString()}`;
   try {

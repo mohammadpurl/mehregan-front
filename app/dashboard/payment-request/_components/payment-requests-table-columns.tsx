@@ -28,6 +28,7 @@ type Handlers = {
   onDelete: (id: string) => void;
   deletePending?: boolean;
   canEdit?: (row: PaymentRequestResponse) => boolean;
+  showRequester?: boolean;
 };
 
 export function getPaymentRequestsTableColumns({
@@ -35,8 +36,25 @@ export function getPaymentRequestsTableColumns({
   onDelete,
   deletePending,
   canEdit,
+  showRequester = false,
 }: Handlers): ColumnDef<PaymentRequestResponse>[] {
-  return [
+  const cols: ColumnDef<PaymentRequestResponse>[] = [
+    {
+      accessorKey: 'id',
+      header: 'شناسه',
+      cell: ({ row }) => row.original.id,
+    },
+  ];
+
+  if (showRequester) {
+    cols.push({
+      id: 'requester',
+      header: 'درخواست‌کننده',
+      cell: ({ row }) => row.original.requesterName ?? '—',
+    });
+  }
+
+  cols.push(
     {
       accessorKey: 'type',
       header: 'نوع',
@@ -97,5 +115,7 @@ export function getPaymentRequestsTableColumns({
         );
       },
     },
-  ];
+  );
+
+  return cols;
 }

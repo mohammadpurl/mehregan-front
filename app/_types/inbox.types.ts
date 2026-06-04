@@ -1,8 +1,8 @@
 export interface InboxItem {
   id: number;
-  /** همیشه `"workflow"` برای کارهای تأیید */
+  /** `workflow` | `ad_hoc_task` و ... */
   ref_type: string;
-  /** شناسه `workflow_instances.id` */
+  /** شناسه نمونه workflow یا کار پیش‌بینی‌نشده */
   ref_id: number;
   title?: string;
   message?: string;
@@ -10,6 +10,11 @@ export interface InboxItem {
   read?: boolean;
   created_at?: string;
   updated_at?: string;
+  request_created_at?: string;
+  request_type_label?: string;
+  requester_name?: string;
+  business_ref_id?: number;
+  business_ref_type?: string;
 }
 
 export interface InboxListResponse {
