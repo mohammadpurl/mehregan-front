@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@classbon/icons": ["./lib/classbon-icons.tsx"]
     }
   },
   "include": [
