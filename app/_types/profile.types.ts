@@ -22,8 +22,8 @@ export interface UpdateProfileModel {
   mobile: string;
   first_name: string;
   last_name: string;
-  national_id: string;
-  father_name: string;
+  national_id?: string;
+  father_name?: string;
   card_number?: string;
   sheba_number?: string;
 }

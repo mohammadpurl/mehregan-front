@@ -1,5 +1,6 @@
 import { InferOutput } from 'valibot';
 import { SignInSchema } from './auth.schema';
+import type { UserPlan } from '@/app/_types/plan.types';
 
 
 
@@ -36,6 +37,8 @@ export interface UserSession extends JWT {
     permissions?: string[];
     /** Resolved at login from JWT (userId / sub / id) when present */
     userId?: string;
+    /** Optional subscription/plan metadata when provided by auth service */
+    plan?: UserPlan;
 }
 
 export interface RegisterModel {

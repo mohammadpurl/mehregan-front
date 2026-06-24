@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useEffect, useTransition } from "react";
+import { FC, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { SignInModel } from "../_types/auth.types";
@@ -9,12 +9,8 @@ import { TextBox } from "@/app/components/textbox";
 import { Button } from "@/app/components/button";
 import Phone from "@/app/_assets/phone";
 import Eye from "@/app/_assets/eye";
-import { useFormState } from "react-dom";
 import { signinAction } from "@/app/_actions/auth-actions";
 import { useNotificationStore } from "@/app/_store/notification.store";
-
-
-
 
 export const SignInForm: FC = () => {
   const {
@@ -25,34 +21,21 @@ export const SignInForm: FC = () => {
     resolver: valibotResolver(SignInSchema),
   });
 
-  const [formState, action] = useFormState(signinAction, null);
   const [isPending, startTransition] = useTransition();
 
   const showNotification = useNotificationStore(
     (state) => state.showNotification
 );
 
-  useEffect(() => {
-    debugger
-    if (formState && !formState.success && formState.error) {
-        showNotification({
-            message: formState.error,
-            type: "error",
-        });
-    } else if (formState && formState.success) {
-        // router.push(`/verify?mobile=${getValues("mobile")}`);
-        showNotification({
-            message: "کد تایید به شماره شما ارسال شد",
-            type: "info",
-        });
-        console.log(formState);
-    }
-  }, [formState, showNotification]);
-  const onSubmit = async (data: SignInModel) => {
+  const onSubmit = (data: SignInModel) => {
     startTransition(async () => {
       const response = await signinAction(data);
-      console.log("response isss" ,response);
-     
+      if (!response.success && response.error) {
+        showNotification({
+          message: response.error,
+          type: "error",
+        });
+      }
     });
   };
   return (
