@@ -19,8 +19,15 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"],
-      "@classbon/icons": ["./lib/classbon-icons.tsx"]
+      "@/_components/general/button": ["./app/components/button.tsx"],
+      "@/_components/general/textbox": ["./app/components/textbox.tsx"],
+      "@/_actions/*": ["./app/_actions/*"],
+      "@/_assets/*": ["./app/_assets/*"],
+      "@/_components/*": ["./_components/*"],
+      "@/_store/*": ["./app/_store/*"],
+      "@/_types/*": ["./app/_types/*"],
+      "@classbon/icons": ["./lib/classbon-icons.tsx"],
+      "@/*": ["./*"]
     }
   },
   "include": [

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -7,6 +8,34 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "35mb",
     },
+  },
+  turbopack: {
+    resolveAlias: {
+      "@classbon/icons": path.join(__dirname, "lib/classbon-icons.tsx"),
+      "@/_components/general/button": path.join(
+        __dirname,
+        "app/components/button.tsx"
+      ),
+      "@/_components/general/textbox": path.join(
+        __dirname,
+        "app/components/textbox.tsx"
+      ),
+    },
+  },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@classbon/icons": path.join(__dirname, "lib/classbon-icons.tsx"),
+      "@/_components/general/button": path.join(
+        __dirname,
+        "app/components/button.tsx"
+      ),
+      "@/_components/general/textbox": path.join(
+        __dirname,
+        "app/components/textbox.tsx"
+      ),
+    };
+    return config;
   },
 };
 
