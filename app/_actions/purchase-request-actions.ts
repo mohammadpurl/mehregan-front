@@ -169,6 +169,7 @@ export async function getPurchaseWarehouseCatalogAction(params?: {
     const data = await readDataWithAuth<{
       warehouses?: { id: number; name: string }[];
       items?: Record<string, unknown>[];
+      meta?: Record<string, unknown>;
     }>(`/requests/purchase/warehouse-catalog${suffix}`);
     const warehouses = Array.isArray(data?.warehouses) ? data.warehouses : [];
     const items: PurchaseWarehouseCatalogItem[] = (data?.items ?? []).map((row) => ({
