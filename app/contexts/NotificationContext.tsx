@@ -1,9 +1,10 @@
-'use client'
+'use client';
 
 import React, { createContext, useContext, ReactNode, useCallback } from 'react';
-import { useNotification, NotificationContainer, NotificationData  } from '../components/Notification';
+import { useNotificationStore } from '@/app/_store/notification.store';
+import type { Notification } from '@/types/notification.interface';
 
-// import { useNotification, NotificationContainer, NotificationData } from '@/app/components/Notification';
+export type NotificationData = Omit<Notification, 'id'> & { title?: string };
 
 interface NotificationContextType {
   addNotification: (notification: Omit<NotificationData, 'id'>) => void;
@@ -18,31 +19,41 @@ interface NotificationProviderProps {
 }
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
-  const { notifications, addNotification, removeNotification, clearAll } = useNotification();
+  const showNotification = useNotificationStore((state) => state.showNotification);
+  const dismissNotification = useNotificationStore((state) => state.dismissNotification);
 
-  const stableAddNotification = useCallback((notification: Omit<NotificationData, 'id'>) => {
-    addNotification(notification);
-  }, [addNotification]);
+  const stableAddNotification = useCallback(
+    (notification: Omit<NotificationData, 'id'>) => {
+      const { title, message, ...rest } = notification;
+      const text =
+        title && message && title !== message
+          ? `${title}: ${message}`
+          : String(message ?? title ?? '');
+      showNotification({ ...rest, message: text });
+    },
+    [showNotification],
+  );
 
-  const stableRemoveNotification = useCallback((id: string) => {
-    removeNotification(id);
-  }, [removeNotification]);
+  const stableRemoveNotification = useCallback(
+    (id: string) => {
+      dismissNotification(id);
+    },
+    [dismissNotification],
+  );
 
   const stableClearAll = useCallback(() => {
-    clearAll();
-  }, [clearAll]);
+    useNotificationStore.setState({ notifications: [] });
+  }, []);
 
   return (
-    <NotificationContext.Provider value={{ 
-      addNotification: stableAddNotification, 
-      removeNotification: stableRemoveNotification, 
-      clearAll: stableClearAll 
-    }}>
+    <NotificationContext.Provider
+      value={{
+        addNotification: stableAddNotification,
+        removeNotification: stableRemoveNotification,
+        clearAll: stableClearAll,
+      }}
+    >
       {children}
-      <NotificationContainer 
-        notifications={notifications} 
-        onClose={stableRemoveNotification} 
-      />
     </NotificationContext.Provider>
   );
 };

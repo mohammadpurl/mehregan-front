@@ -20,9 +20,10 @@ import type {
   PurchaseRequest,
 } from '@/app/_types/purchase-request.types';
 
-function mapPurchaseRequest(raw: Record<string, unknown>): PurchaseRequest {
-  const items = Array.isArray(raw.items)
-    ? (raw.items as Record<string, unknown>[]).map((li) => ({
+function mapPurchaseRequest(raw: unknown): PurchaseRequest {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const items = Array.isArray(r.items)
+    ? (r.items as Record<string, unknown>[]).map((li) => ({
         id: li.id as number | undefined,
         itemId: (li.item_id ?? li.itemId) as number | null | undefined,
         itemName: String(li.item_name ?? li.itemName ?? ''),
@@ -31,41 +32,41 @@ function mapPurchaseRequest(raw: Record<string, unknown>): PurchaseRequest {
       }))
     : [];
   return {
-    id: Number(raw.id),
-    type: String(raw.type ?? 'purchase'),
-    status: String(raw.status ?? ''),
-    requesterId: Number(raw.requester_id ?? raw.requesterId ?? 0),
-    requesterName: (raw.requester_name ?? raw.requesterName) as string | null | undefined,
-    reason: (raw.reason as string | null) ?? null,
+    id: Number(r.id),
+    type: String(r.type ?? 'purchase'),
+    status: String(r.status ?? ''),
+    requesterId: Number(r.requester_id ?? r.requesterId ?? 0),
+    requesterName: (r.requester_name ?? r.requesterName) as string | null | undefined,
+    reason: (r.reason as string | null) ?? null,
     items,
-    workflowInstanceId: (raw.workflow_instance_id ?? raw.workflowInstanceId) as number | null | undefined,
-    workflowProgress: mapWorkflowProgress(raw.workflow_progress ?? raw.workflowProgress),
-    paymentRequestId: (raw.payment_request_id ?? raw.paymentRequestId) as number | null | undefined,
-    purchaseOrderId: (raw.purchase_order_id ?? raw.purchaseOrderId) as number | null | undefined,
-    payment: mapPaymentSummary(raw.payment),
-    purchaseOrder: mapPurchaseOrderSummary(raw.purchase_order ?? raw.purchaseOrder),
-    createdAt: (raw.created_at ?? raw.createdAt) as string | null | undefined,
-    attachments: parseAttachmentsFromApi(raw.attachments).map((a) => ({
+    workflowInstanceId: (r.workflow_instance_id ?? r.workflowInstanceId) as number | null | undefined,
+    workflowProgress: mapWorkflowProgress(r.workflow_progress ?? r.workflowProgress),
+    paymentRequestId: (r.payment_request_id ?? r.paymentRequestId) as number | null | undefined,
+    purchaseOrderId: (r.purchase_order_id ?? r.purchaseOrderId) as number | null | undefined,
+    payment: mapPaymentSummary(r.payment),
+    purchaseOrder: mapPurchaseOrderSummary(r.purchase_order ?? r.purchaseOrder),
+    createdAt: (r.created_at ?? r.createdAt) as string | null | undefined,
+    attachments: parseAttachmentsFromApi(r.attachments).map((a) => ({
       id: typeof a.id === 'number' ? a.id : undefined,
       fileName: a.fileName,
       fileUrl: a.fileUrl,
     })),
-    invoices: parseAttachmentsFromApi(raw.invoices).map((a) => ({
+    invoices: parseAttachmentsFromApi(r.invoices).map((a) => ({
       id: typeof a.id === 'number' ? a.id : undefined,
       fileName: a.fileName,
       fileUrl: a.fileUrl,
       downloadUrl:
         typeof a.id === 'number' ? attachmentProxyDownloadPath(a.id) : a.fileUrl,
     })),
-    approvedPaymentMethod: (raw.approved_payment_method ?? raw.approvedPaymentMethod) as
+    approvedPaymentMethod: (r.approved_payment_method ?? r.approvedPaymentMethod) as
       | string
       | null
       | undefined,
-    approvedPaymentComment: (raw.approved_payment_comment ?? raw.approvedPaymentComment) as
+    approvedPaymentComment: (r.approved_payment_comment ?? r.approvedPaymentComment) as
       | string
       | null
       | undefined,
-    invoicePaidAt: (raw.invoice_paid_at ?? raw.invoicePaidAt) as string | null | undefined,
+    invoicePaidAt: (r.invoice_paid_at ?? r.invoicePaidAt) as string | null | undefined,
   };
 }
 
@@ -97,7 +98,7 @@ function mapWorkflowProgress(raw: unknown) {
     const p = phase as Record<string, unknown>;
     const stepsRaw = Array.isArray(p.steps) ? p.steps : [];
     return {
-      phase: String(p.phase ?? '') as 'phase1' | 'phase2',
+      phase: String(p.phase ?? '') as 'phase1' | 'phase2' | 'purchase',
       instanceId: Number(p.instance_id ?? p.instanceId ?? 0),
       instanceStatus: String(p.instance_status ?? p.instanceStatus ?? ''),
       steps: stepsRaw
@@ -253,7 +254,7 @@ export async function getPurchaseRequestsAction(params?: {
   if (params?.filterValue) query.set('filterValue', params.filterValue);
   if (params?.scope && params.scope !== 'mine') query.set('scope', params.scope);
   try {
-    const data = await readDataWithAuth<PaginatedPurchaseRequests & { items: Record<string, unknown>[] }>(
+    const data = await readDataWithAuth<Omit<PaginatedPurchaseRequests, 'items'> & { items?: unknown[] }>(
       `/requests/purchase?${query.toString()}`,
     );
     return {

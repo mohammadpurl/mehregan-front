@@ -200,7 +200,7 @@ export const TopNavigationAccount = () => {
     );
   }
 
-  const displayName = session?.fullName?.trim() || session?.username || 'کاربر';
+  const displayName = session?.fullName?.trim() || session?.userName || 'کاربر';
 
   const menuPanel = (
     <div

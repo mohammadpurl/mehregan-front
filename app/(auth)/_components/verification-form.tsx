@@ -1,7 +1,4 @@
 'use client';
 
-/**
- * Legacy Classbon OTP entry — this ERP uses username/password sign-in.
- * Keeps the export name expected by auth pages on older branches.
- */
+/** ERP sign-in (legacy Classbon OTP form replaced at build time). */
 export { SignInForm as VerificationForm } from './sign-in-form';

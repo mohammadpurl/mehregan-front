@@ -7,7 +7,7 @@ import { ComponentBase, RefinedMerge } from '../_types/component-base.type';
 
 export type TextboxType = 'text' | 'number' | 'email' | 'password';
 type TextboxVariants = VariantProps<typeof styles>;
-type TextboxProps<TFormValues extends FieldValues> = InputHTMLAttributes<HTMLInputElement> & RefinedMerge<TextboxVariants, ComponentBase> & {
+export type TextboxProps<TFormValues extends FieldValues> = InputHTMLAttributes<HTMLInputElement> & RefinedMerge<TextboxVariants, ComponentBase> & {
   type?: TextboxType;
   label?: string;
   icon?: ReactNode;

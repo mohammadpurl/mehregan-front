@@ -1,6 +1,6 @@
-import { FieldValues, get } from "react-hook-form";
+import { FieldValues } from "react-hook-form";
 import { TextInputProps } from "./text-input.types";
-import { Textbox } from "../../textbox";
+import { TextBox } from "../../textbox";
 
 const TextInput = <TFormValues extends FieldValues>({
     name,
@@ -9,23 +9,14 @@ const TextInput = <TFormValues extends FieldValues>({
     variant,
     ...rest
 }: TextInputProps<TFormValues>) => {
-    const error = get(errors, name);
-    const hasError = !!error;
     return (
-        <>
-            <Textbox
-                {...register(name)}
-                {...(hasError ? { variant: "error" } : { variant: variant })}
-                {...rest}
-            />
-            {
-                hasError && (
-                    <p className="mt-1 text-sm text-error">
-                        {error.message}
-                    </p>
-                )
-            }
-        </>
+        <TextBox
+            name={name}
+            register={register}
+            errors={errors}
+            variant={variant}
+            {...rest}
+        />
     );
 };
 

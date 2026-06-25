@@ -1,6 +1,6 @@
 "use client";
 import React, { FC, SVGAttributes } from "react";
-import { SvgIcon } from "./icon.types";
+import type { SvgIcon } from "./icon.types";
 
 
 

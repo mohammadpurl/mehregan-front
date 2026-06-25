@@ -3,6 +3,12 @@ import { buildNotificationHref } from '@/app/utils/notification-href';
 
 type RawNotification = Record<string, unknown>;
 
+function coerceRefId(value: unknown): string | number | null {
+  if (value == null) return null;
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  return null;
+}
+
 function mapRefTypeToEntity(refType: unknown): NotificationCenterItem['entity'] {
   const rt = String(refType ?? '').toLowerCase();
   if (rt === 'workflow') return 'workflow';
@@ -44,7 +50,7 @@ export function normalizeNotificationItem(raw: RawNotification): NotificationCen
         : raw.requesterName != null
           ? String(raw.requesterName)
           : null,
-    business_ref_id: raw.business_ref_id ?? raw.businessRefId ?? null,
+    business_ref_id: coerceRefId(raw.business_ref_id ?? raw.businessRefId),
     href: typeof raw.href === 'string' ? raw.href : null,
   };
 

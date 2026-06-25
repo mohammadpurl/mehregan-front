@@ -25,8 +25,8 @@ import {
 import { PurchaseOrder } from '@/app/_types/purchase-order.types';
 import { PurchaseOrderCreateSchema, PurchaseOrderUpdateSchema } from '@/app/_types/purchase-order.schema';
 
-function parseOptionalNumber(value: string): number | undefined {
-  const s = value.trim();
+function parseOptionalNumber(value: string | undefined | null): number | undefined {
+  const s = String(value ?? '').trim();
   if (!s) return undefined;
   const n = Number(s);
   return Number.isFinite(n) ? n : undefined;

@@ -20,6 +20,7 @@ const TYPE_LABELS: Record<PaymentRequestType, string> = {
   [PaymentRequestType.LOAN]: 'وام',
   [PaymentRequestType.ADVANCE]: 'مساعده',
   [PaymentRequestType.PAYMENT_ORDER]: 'دستور پرداخت',
+  [PaymentRequestType.PROCUREMENT]: 'پرداخت خرید',
   [PaymentRequestType.CASH]: 'تنخواه',
   [PaymentRequestType.PAYMENT]: 'پرداخت',
   [PaymentRequestType.OTHER]: 'سایر',

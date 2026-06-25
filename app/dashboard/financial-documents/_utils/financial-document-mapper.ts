@@ -21,7 +21,10 @@ export function normalizeFinancialDocumentFromApi(raw: unknown): FinancialDocume
 
   const attachments = Array.isArray(r.attachments)
     ? (r.attachments as Record<string, unknown>[]).map((a) => ({
-        id: a.id,
+        id:
+          typeof a.id === 'number' || typeof a.id === 'string'
+            ? a.id
+            : undefined,
         fileName: (a.fileName ?? a.file_name) as string | undefined,
         fileUrl: (a.fileUrl ?? a.file_url) as string | undefined,
       }))

@@ -44,7 +44,7 @@ export async function resolveWorkflowFormAction(
           label: REF_LABELS[refType],
           summary: {
             عنوان: r.data.title,
-            نوع: r.data.type,
+            نوع: String(r.data.type ?? '—'),
             وضعیت: r.data.status,
             درخواست‌کننده: r.data.requesterName ?? '—',
           },

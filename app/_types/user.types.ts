@@ -10,6 +10,7 @@ export interface AdminUser {
   role_id?: number | null;
   /** اگر API برگرداند */
   role_name?: string | null;
+  role_display_name?: string | null;
   department_id?: number | null;
   department_name?: string | null;
   manager_id?: number | null;

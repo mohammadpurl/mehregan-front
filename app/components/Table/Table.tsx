@@ -49,7 +49,7 @@ interface AdvancedDataGridProps<T> {
 
   isLoading?: boolean;
   onRefresh?: () => void;
-  onExport?: () => Promise<unknown[]>;
+  onExport?: () => Promise<T[]>;
 
   entityName?: string;
   onCreateClick?: () => void;

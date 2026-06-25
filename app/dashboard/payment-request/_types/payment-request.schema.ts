@@ -15,7 +15,7 @@ const employeeRequestFields = {
   paymentDate: trimStr.min(1, 'تاریخ را وارد کنید'),
   reason: trimStr.min(5, 'شرح درخواست حداقل ۵ کاراکتر').max(1500),
   description: trimStr.max(2000).optional().or(z.literal('')),
-  amount: z.number({ invalid_type_error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ باید بیشتر از ۰ باشد'),
+  amount: z.number({ error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ باید بیشتر از ۰ باشد'),
   /** فقط تنخواه — توسط خود درخواست‌کننده */
   cashExpenseCategory: trimStr.max(200).optional().or(z.literal('')),
 };
@@ -39,7 +39,7 @@ export type PaymentRequestEmployeeCreateValues = z.infer<typeof PaymentRequestEm
 
 /** مبلغ و تاریخ پرداخت — قابل تغییر توسط هر تأییدکننده */
 export const FinancialApproverAmountDateSchema = z.object({
-  amount: z.number({ invalid_type_error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ الزامی است'),
+  amount: z.number({ error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ الزامی است'),
   paymentDate: trimStr.min(1, 'تاریخ پرداخت الزامی است'),
 });
 
@@ -71,7 +71,7 @@ export type PaymentOrderApproverValues = z.infer<typeof PaymentOrderApproverSche
 
 /** حساب مبدأ شرکت هنگام تأیید */
 export const PayerCompanyAccountIdSchema = z
-  .number({ invalid_type_error: 'حساب مبدأ را انتخاب کنید' })
+  .number({ error: 'حساب مبدأ را انتخاب کنید' })
   .int()
   .min(1, 'حساب مبدأ شرکت را انتخاب کنید');
 

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import type { PaymentRequestResponse } from '@/app/dashboard/payment-request/_types/payment-request.types';
+import type { PaymentRequestResponse, PaymentMethodType } from '@/app/dashboard/payment-request/_types/payment-request.types';
 import { PaymentRequestType } from '@/app/dashboard/payment-request/_types/payment-request.types';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import { PaymentRequestEmployeeFields } from '@/app/dashboard/payment-request/_components/payment-request-employee-fields';
@@ -49,6 +49,17 @@ const PayerCompanySchema = z.object({
   payerCompanyAccountId: PayerCompanyAccountIdSchema,
 });
 
+type WorkflowApproverFormValues = {
+  type: PaymentRequestType;
+  amount: number;
+  paymentDate: string;
+  payerCompanyAccountId: number;
+  paymentMethod?: PaymentMethodType;
+  loanInstallmentCount?: number;
+  loanFirstInstallmentDate?: string;
+  advanceExpectedRepaymentDate?: string;
+};
+
 export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestReviewHandle, Props>(
   function WorkflowPaymentRequestReview(
     { record, needsPayer = false, needsFinancialTerms = false, showCompanyPayerSelect = false },
@@ -61,7 +72,7 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
     const isAdvance = record.type === PaymentRequestType.ADVANCE;
     const isPaymentOrder = record.type === PaymentRequestType.PAYMENT_ORDER;
 
-    const approverDefaults = useMemo(() => {
+    const approverDefaults = useMemo((): WorkflowApproverFormValues => {
       const payerId = record.payerCompanyAccountId ?? 0;
       if (isLoan) return { type: record.type, ...paymentResponseToLoanApproverValues(record), payerCompanyAccountId: payerId };
       if (isAdvance) {
@@ -82,7 +93,7 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
       };
     }, [record, isLoan, isAdvance, isPaymentOrder]);
 
-    const approverForm = useForm({ defaultValues: approverDefaults });
+    const approverForm = useForm<WorkflowApproverFormValues>({ defaultValues: approverDefaults });
 
     useImperativeHandle(ref, () => ({
       buildApprovePayload: () => {

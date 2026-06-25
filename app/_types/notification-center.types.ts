@@ -1,12 +1,19 @@
 export type NotificationEntity =
   | 'workflow'
   | 'product-request'
+  | 'request'
+  | 'procurement_proforma'
   | 'item'
   | 'warehouse'
   | 'supplier'
   | 'payment-request'
   | 'petty-cash'
   | 'petty_cash'
+  | 'financial_document'
+  | 'financial-document'
+  | 'mission_request'
+  | 'mission-request'
+  | 'ad_hoc_task'
   | 'system'
   | 'other';
 

@@ -29,7 +29,7 @@ export interface WorkflowProgressStep {
 }
 
 export interface WorkflowProgressPhase {
-  phase: 'phase1' | 'phase2';
+  phase: 'phase1' | 'phase2' | 'purchase';
   instanceId: number;
   instanceStatus: string;
   steps: WorkflowProgressStep[];

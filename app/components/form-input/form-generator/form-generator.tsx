@@ -130,7 +130,7 @@ export function FormGenerator({
   const zodShape = schema.fields.reduce((acc, field) => {
     let fieldSchema: z.ZodTypeAny =
       field.type === 'number' || field.type === 'amount'
-        ? z.number({ invalid_type_error: 'عدد نامعتبر است' })
+        ? z.number({ error: 'عدد نامعتبر است' })
         : field.type === 'checkbox' || field.type === 'switch'
           ? z.boolean()
           : z.string().trim();

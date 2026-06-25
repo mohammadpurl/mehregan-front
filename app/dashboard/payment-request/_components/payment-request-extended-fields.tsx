@@ -40,7 +40,7 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
       <div className="space-y-3 rounded-lg border border-emerald-200/80 bg-emerald-50/40 p-4 dark:border-emerald-900/40">
         <p className="text-sm font-medium">جزئیات تنخواه</p>
         <FormField
-          control={control as Control<EmployeeFields & FieldValues>}
+          control={control}
           name={'cashExpenseCategory' as Path<T>}
           render={({ field }) => (
             <FormItem>
@@ -62,7 +62,7 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
         <p className="text-sm font-medium text-sky-950 dark:text-sky-100">شرایط وام (مرحله مالی)</p>
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
-            control={control as Control<ApproverFields & FieldValues>}
+            control={control}
             name={'loanInstallmentCount' as Path<T>}
             render={({ field }) => (
               <FormItem>
@@ -82,7 +82,7 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
             )}
           />
           <FormField
-            control={control as Control<ApproverFields & FieldValues>}
+            control={control}
             name={'loanFirstInstallmentDate' as Path<T>}
             render={({ field }) => (
               <FormItem>
@@ -109,7 +109,7 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
       <div className="space-y-3 rounded-lg border border-amber-200/80 bg-amber-50/40 p-4 dark:border-amber-900/40">
         <p className="text-sm font-medium">تاریخ تسویه مساعده (مرحله مالی)</p>
         <FormField
-          control={control as Control<ApproverFields & FieldValues>}
+          control={control}
           name={'advanceExpectedRepaymentDate' as Path<T>}
           render={({ field }) => (
             <FormItem className="max-w-md">

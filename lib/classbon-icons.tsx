@@ -1,7 +1,3 @@
-/**
- * Local shim for legacy `@classbon/icons` imports.
- * Maps to lucide-react icons already in package.json.
- */
 export {
   AlertCircle,
   ArrowLeft,

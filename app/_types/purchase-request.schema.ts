@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const PurchaseLineSchema = z.object({
   itemId: z.number().int().positive().optional(),
   itemName: z.string().min(1, 'نام کالا الزامی است'),
-  quantity: z.coerce.number().int().min(1, 'تعداد باید حداقل ۱ باشد'),
+  quantity: z.number({ error: 'تعداد نامعتبر است' }).int().min(1, 'تعداد باید حداقل ۱ باشد'),
   description: z.string().max(2000).optional().or(z.literal('')),
 });
 

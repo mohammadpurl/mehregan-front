@@ -54,6 +54,7 @@ export interface PaymentRequestFormData {
   reason: string;
   description?: string;
   amount: number;
+  paymentMethod?: PaymentMethodType | null;
   documents?: File[];
   documentsUrls?: string[];
   requesterId: string;

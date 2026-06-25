@@ -170,7 +170,7 @@ export function FinancialDocumentsList() {
   );
 
   return (
-    <DashboardPageShell title="اسناد مالی">
+    <DashboardPageShell>
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle>لیست اسناد مالی</CardTitle>
@@ -196,10 +196,10 @@ export function FinancialDocumentsList() {
               در حال بارگذاری…
             </div>
           ) : (
-            <AdvancedDataGrid
+            <AdvancedDataGrid<FinancialDocumentResponse>
               columns={columns}
               data={items}
-              totalRows={total}
+              totalItems={total}
               pagination={pagination}
               onPaginationChange={setPagination}
             />

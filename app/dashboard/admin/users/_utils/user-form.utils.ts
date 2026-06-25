@@ -109,20 +109,7 @@ export function ensureSelectOption(
   return [...options, { label, value: v }];
 }
 
-export function userToFormDefaults(user?: {
-  username?: string;
-  email?: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  full_name?: string | null;
-  phone?: string | null;
-  is_active?: boolean;
-  role_id?: number | null;
-  department_id?: number | null;
-  manager_id?: number | null;
-  card_number?: string | null;
-  sheba_number?: string | null;
-}): AdminUserCreateFormValues {
+export function userToFormDefaults(user?: Partial<AdminUser>): AdminUserCreateFormValues {
   const fromParts =
     user?.first_name != null || user?.last_name != null
       ? { first_name: user.first_name ?? '', last_name: user.last_name ?? '' }
