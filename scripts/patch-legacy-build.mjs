@@ -72,4 +72,10 @@ write(
 `
 );
 
+const legacyHttpService = path.join(root, "app/core/http-service/http-service-yk.ts");
+if (fs.existsSync(legacyHttpService)) {
+  fs.unlinkSync(legacyHttpService);
+  console.log("[patch-legacy-build] removed app/core/http-service/http-service-yk.ts");
+}
+
 console.log("[patch-legacy-build] done");
