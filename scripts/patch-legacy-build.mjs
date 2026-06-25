@@ -8,6 +8,22 @@ import { fileURLToPath } from "node:url";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
+/** Dead files from old Classbon/airport chat — remove if still present in a stale checkout */
+const LEGACY_FILES_TO_REMOVE = [
+  "app/core/http-service/http-service-yk.ts",
+  "app/hooks/useChat.tsx",
+  "services/api.ts",
+  "services/api/index.ts",
+  "types/type.ts",
+];
+
+function removeLegacyFile(relativePath) {
+  const fullPath = path.join(root, relativePath);
+  if (!fs.existsSync(fullPath)) return;
+  fs.unlinkSync(fullPath);
+  console.log(`[patch-legacy-build] removed ${relativePath}`);
+}
+
 function write(relativePath, content) {
   const fullPath = path.join(root, relativePath);
   fs.mkdirSync(path.dirname(fullPath), { recursive: true });
@@ -72,10 +88,8 @@ write(
 `
 );
 
-const legacyHttpService = path.join(root, "app/core/http-service/http-service-yk.ts");
-if (fs.existsSync(legacyHttpService)) {
-  fs.unlinkSync(legacyHttpService);
-  console.log("[patch-legacy-build] removed app/core/http-service/http-service-yk.ts");
+for (const relativePath of LEGACY_FILES_TO_REMOVE) {
+  removeLegacyFile(relativePath);
 }
 
 console.log("[patch-legacy-build] done");
