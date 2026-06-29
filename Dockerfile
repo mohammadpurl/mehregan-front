@@ -1,13 +1,8 @@
-FROM node:20-alpine AS deps
-WORKDIR /app
+# Override when Docker Hub returns 403:
+#   docker compose build --build-arg NODE_IMAGE=docker.1ms.run/library/node:20-alpine frontend
+ARG NODE_IMAGE=node:20-alpine
 
-RUN apk add --no-cache libc6-compat
-
-COPY package.json package-lock.json ./
-RUN npm ci
-
-
-FROM node:20-alpine AS builder
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
@@ -19,17 +14,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV API_URL=$API_URL
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
 COPY . .
 
-# Legacy shims + dead files (stale server checkouts) — see scripts/patch-legacy-build.mjs
-RUN node scripts/patch-legacy-build.mjs
+RUN npm ci --no-audit --no-fund \
+  || (rm -rf node_modules package-lock.json && npm install --no-audit --no-fund)
 
-RUN npm run build
+RUN node scripts/patch-legacy-build.mjs \
+  && node ./node_modules/next/dist/bin/next build
 
 
-FROM node:20-alpine AS runner
-WORKDIR /app
+# Re-declare ARG so the runner stage uses the same mirror/base image.
+ARG NODE_IMAGE=node:20-alpine
+FROM ${NODE_IMAGE} AS runnerWORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
@@ -40,13 +37,12 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV API_URL=$API_URL
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-COPY package.json package-lock.json ./
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
-
-CMD ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
+CMD ["node", "server.js"]

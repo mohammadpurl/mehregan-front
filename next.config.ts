@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   experimental: {
     authInterrupts: true,
     /** پیش‌فرض Next حدود ۱MB — برای پیوست تا ۲۵MB و آواتار ۱۰MB */
