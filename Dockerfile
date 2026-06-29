@@ -26,7 +26,8 @@ RUN node scripts/patch-legacy-build.mjs \
 
 # Re-declare ARG so the runner stage uses the same mirror/base image.
 ARG NODE_IMAGE=node:20-alpine
-FROM ${NODE_IMAGE} AS runnerWORKDIR /app
+FROM ${NODE_IMAGE} AS runner
+WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
