@@ -12,23 +12,19 @@ export async function GET() {
         const session = cookieStore.get('erp-session')?.value;
 
         if (!session) {
-            console.log('[SESSION API] No session cookie found');
             return new Response('Unauthorized', { status: 401 });
-        }   
-        
+        }
+
         try {
             const decryptedSession = await decryptSession(session);
             if (!decryptedSession) {
-                console.log('[SESSION API] Failed to decrypt session');
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             }
             return new Response(JSON.stringify(decryptedSession), { status: 200 });
-        } catch (decryptError) {
-            console.error('[SESSION API] Error decrypting session:', decryptError);
+        } catch {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-    } catch (error) {
-        console.error('[SESSION API] Unexpected error:', error);
+    } catch {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

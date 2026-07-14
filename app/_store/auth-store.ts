@@ -18,20 +18,16 @@ const fetchSessionFromAPI = async () => {
         });
         
         if (!response.ok) {
-            console.log('[AUTH-STORE] Session API returned non-ok status:', response.status, response.statusText);
             return {session:null, status:'unauthenticated' as AuthStatus}
         }
         
         const data = await response.json();
         if (data && Object.keys(data).length > 0) {
-            console.log('[AUTH-STORE] Session retrieved successfully');
             return {session: data, status: 'authenticated' as AuthStatus};
         } else {
-            console.log('[AUTH-STORE] Session data is empty');
             return {session:null, status:'unauthenticated' as AuthStatus}
         }
-    } catch (error) {
-        console.error('[AUTH-STORE] Error fetching session:', error);
+    } catch {
         return {session:null, status:'unauthenticated' as AuthStatus}
     }
 }

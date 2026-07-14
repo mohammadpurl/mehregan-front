@@ -6,7 +6,6 @@ import { Label } from "@/app/components/ui/label";
 import { Eye, EyeOff, Scale } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useMemo, useState, useTransition } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { signinAction } from "@/app/_actions/auth-actions";
 import { useSessionStore } from "@/app/_store/auth-store";
 import { useNotificationStore } from "@/app/_store/notification.store";
@@ -18,7 +17,6 @@ import { SignInSchema } from "@/app/(auth)/_types/auth.schema";
 import type { InferOutput } from "valibot";
 
 function LoginFormContent() {
-  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -52,7 +50,6 @@ function LoginFormContent() {
     startTransition(async () => {
       try {
         const result = await signinAction(values);
-        console.log("login result",result)
         if (result?.success) {
           await updateSession();
           showNotification({
@@ -72,13 +69,7 @@ function LoginFormContent() {
           type: "error",
       });
 
-        // toast({
-        //   title: "خطا",
-        //   description: result?.error || "نام کاربری یا رمز عبور اشتباه است",
-        //   variant: "destructive",
-        // });
       } catch (error: unknown) {
-        console.log("login error ", error)
         const e = error as { message?: string; detail?: string };
         showNotification({
           message:
