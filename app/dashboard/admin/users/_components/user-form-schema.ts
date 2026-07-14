@@ -73,7 +73,7 @@ export function buildUserFormSchema(isEdit: boolean): FormSchema {
         required: !isEdit,
         row: 4,
         lgSpan: 6,
-        placeholder: isEdit ? 'اختیاری' : 'حداقل ۸ کاراکتر',
+        placeholder: isEdit ? 'اختیاری — حداقل ۶ کاراکتر' : 'حداقل ۶ کاراکتر',
       },
       {
         name: 'role_id',

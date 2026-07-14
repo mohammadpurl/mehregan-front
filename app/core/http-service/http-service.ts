@@ -100,7 +100,7 @@ async function updateData<TModel, TResult>(
     const options: AxiosRequestConfig = {
         method: "PUT",
         headers: headers,
-        data: JSON.stringify(data),
+        data,
     };
 
     return await apiBase<TResult>(url, options);

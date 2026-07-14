@@ -147,10 +147,6 @@ export function PettyCashSettlementList() {
             onPaginationChange={() => {}}
             sorting={[]}
             onSortingChange={() => {}}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
             entityName="تسویه تنخواه"

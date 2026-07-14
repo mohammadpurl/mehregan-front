@@ -90,7 +90,7 @@ export function updateFormToModel(data: AdminUserUpdateFormValues): UpdateUserMo
     department_id: optionalIdFromForm(data.department_id, { clearOnEmpty: true }),
     manager_id: optionalIdFromForm(data.manager_id, { clearOnEmpty: true }),
     ...banking,
-    ...(data.password ? { password: data.password } : {}),
+    ...(data.password?.trim() ? { password: data.password.trim() } : {}),
   };
 }
 

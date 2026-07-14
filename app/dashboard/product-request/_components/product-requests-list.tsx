@@ -224,14 +224,8 @@ export function ProductRequestsList() {
             isLoading={loading}
             pagination={pagination}
             onPaginationChange={setPagination}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             sorting={[]}
             onSortingChange={() => {}}
-            columnVisibility={{}}
-            onColumnVisibilityChange={() => {}}
             entityName="درخواست کالا"
             onRefresh={triggerLoad}
           />

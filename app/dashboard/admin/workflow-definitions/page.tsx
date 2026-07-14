@@ -242,10 +242,6 @@ export default function WorkflowDefinitionsPage() {
             totalItems={total}
             pagination={pagination}
             onPaginationChange={setPagination}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             sorting={sorting}
             onSortingChange={setSorting}
             columnVisibility={columnVisibility}

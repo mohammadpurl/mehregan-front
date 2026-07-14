@@ -56,11 +56,36 @@ interface AdvancedDataGridProps<T> {
 
   globalFilterForm?: React.ReactNode;
   enableColumnFilters?: boolean;
+  /**
+   * true = فیلتر سمت سرور (والد با API اعمال می‌کند).
+   * false = فیلتر روی دادهٔ همین صفحه (پیش‌فرض — بدون آن فیلترها عملاً بی‌اثرند).
+   */
+  manualFiltering?: boolean;
   /** کشیدن لبهٔ ستون برای تغییر عرض (فقط نمای جدول دسکتاپ) */
   enableColumnResizing?: boolean;
   /** ذخیرهٔ عرض ستون‌ها در localStorage (مثلاً admin-users-table) */
   columnSizingStorageKey?: string;
   variant?: 'default' | 'erpClassic';
+}
+
+function DefaultTextColumnFilter({
+  value,
+  onFilterChange,
+  placeholder,
+}: {
+  value: unknown;
+  onFilterChange: (value: unknown) => void;
+  placeholder?: string;
+}) {
+  return (
+    <Input
+      autoFocus
+      placeholder={placeholder ?? 'جستجو…'}
+      value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
+      onChange={(e) => onFilterChange(e.target.value)}
+      className="h-9"
+    />
+  );
 }
 
 function readStoredColumnSizing(key: string): ColumnSizingState {
@@ -121,6 +146,7 @@ export function AdvancedDataGrid<T>({
   onCreateClick,
   globalFilterForm,
   enableColumnFilters = true,
+  manualFiltering = false,
   enableColumnResizing = true,
   columnSizingStorageKey,
   variant = 'erpClassic',
@@ -249,12 +275,36 @@ export function AdvancedDataGrid<T>({
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
     manualSorting: true,
-    manualFiltering: true,
+    manualFiltering,
     pageCount: Math.ceil(totalItems / pagination.pageSize),
   });
 
   const getColumnFilterValue = (id: string) =>
     resolvedColumnFilters.find((f) => f.id === id)?.value;
+
+  const canShowColumnFilter = (column: Column<T, unknown>) => {
+    if (!enableColumnFilters || !column.getCanFilter()) return false;
+    // ستون‌های فقط نمایشی (عملیات و…) بدون accessor فیلترپذیر نیستند
+    const def = column.columnDef as { accessorKey?: unknown; accessorFn?: unknown };
+    return def.accessorKey != null || typeof def.accessorFn === 'function';
+  };
+
+  const renderColumnFilter = (columnId: string, header: { column: Column<T, unknown> }) => {
+    const filterValue = getColumnFilterValue(columnId);
+    const custom = header.column.columnDef.meta?.filterComponent?.({
+      column: header.column,
+      value: filterValue,
+      onFilterChange: (v: unknown) => handleColumnFilterChange(columnId, v),
+    });
+    if (custom) return custom;
+    return (
+      <DefaultTextColumnFilter
+        value={filterValue}
+        onFilterChange={(v) => handleColumnFilterChange(columnId, v)}
+        placeholder={`فیلتر ${String(header.column.columnDef.header ?? columnId)}`}
+      />
+    );
+  };
 
   const handleExport = async () => {
     let exportData = data;
@@ -303,7 +353,7 @@ export function AdvancedDataGrid<T>({
   };
 
   const mobileFilterableHeaders = enableColumnFilters
-    ? table.getHeaderGroups().flatMap((hg) => hg.headers.filter((h) => h.column.getCanFilter()))
+    ? table.getHeaderGroups().flatMap((hg) => hg.headers.filter((h) => canShowColumnFilter(h.column)))
     : [];
 
   return (
@@ -315,8 +365,12 @@ export function AdvancedDataGrid<T>({
         <div className="flex min-w-0 w-full flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center sm:gap-3">
           <Input
             placeholder={`جستجو در ${entityName}...`}
-            defaultValue={resolvedGlobalFilter}
-            onChange={e => debouncedGlobalFilter(e.target.value)}
+            value={resolvedGlobalFilter}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (manualFiltering) debouncedGlobalFilter(value);
+              else resolvedOnGlobalFilterChange(value);
+            }}
             className="min-h-9 w-full min-w-0 sm:max-w-md sm:flex-1 md:min-w-72"
           />
 
@@ -440,13 +494,7 @@ export function AdvancedDataGrid<T>({
                     )}
                   </div>
                   <div className="min-w-0">
-                    {header.column.columnDef.meta?.filterComponent?.({
-                      column: header.column,
-                      value: filterValue,
-                      onFilterChange: (v: unknown) => handleColumnFilterChange(columnId, v),
-                    }) ?? (
-                      <p className="text-xs text-muted-foreground">فیلتر برای این ستون تعریف نشده است.</p>
-                    )}
+                    {renderColumnFilter(columnId, header)}
                   </div>
                 </div>
               );
@@ -522,18 +570,13 @@ export function AdvancedDataGrid<T>({
                               )}
                             </button>
 
-                            {enableColumnFilters && header.column.getCanFilter() && (
+                            {canShowColumnFilter(header.column) && (
                               <ColumnFilter
                                 isActive={isFilterActive(filterValue)}
                                 onClear={() => handleColumnFilterChange(columnId, null)}
                                 title={`فیلتر ${String(header.column.columnDef.header ?? header.column.id)}`}
                               >
-                                {header.column.columnDef.meta?.filterComponent?.({
-                                  column: header.column,
-                                  value: filterValue,
-                                  onFilterChange: (v: unknown) =>
-                                    handleColumnFilterChange(columnId, v),
-                                }) ?? <div className="text-xs">فیلتر تعریف نشده</div>}
+                                {renderColumnFilter(columnId, header)}
                               </ColumnFilter>
                             )}
                           </div>

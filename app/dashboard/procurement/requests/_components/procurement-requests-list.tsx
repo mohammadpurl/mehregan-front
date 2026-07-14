@@ -290,14 +290,8 @@ export function ProcurementRequestsList() {
               const next = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater;
               setPageIndex(next.pageIndex);
             }}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             sorting={[]}
             onSortingChange={() => {}}
-            columnVisibility={{}}
-            onColumnVisibilityChange={() => {}}
             entityName="درخواست خرید"
             onRefresh={triggerLoad}
             onCreateClick={openCreate}

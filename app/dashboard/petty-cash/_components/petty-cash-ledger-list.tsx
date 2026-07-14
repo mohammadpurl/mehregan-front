@@ -175,10 +175,6 @@ export function PettyCashLedgerList() {
             onPaginationChange={setPagination}
             sorting={[]}
             onSortingChange={() => {}}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
             entityName="تنخواه"

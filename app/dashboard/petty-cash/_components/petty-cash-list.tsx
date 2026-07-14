@@ -250,10 +250,6 @@ export function PettyCashList() {
             onPaginationChange={setPagination}
             sorting={[]}
             onSortingChange={() => {}}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             columnVisibility={columnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
             entityName="تنخواه"

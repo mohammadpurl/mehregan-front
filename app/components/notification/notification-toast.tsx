@@ -99,9 +99,11 @@ export const NotificationToast: FC<NotificationToastProps> = ({
     return () => clearTimeout(timer);
   }, [id, duration, dismissNotification]);
 
+  const text = toNotificationText(message).trim();
   const { title: parsedTitle, description } = parseToastContent(message);
-  const title = parsedTitle || TYPE_TITLE[type];
-  const body = parsedTitle ? description : toNotificationText(message).trim();
+  // پیام کوتاه: خودش عنوان شود (نه عنوان عمومی مثل «خطا در اجرای عملیات»)
+  const title = parsedTitle || text || TYPE_TITLE[type];
+  const body = parsedTitle ? description : '';
 
   const liveRole = type === 'error' ? 'alert' : 'status';
 

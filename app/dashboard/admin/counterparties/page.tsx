@@ -213,10 +213,6 @@ export default function CounterpartiesAdminPage() {
             totalItems={total}
             pagination={pagination}
             onPaginationChange={setPagination}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             sorting={sorting}
             onSortingChange={setSorting}
             columnVisibility={columnVisibility}

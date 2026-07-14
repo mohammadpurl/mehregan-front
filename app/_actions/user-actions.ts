@@ -3,8 +3,8 @@
 import {
   createDataWithAuth,
   deleteDataWithAuth,
+  patchDataWithAuth,
   readDataWithAuth,
-  updateDataWithAuth,
 } from '@/app/core/http-service/http-service';
 import {
   AdminUser,
@@ -141,12 +141,14 @@ export async function createUserAction(model: CreateUserModel) {
 
 export async function updateUserAction(id: number, model: UpdateUserModel) {
   const body: UpdateUserModel = { ...model };
-  if (body.password === '' || body.password === undefined) {
+  if (!body.password?.trim()) {
     delete body.password;
+  } else {
+    body.password = body.password.trim();
   }
   try {
     const data = normalizeAdminUser(
-      await updateDataWithAuth<UpdateUserModel, unknown>(`/users/${id}`, body),
+      await patchDataWithAuth<UpdateUserModel, unknown>(`/users/${id}`, body),
     );
     return { success: true, data };
   } catch (err: unknown) {

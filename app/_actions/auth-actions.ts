@@ -4,6 +4,7 @@ import { JWT, SignInModel, UserResponse, UserSession } from "@/app/(auth)/_types
 import { jwtDecode } from "jwt-decode";
 import { decryptSession, encryptSession } from "@/app/utils/session";
 import { createData } from "@/app/core/http-service/http-service";
+import { extractActionErrorMessage } from "@/app/_actions/extract-action-error";
 
 // Helper function for structured logging
 const log = (level: 'info' | 'error' | 'warn', message: string, data?: unknown) => {
@@ -41,10 +42,20 @@ export async function signinAction(model: SignInModel) {
             return { success: true }
         }
         
-        return { success: false, error: 'خطا در ورود' };
+        return {
+          success: false,
+          error: 'نام کاربری یا رمز عبور اشتباه است',
+        };
     } catch (err) {
         console.log("signinAction error is", err)
-        return { success: false, error: 'خطا در ورود' }
+        const e = err as { message?: unknown; detail?: unknown; title?: unknown };
+        const fromFields = [e?.message, e?.detail, e?.title]
+          .find((v): v is string => typeof v === 'string' && v.trim().length > 0)
+          ?.trim();
+        return {
+            success: false,
+            error: fromFields || extractActionErrorMessage(err, 'نام کاربری یا رمز عبور اشتباه است'),
+        };
     }
 }
 

@@ -168,14 +168,8 @@ export default function CompanyBankAccountsAdminPage() {
             totalItems={items.length}
             pagination={{ pageIndex: 0, pageSize: Math.max(items.length, 10) }}
             onPaginationChange={() => {}}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             sorting={[]}
             onSortingChange={() => {}}
-            columnVisibility={{}}
-            onColumnVisibilityChange={() => {}}
             isLoading={loading || gridPending}
             entityName="حساب بانکی"
             onRefresh={triggerLoad}

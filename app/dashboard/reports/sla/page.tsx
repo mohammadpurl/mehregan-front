@@ -351,14 +351,8 @@ export default function SlaReportPage() {
               totalItems={report?.pagination.total ?? 0}
               pagination={pagination}
               onPaginationChange={setPagination}
-              globalFilter=""
-              onGlobalFilterChange={() => {}}
-              columnFilters={[]}
-              onColumnFiltersChange={() => {}}
               sorting={[]}
               onSortingChange={() => {}}
-              columnVisibility={{}}
-              onColumnVisibilityChange={() => {}}
               isLoading={loading}
               entityName="مورد SLA"
               onRefresh={() => void load()}

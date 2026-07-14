@@ -168,14 +168,8 @@ export function MissionRequestList() {
             totalItems={total}
             pagination={pagination}
             onPaginationChange={setPagination}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             sorting={[]}
             onSortingChange={() => {}}
-            columnVisibility={{}}
-            onColumnVisibilityChange={() => {}}
             isLoading={loading}
             entityName="درخواست"
             onRefresh={() => void load()}

@@ -112,14 +112,8 @@ export default function AdHocTasksPage() {
             totalItems={total}
             pagination={pagination}
             onPaginationChange={setPagination}
-            globalFilter=""
-            onGlobalFilterChange={() => {}}
-            columnFilters={[]}
-            onColumnFiltersChange={() => {}}
             sorting={sorting}
             onSortingChange={setSorting}
-            columnVisibility={{}}
-            onColumnVisibilityChange={() => {}}
             isLoading={loading}
             entityName="کار"
             onRefresh={() => void load()}

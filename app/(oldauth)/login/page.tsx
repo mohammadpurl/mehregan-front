@@ -68,7 +68,7 @@ function LoginFormContent() {
           return;
         }
         showNotification({
-          message: "خطا در ورود",
+          message: result?.error || "نام کاربری یا رمز عبور اشتباه است",
           type: "error",
       });
 
@@ -79,10 +79,13 @@ function LoginFormContent() {
         // });
       } catch (error: unknown) {
         console.log("login error ", error)
-        toast({
-          title: "خطا",
-          description: error instanceof Error ? error.message : "خطا در ورود",
-          variant: "destructive",
+        const e = error as { message?: string; detail?: string };
+        showNotification({
+          message:
+            (typeof e?.message === 'string' && e.message) ||
+            (typeof e?.detail === 'string' && e.detail) ||
+            (error instanceof Error ? error.message : 'نام کاربری یا رمز عبور اشتباه است'),
+          type: 'error',
         });
       }
     });
