@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { navItems } from '@/public/assets';
 import { createPortal } from 'react-dom';
@@ -15,6 +15,29 @@ import { hasAnyPermission, hasAnyRole } from '@/lib/permissions';
 interface NavbarProps {
   pathname: string;
   sidebarOpen: boolean;
+}
+
+const FLYOUT_WIDTH = 256;
+const FLYOUT_GAP = 8;
+const VIEWPORT_PADDING = 8;
+
+/** Position collapsed-sidebar flyout so long menus (e.g. مدیریت) stay inside the viewport. */
+function computeFlyoutPosition(
+  trigger: DOMRect,
+  flyoutHeight: number
+): { top: number; left: number } {
+  const left = Math.max(VIEWPORT_PADDING, trigger.left - FLYOUT_WIDTH - FLYOUT_GAP);
+  const maxTop = window.innerHeight - flyoutHeight - VIEWPORT_PADDING;
+  // Prefer aligning with trigger; shift upward when needed so bottom items stay visible.
+  const top = Math.min(trigger.top, Math.max(VIEWPORT_PADDING, maxTop));
+  return { top, left };
+}
+
+function estimateFlyoutHeight(childCount: number): number {
+  const header = 28;
+  const item = 44; // min-h-11
+  const padding = 16;
+  return header + childCount * item + padding;
 }
 
 const NavItem = ({ 
@@ -54,13 +77,23 @@ const NavItem = ({
     }
 
     const rect = buttonRef.current.getBoundingClientRect();
-    const flyoutWidth = 256; // w-64
-    const gap = 8;
-    const top = rect.top;
-    const left = Math.max(8, rect.left - flyoutWidth - gap);
-    setFlyoutPosition({ top, left });
+    const estimated = estimateFlyoutHeight(item.children?.length ?? 0);
+    setFlyoutPosition(computeFlyoutPosition(rect, estimated));
     setIsOpen(true);
   };
+
+  // After mount, remeasure actual flyout height and clamp again (long admin menus).
+  useLayoutEffect(() => {
+    if (sidebarOpen || !isOpen || !buttonRef.current || !flyoutRef.current) return;
+
+    const rect = buttonRef.current.getBoundingClientRect();
+    const height = flyoutRef.current.getBoundingClientRect().height;
+    const next = computeFlyoutPosition(rect, height);
+    setFlyoutPosition((prev) => {
+      if (prev && prev.top === next.top && prev.left === next.left) return prev;
+      return next;
+    });
+  }, [sidebarOpen, isOpen, item.children?.length]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -81,13 +114,24 @@ const NavItem = ({
       }
     };
 
+    const reposition = () => {
+      if (sidebarOpen || !buttonRef.current) return;
+      const rect = buttonRef.current.getBoundingClientRect();
+      const height =
+        flyoutRef.current?.getBoundingClientRect().height ??
+        estimateFlyoutHeight(item.children?.length ?? 0);
+      setFlyoutPosition(computeFlyoutPosition(rect, height));
+    };
+
     document.addEventListener('mousedown', onClickOutside);
     document.addEventListener('keydown', onEscape);
+    window.addEventListener('resize', reposition);
     return () => {
       document.removeEventListener('mousedown', onClickOutside);
       document.removeEventListener('keydown', onEscape);
+      window.removeEventListener('resize', reposition);
     };
-  }, [isOpen]);
+  }, [isOpen, sidebarOpen, item.children?.length]);
 
   // اگر item فرزند دارد
   if (hasChildren) {
@@ -149,10 +193,10 @@ const NavItem = ({
             <div
               ref={flyoutRef}
               style={{ top: flyoutPosition.top, left: flyoutPosition.left }}
-              className="erp-sidebar-shell fixed z-50 w-64 rounded-xl border border-[oklch(0.3783_0.0647_256.94)] p-2 shadow-xl"
+              className="erp-sidebar-shell fixed z-50 flex max-h-[calc(100vh-16px)] w-64 flex-col overflow-hidden rounded-xl border border-[oklch(0.3783_0.0647_256.94)] p-2 shadow-xl"
             >
-              <div className="px-2 py-1.5 text-xs font-medium opacity-60">{item.label}</div>
-              <div className="space-y-1">
+              <div className="shrink-0 px-2 py-1.5 text-xs font-medium opacity-60">{item.label}</div>
+              <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain">
                 {item.children?.map((child) => {
                   const childActive = pathname === child.href;
                   return (
