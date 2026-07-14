@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Eye, EyeOff, Scale } from "lucide-react";
-import Link from "next/link";
 import { Suspense, useMemo, useState, useTransition } from "react";
 import { signinAction } from "@/app/_actions/auth-actions";
 import { useSessionStore } from "@/app/_store/auth-store";
@@ -142,12 +141,6 @@ function LoginFormContent() {
               {isPending ? "در حال ورود..." : "ورود"}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">حساب کاربری ندارید؟ </span>
-            <Link href="/register" className="text-blue-600 hover:underline font-medium">
-              ثبت‌نام کنید
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>

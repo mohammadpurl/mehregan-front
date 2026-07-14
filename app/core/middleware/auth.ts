@@ -33,7 +33,7 @@ const authorizationRules: Array<{
   { pathPrefix: "/dashboard/master", permissions: ["masterdata.manage", "item.read", "item.*"] },
 ];
 
-const PUBLIC_AUTH_PATHS = ["/login", "/signin", "/register"];
+const PUBLIC_AUTH_PATHS = ["/login", "/signin"];
 
 function isBypassPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
