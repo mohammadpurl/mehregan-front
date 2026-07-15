@@ -11,17 +11,23 @@ export async function getNotificationFeedAction(limit = 8) {
       notifications?: unknown[];
       inboxUnread?: number;
       notificationUnread?: number;
+      totalUnread?: number;
     }>(`/notification-center/feed?limit=${limit}`);
     const inboxRaw = Array.isArray(data.inbox) ? data.inbox : [];
     const notifRaw = Array.isArray(data.notifications) ? data.notifications : [];
+    const inboxUnread = Number(data.inboxUnread ?? 0);
+    const notificationUnread = Number(data.notificationUnread ?? 0);
     return {
       success: true as const,
       inbox: inboxRaw,
       notifications: notifRaw.map((item) =>
         normalizeNotificationItem(item as Record<string, unknown>),
       ),
-      inboxUnread: Number(data.inboxUnread ?? 0),
-      notificationUnread: Number(data.notificationUnread ?? 0),
+      inboxUnread,
+      notificationUnread,
+      totalUnread: Number(
+        data.totalUnread ?? inboxUnread + notificationUnread,
+      ),
     };
   } catch (err: unknown) {
     const error = err as { message?: string };
@@ -76,6 +82,23 @@ export async function getNotificationUnreadCountAction() {
   } catch (err: unknown) {
     const error = err as { message?: string };
     return { success: false as const, error: error?.message || 'خطا در شمارش اعلان‌ها', count: 0 };
+  }
+}
+
+/** شمارش badge زنگ بدون دوبل‌شماری کارتابل + اعلان یکسان */
+export async function getBellUnreadCountAction() {
+  try {
+    const data = await readDataWithAuth<{ count: number }>(
+      '/notification-center/unread-count',
+    );
+    return { success: true as const, count: data.count ?? 0 };
+  } catch (err: unknown) {
+    const error = err as { message?: string };
+    return {
+      success: false as const,
+      error: error?.message || 'خطا در شمارش اعلان‌ها',
+      count: 0,
+    };
   }
 }
 

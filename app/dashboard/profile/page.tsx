@@ -29,8 +29,9 @@ function profileToFormValues(profile: ProfileDto): ProfileUpdateFormValues {
     last_name: profile.last_name ?? '',
     national_id: profile.national_id ?? '',
     father_name: profile.father_name ?? '',
+    account_number: profile.account_number ?? profile.bank_account_number ?? '',
     card_number: profile.card_number ?? '',
-    sheba_number: profile.sheba_number ?? profile.bank_account_number ?? '',
+    sheba_number: profile.sheba_number ?? '',
   };
 }
 
@@ -114,6 +115,15 @@ export default function ProfilePage() {
           lgSpan: 6,
         },
         {
+          name: 'account_number',
+          label: 'شماره حساب',
+          type: 'text',
+          required: false,
+          row: 3,
+          lgSpan: 6,
+          placeholder: 'شماره حساب بانکی (اختیاری)',
+        },
+        {
           name: 'sheba_number',
           label: 'شماره شبا',
           type: 'text',
@@ -127,7 +137,7 @@ export default function ProfilePage() {
           label: 'شماره کارت',
           type: 'text',
           required: false,
-          row: 3,
+          row: 4,
           lgSpan: 6,
           placeholder: '۱۶ رقم (اختیاری)',
         },

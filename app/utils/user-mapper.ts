@@ -30,6 +30,7 @@ export function normalizeAdminUser(raw: unknown): AdminUser {
     department_name: (r.department_name ?? r.departmentName) as string | null | undefined,
     manager_id: (r.manager_id ?? r.managerId) as number | null | undefined,
     manager_name: (r.manager_name ?? r.managerName) as string | null | undefined,
+    account_number: pickStr(r, 'account_number', 'accountNumber') ?? null,
     card_number: pickStr(r, 'card_number', 'cardNumber') ?? null,
     sheba_number: pickStr(r, 'sheba_number', 'shebaNumber') ?? null,
   };
@@ -60,8 +61,15 @@ export function normalizeProfileFromApi(raw: unknown): ProfileDto {
     father_name: String(r.father_name ?? r.fatherName ?? ''),
     pic: String(r.pic ?? r.picUrl ?? ''),
     full_name: full,
+    account_number: pickStr(r, 'account_number', 'accountNumber', 'bank_account_number', 'bankAccountNumber'),
     card_number: pickStr(r, 'card_number', 'cardNumber'),
-    sheba_number: pickStr(r, 'sheba_number', 'shebaNumber', 'bank_account_number'),
-    bank_account_number: pickStr(r, 'bank_account_number', 'bankAccountNumber'),
+    sheba_number: pickStr(r, 'sheba_number', 'shebaNumber'),
+    bank_account_number: pickStr(
+      r,
+      'account_number',
+      'accountNumber',
+      'bank_account_number',
+      'bankAccountNumber',
+    ),
   };
 }

@@ -13,6 +13,7 @@ export const AdminUserCreateSchema = z.object({
   role_id: trimStr,
   department_id: trimStr,
   manager_id: trimStr,
+  account_number: trimStr.max(50).optional().or(z.literal('')),
   card_number: trimStr.max(24).optional().or(z.literal('')),
   sheba_number: trimStr.max(26).optional().or(z.literal('')),
 });
@@ -31,6 +32,7 @@ export const AdminUserUpdateSchema = z.object({
   role_id: trimStr,
   department_id: trimStr,
   manager_id: trimStr,
+  account_number: trimStr.max(50).optional().or(z.literal('')),
   card_number: trimStr.max(24).optional().or(z.literal('')),
   sheba_number: trimStr.max(26).optional().or(z.literal('')),
 });

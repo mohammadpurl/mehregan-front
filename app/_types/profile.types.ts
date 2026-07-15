@@ -9,6 +9,8 @@ export interface ProfileDto {
   father_name: string;
   pic: string;
   full_name: string;
+  /** شماره حساب بانکی (اختیاری) */
+  account_number?: string;
   /** شماره کارت بانکی (اختیاری) */
   card_number?: string;
   /** شماره شبا (اختیاری) — نام فیلد در API */
@@ -24,6 +26,7 @@ export interface UpdateProfileModel {
   last_name: string;
   national_id?: string;
   father_name?: string;
+  account_number?: string;
   card_number?: string;
   sheba_number?: string;
 }

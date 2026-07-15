@@ -51,7 +51,6 @@ function NotificationBell() {
   const [open, setOpen] = useState(false);
   const items = useNotificationCenterStore((s) => s.items);
   const badgeCount = useNotificationCenterStore(selectHeaderBadgeCount);
-  const notificationUnread = useNotificationCenterStore((s) => s.notificationUnread);
   const inboxUnread = useNotificationCenterStore((s) => s.inboxUnread);
   const loading = useNotificationCenterStore((s) => s.loading);
   const feedError = useNotificationCenterStore((s) => s.error);
@@ -128,13 +127,6 @@ function NotificationBell() {
               <h3 className="font-semibold text-foreground">اعلان‌ها و کارتابل</h3>
               <span className="text-xs font-medium text-red-600 dark:text-red-400">
                 {badgeCount > 0 ? `${badgeCount} جدید` : 'بدون مورد جدید'}
-                {inboxUnread > 0 && notificationUnread > 0
-                  ? ` (${inboxUnread} کارتابل، ${notificationUnread} اعلان)`
-                  : inboxUnread > 0
-                    ? ` (${inboxUnread} کارتابل)`
-                    : notificationUnread > 0
-                      ? ` (${notificationUnread} اعلان)`
-                      : ''}
               </span>
             </div>
             <div className="max-h-80 overflow-y-auto">

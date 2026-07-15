@@ -52,16 +52,17 @@ function splitFullName(fullName?: string | null): { first_name: string; last_nam
   };
 }
 
-function bankingFromForm(card?: string, sheba?: string) {
+function bankingFromForm(account?: string, card?: string, sheba?: string) {
+  const account_number = account?.replace(/\s|-/g, '').trim() || undefined;
   const card_number = card?.replace(/\s|-/g, '').trim() || undefined;
   let sheba_number = sheba?.replace(/\s/g, '').trim().toUpperCase();
   if (sheba_number && !sheba_number.startsWith('IR')) sheba_number = `IR${sheba_number}`;
   if (!sheba_number) sheba_number = undefined;
-  return { card_number, sheba_number };
+  return { account_number, card_number, sheba_number };
 }
 
 export function createFormToModel(data: AdminUserCreateFormValues): CreateUserModel {
-  const banking = bankingFromForm(data.card_number, data.sheba_number);
+  const banking = bankingFromForm(data.account_number, data.card_number, data.sheba_number);
   return {
     username: data.username,
     email: data.email,
@@ -78,7 +79,7 @@ export function createFormToModel(data: AdminUserCreateFormValues): CreateUserMo
 }
 
 export function updateFormToModel(data: AdminUserUpdateFormValues): UpdateUserModel {
-  const banking = bankingFromForm(data.card_number, data.sheba_number);
+  const banking = bankingFromForm(data.account_number, data.card_number, data.sheba_number);
   return {
     username: data.username,
     email: data.email,
@@ -126,6 +127,7 @@ export function userToFormDefaults(user?: Partial<AdminUser>): AdminUserCreateFo
     department_id: user?.department_id != null ? String(user.department_id) : '',
     manager_id: user?.manager_id != null ? String(user.manager_id) : '',
     is_active: user?.is_active === false ? 'false' : 'true',
+    account_number: user?.account_number ?? '',
     card_number: user?.card_number ?? '',
     sheba_number: user?.sheba_number ?? '',
   };

@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 const trimStr = z.string().trim();
 
+const optionalAccount = trimStr.max(50, 'شماره حساب حداکثر ۵۰ کاراکتر').optional().or(z.literal(''));
+
 const optionalCard = trimStr.max(24, 'شماره کارت حداکثر ۲۴ رقم').optional().or(z.literal(''));
 
 const optionalSheba = trimStr.max(26, 'شماره شبا حداکثر ۲۶ کاراکتر').optional().or(z.literal(''));
@@ -13,6 +15,7 @@ export const ProfileUpdateSchema = z.object({
   last_name: trimStr.min(1, 'نام خانوادگی الزامی است'),
   national_id: trimStr,
   father_name: trimStr,
+  account_number: optionalAccount,
   card_number: optionalCard,
   sheba_number: optionalSheba,
 });

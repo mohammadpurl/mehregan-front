@@ -70,6 +70,14 @@ export function getUsersTableColumns({
       cell: ({ row }) => row.original.phone ?? '—',
     },
     {
+      accessorKey: 'account_number',
+      header: 'شماره حساب',
+      cell: ({ row }) => {
+        const v = row.original.account_number?.trim();
+        return v ? <span className="font-mono text-xs">{v}</span> : '—';
+      },
+    },
+    {
       accessorKey: 'card_number',
       header: 'شماره کارت',
       cell: ({ row }) => {
