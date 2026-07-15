@@ -2,28 +2,47 @@ import { z } from 'zod';
 
 const trimStr = z.string().trim();
 
+const BANKING_REQUIRED_MSG =
+  'حداقل یکی از شماره حساب، شماره کارت یا شماره شبا باید وارد شود';
+
 const optionalAccount = trimStr.max(50, 'شماره حساب حداکثر ۵۰ کاراکتر').optional().or(z.literal(''));
-
 const optionalCard = trimStr.max(24, 'شماره کارت حداکثر ۲۴ رقم').optional().or(z.literal(''));
-
 const optionalSheba = trimStr.max(26, 'شماره شبا حداکثر ۲۶ کاراکتر').optional().or(z.literal(''));
 
-export const ProfileUpdateSchema = z.object({
-  email: z.string().trim().email('ایمیل معتبر وارد کنید'),
-  mobile: trimStr.min(1, 'شماره موبایل الزامی است'),
-  first_name: trimStr.min(1, 'نام الزامی است'),
-  last_name: trimStr.min(1, 'نام خانوادگی الزامی است'),
-  national_id: trimStr,
-  father_name: trimStr,
-  account_number: optionalAccount,
-  card_number: optionalCard,
-  sheba_number: optionalSheba,
-});
+export const ProfileUpdateSchema = z
+  .object({
+    email: z.string().trim().email('ایمیل معتبر وارد کنید'),
+    mobile: trimStr.min(1, 'شماره موبایل الزامی است'),
+    first_name: trimStr.min(1, 'نام الزامی است'),
+    last_name: trimStr.min(1, 'نام خانوادگی الزامی است'),
+    national_id: trimStr,
+    father_name: trimStr,
+    account_number: optionalAccount,
+    card_number: optionalCard,
+    sheba_number: optionalSheba,
+  })
+  .superRefine((data, ctx) => {
+    const hasAny = Boolean(
+      data.account_number?.replace(/\s|-/g, '').trim() ||
+        data.card_number?.replace(/\s|-/g, '').trim() ||
+        data.sheba_number?.replace(/\s/g, '').trim(),
+    );
+    if (!hasAny) {
+      for (const path of ['account_number', 'card_number', 'sheba_number'] as const) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: BANKING_REQUIRED_MSG,
+          path: [path],
+        });
+      }
+    }
+  });
 
 export type ProfileUpdateFormValues = z.infer<typeof ProfileUpdateSchema>;
 
 import { AVATAR_MAX_BYTES } from '@/app/constants/upload-limits';
 
 export { AVATAR_MAX_BYTES };
-export const AVATAR_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif';
+export const AVATAR_ACCEPT =
+  'image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif';
 export const AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'] as const;

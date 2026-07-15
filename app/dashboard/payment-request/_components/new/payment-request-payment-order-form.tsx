@@ -29,7 +29,7 @@ import { AttachmentFileInput } from '@/app/components/attachments/attachment-fil
 import { notifyAttachmentUploadFailed } from '@/app/utils/form-notify';
 import { CompanyBankAccountSelect } from '../bank-account/company-bank-account-select';
 import { CounterpartyBankAccountSelect } from '../bank-account/counterparty-bank-account-select';
-import { BankAccountDetailAlert } from '../bank-account/bank-account-detail-alert';
+import { bankAccountPayoutNumber } from '../../_utils/bank-account-display';
 import { todayGregorianIso } from '@/app/utils/jalali-date';
 import { PaymentMethod } from '../../_utils/payment-method';
 
@@ -39,10 +39,14 @@ type Props = {
   onBusyChange?: (busy: boolean) => void;
 };
 
+const CP_NONE = '__none__';
+
 const defaultValues: PaymentOrderCreateValues = {
   paymentOrderKind: PaymentOrderKind.INDIVIDUAL,
   counterpartyId: 0,
   counterpartyBankAccountId: 0,
+  receiverName: '',
+  receiverAccountNumber: '',
   payerCompanyAccountId: 0,
   paymentDate: todayGregorianIso(),
   reason: '',
@@ -73,8 +77,12 @@ export function PaymentRequestPaymentOrderForm({
   const orderKind = form.watch('paymentOrderKind');
   const isIndividual = orderKind === PaymentOrderKind.INDIVIDUAL;
   const isCollective = !isIndividual;
-  const selectedId = form.watch('counterpartyId');
-  const selectedBankId = form.watch('counterpartyBankAccountId');
+  const selectedId = form.watch('counterpartyId') ?? 0;
+  const selectedBankId = form.watch('counterpartyBankAccountId') ?? 0;
+  const selectedCp = useMemo(
+    () => counterparties.find((c) => c.id === selectedId) ?? null,
+    [counterparties, selectedId],
+  );
   const selectedBank = useMemo(
     () => cpBankAccounts.find((a) => a.id === selectedBankId) ?? null,
     [cpBankAccounts, selectedBankId],
@@ -93,22 +101,38 @@ export function PaymentRequestPaymentOrderForm({
     if (isCollective) {
       form.setValue('amount', 0);
       form.setValue('paymentDate', '');
-      form.clearErrors(['amount', 'paymentDate']);
+      form.setValue('counterpartyId', 0);
+      form.setValue('counterpartyBankAccountId', 0);
+      form.setValue('receiverName', '');
+      form.setValue('receiverAccountNumber', '');
+      setCpBankAccounts([]);
+      form.clearErrors(['amount', 'paymentDate', 'receiverName', 'receiverAccountNumber']);
     } else if (!form.getValues('paymentDate')?.trim()) {
       form.setValue('paymentDate', todayGregorianIso());
     }
   }, [isCollective, form]);
 
+  /** با تغییر طرف‌حساب از لیست: نام را پر کنید و شماره حساب را برای ورود مجدد ریست کنید */
   useEffect(() => {
-    if (!isIndividual) {
-      form.setValue('counterpartyId', 0);
-      form.setValue('counterpartyBankAccountId', 0);
-      setCpBankAccounts([]);
-      return;
-    }
+    if (!isIndividual) return;
     form.setValue('counterpartyBankAccountId', 0);
     setCpBankAccounts([]);
-  }, [selectedId, isIndividual, form]);
+    if (selectedCp) {
+      form.setValue('receiverName', selectedCp.name);
+      form.setValue('receiverAccountNumber', '');
+      form.clearErrors('receiverName');
+    }
+  }, [selectedId, isIndividual, selectedCp, form]);
+
+  /** با انتخاب حساب بانکی از لیست: شماره حساب را پر کنید */
+  useEffect(() => {
+    if (!isIndividual || !selectedBank) return;
+    const num = bankAccountPayoutNumber(selectedBank);
+    if (num) {
+      form.setValue('receiverAccountNumber', num);
+      form.clearErrors('receiverAccountNumber');
+    }
+  }, [selectedBank, isIndividual, form]);
 
   useEffect(() => {
     onBusyChange?.(isPending || loadingCp);
@@ -139,7 +163,7 @@ export function PaymentRequestPaymentOrderForm({
         <WorkflowSameAssigneeAlert show={sameAssigneeWarning} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            انفرادی: طرف‌حساب، مبلغ و تاریخ مشخص است. جمعی: مبلغ و تاریخ در زمان ثبت وارد نمی‌شود؛{' '}
+            انفرادی: نام/اشتراک آب و شماره حساب مقصد را وارد کنید (یا از لیست پر کنید). جمعی:{' '}
             <strong>پیوست الزامی</strong> است.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -165,7 +189,7 @@ export function PaymentRequestPaymentOrderForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value={PaymentOrderKind.INDIVIDUAL}>انفرادی (طرف‌حساب مشخص)</SelectItem>
+                  <SelectItem value={PaymentOrderKind.INDIVIDUAL}>انفرادی</SelectItem>
                   <SelectItem value={PaymentOrderKind.COLLECTIVE}>جمعی (بدون طرف‌حساب واحد)</SelectItem>
                 </SelectContent>
               </Select>
@@ -181,18 +205,21 @@ export function PaymentRequestPaymentOrderForm({
               name="counterpartyId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>طرف حساب</FormLabel>
+                  <FormLabel>طرف حساب از لیست (اختیاری)</FormLabel>
                   <Select
                     disabled={loadingCp}
-                    value={field.value != null && field.value > 0 ? String(field.value) : ''}
-                    onValueChange={(v) => field.onChange(Number(v))}
+                    value={field.value != null && field.value > 0 ? String(field.value) : CP_NONE}
+                    onValueChange={(v) => field.onChange(v === CP_NONE ? 0 : Number(v))}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={loadingCp ? 'در حال بارگذاری…' : 'انتخاب طرف حساب'} />
+                        <SelectValue
+                          placeholder={loadingCp ? 'در حال بارگذاری…' : 'بدون انتخاب — ورود دستی'}
+                        />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value={CP_NONE}>بدون انتخاب — ورود دستی</SelectItem>
                       {counterparties.map((cp) => (
                         <SelectItem key={cp.id} value={String(cp.id)}>
                           {cp.name}
@@ -201,31 +228,74 @@ export function PaymentRequestPaymentOrderForm({
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    اگر از لیست انتخاب کنید، نام و شماره حساب خودکار پر می‌شوند؛ در غیر این صورت دستی وارد کنید.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="counterpartyBankAccountId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>حساب واریز (طرف‌حساب)</FormLabel>
-                  <FormControl>
-                    <CounterpartyBankAccountSelect
-                      counterpartyId={selectedId ?? 0}
-                      value={field.value ?? 0}
-                      onChange={field.onChange}
-                      onAccountsLoaded={setCpBankAccounts}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {selectedId > 0 ? (
+              <FormField
+                control={form.control}
+                name="counterpartyBankAccountId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>حساب بانکی از لیست طرف‌حساب (اختیاری)</FormLabel>
+                    <FormControl>
+                      <CounterpartyBankAccountSelect
+                        counterpartyId={selectedId}
+                        value={field.value ?? 0}
+                        onChange={field.onChange}
+                        onAccountsLoaded={setCpBankAccounts}
+                        allowNone
+                        autoSelectDefault
+                        noneLabel="بدون انتخاب از لیست — ورود دستی شماره حساب"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
 
-            <BankAccountDetailAlert title="جزئیات حساب واریز" account={selectedBank} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="receiverName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>نام یا شماره اشتراک آب</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="نام طرف‌حساب یا شماره اشتراک آب"
+                        {...field}
+                        value={field.value ?? ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="receiverAccountNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>شماره حساب</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="شماره حساب / شبا مقصد"
+                        {...field}
+                        value={field.value ?? ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </>
         ) : (
           <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
@@ -321,9 +391,9 @@ export function PaymentRequestPaymentOrderForm({
           name="reason"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>شرح / دلیل</FormLabel>
+              <FormLabel>شرح / توضیحات درخواست‌کننده</FormLabel>
               <FormControl>
-                <Textarea {...field} rows={3} />
+                <Textarea {...field} rows={3} placeholder="دلیل درخواست…" />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -238,6 +238,8 @@ export type PaymentOrderRequestBody = {
   payment_order_kind: string;
   counterparty_id?: number;
   counterparty_bank_account_id?: number;
+  receiver_name?: string;
+  receiver_account_number?: string;
   payer_company_account_id?: number;
   payment_method: string;
   amount: number;
@@ -249,6 +251,8 @@ export function paymentOrderValuesToBody(values: {
   paymentOrderKind: string;
   counterpartyId?: number;
   counterpartyBankAccountId?: number;
+  receiverName?: string;
+  receiverAccountNumber?: string;
   payerCompanyAccountId?: number;
   paymentMethod: string;
   amount: number;
@@ -265,8 +269,16 @@ export function paymentOrderValuesToBody(values: {
     reason: values.reason?.trim() ? values.reason.trim() : null,
   };
   if (kind === 'individual') {
-    body.counterparty_id = values.counterpartyId;
-    body.counterparty_bank_account_id = values.counterpartyBankAccountId;
+    const receiverName = values.receiverName?.trim();
+    const receiverAccountNumber = values.receiverAccountNumber?.trim();
+    if (receiverName) body.receiver_name = receiverName;
+    if (receiverAccountNumber) body.receiver_account_number = receiverAccountNumber;
+    if (values.counterpartyId != null && values.counterpartyId > 0) {
+      body.counterparty_id = values.counterpartyId;
+    }
+    if (values.counterpartyBankAccountId != null && values.counterpartyBankAccountId > 0) {
+      body.counterparty_bank_account_id = values.counterpartyBankAccountId;
+    }
   }
   if (values.payerCompanyAccountId != null && values.payerCompanyAccountId > 0) {
     body.payer_company_account_id = values.payerCompanyAccountId;

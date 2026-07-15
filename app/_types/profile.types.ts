@@ -26,7 +26,7 @@ export interface UpdateProfileModel {
   last_name: string;
   national_id?: string;
   father_name?: string;
-  account_number?: string;
-  card_number?: string;
-  sheba_number?: string;
+  account_number?: string | null;
+  card_number?: string | null;
+  sheba_number?: string | null;
 }

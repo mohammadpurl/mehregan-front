@@ -55,7 +55,7 @@ export function buildUserFormSchema(isEdit: boolean): FormSchema {
         required: false,
         row: 2,
         lgSpan: 6,
-        placeholder: 'شماره حساب بانکی (اختیاری)',
+        placeholder: 'حداقل یکی از حساب / کارت / شبا',
       },
       {
         name: 'sheba_number',
@@ -64,7 +64,7 @@ export function buildUserFormSchema(isEdit: boolean): FormSchema {
         required: false,
         row: 3,
         lgSpan: 6,
-        placeholder: 'IR… (اختیاری)',
+        placeholder: 'IR… — یا حساب یا کارت',
       },
       {
         name: 'card_number',
@@ -73,7 +73,7 @@ export function buildUserFormSchema(isEdit: boolean): FormSchema {
         required: false,
         row: 3,
         lgSpan: 6,
-        placeholder: '۱۶ رقم (اختیاری)',
+        placeholder: '۱۶ رقم — یا حساب یا شبا',
       },
       {
         name: 'password',

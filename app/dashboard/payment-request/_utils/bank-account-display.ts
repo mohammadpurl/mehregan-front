@@ -1,5 +1,15 @@
 import type { BankAccountDetail } from '../_types/bank-account.types';
 
+/** شماره واریز از جزئیات حساب بانکی */
+export function bankAccountPayoutNumber(account: BankAccountDetail): string {
+  return (
+    account.accountNumber?.trim() ||
+    account.shebaNumber?.trim() ||
+    account.cardNumber?.trim() ||
+    ''
+  );
+}
+
 export function formatBankAccountLabel(account: BankAccountDetail & { id?: number }): string {
   const label = account.label?.trim();
   const bank = account.bankName?.trim();

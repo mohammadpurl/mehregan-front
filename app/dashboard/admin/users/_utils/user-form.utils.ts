@@ -53,11 +53,12 @@ function splitFullName(fullName?: string | null): { first_name: string; last_nam
 }
 
 function bankingFromForm(account?: string, card?: string, sheba?: string) {
-  const account_number = account?.replace(/\s|-/g, '').trim() || undefined;
-  const card_number = card?.replace(/\s|-/g, '').trim() || undefined;
-  let sheba_number = sheba?.replace(/\s/g, '').trim().toUpperCase();
-  if (sheba_number && !sheba_number.startsWith('IR')) sheba_number = `IR${sheba_number}`;
-  if (!sheba_number) sheba_number = undefined;
+  const account_number = account?.replace(/\s|-/g, '').trim() || null;
+  const card_number = card?.replace(/\s|-/g, '').trim() || null;
+  let shebaRaw = sheba?.replace(/\s/g, '').trim().toUpperCase() || '';
+  if (shebaRaw && !shebaRaw.startsWith('IR')) shebaRaw = `IR${shebaRaw}`;
+  const sheba_number = shebaRaw || null;
+  // همیشه هر سه کلید ارسال می‌شود تا بک‌اند «حداقل یکی» را روی فرم ادمین چک کند
   return { account_number, card_number, sheba_number };
 }
 

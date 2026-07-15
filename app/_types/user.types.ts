@@ -31,9 +31,9 @@ export interface CreateUserModel {
   role_id?: number;
   department_id?: number;
   manager_id?: number;
-  account_number?: string;
-  card_number?: string;
-  sheba_number?: string;
+  account_number?: string | null;
+  card_number?: string | null;
+  sheba_number?: string | null;
 }
 
 export interface ManagerLookupItem {
@@ -52,7 +52,7 @@ export interface UpdateUserModel {
   role_id?: number;
   department_id?: number;
   manager_id?: number;
-  account_number?: string;
-  card_number?: string;
-  sheba_number?: string;
+  account_number?: string | null;
+  card_number?: string | null;
+  sheba_number?: string | null;
 }

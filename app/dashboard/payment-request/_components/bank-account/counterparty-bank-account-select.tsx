@@ -6,6 +6,8 @@ import { getCounterpartyBankAccountsAction } from '@/app/_actions/counterparty-a
 import type { CounterpartyBankAccount } from '../../_types/bank-account.types';
 import { formatBankAccountLabel } from '../../_utils/bank-account-display';
 
+const NONE_VALUE = '__none__';
+
 type Props = {
   counterpartyId: number;
   value: number;
@@ -13,6 +15,11 @@ type Props = {
   onAccountsLoaded?: (accounts: CounterpartyBankAccount[]) => void;
   disabled?: boolean;
   placeholder?: string;
+  /** اگر false باشد حساب پیش‌فرض خودکار انتخاب نمی‌شود (پیش‌فرض: false) */
+  autoSelectDefault?: boolean;
+  /** گزینه «بدون انتخاب» برای اختیاری بودن حساب واریز */
+  allowNone?: boolean;
+  noneLabel?: string;
 };
 
 export function CounterpartyBankAccountSelect({
@@ -22,6 +29,9 @@ export function CounterpartyBankAccountSelect({
   onAccountsLoaded,
   disabled,
   placeholder = 'انتخاب حساب واریز طرف‌حساب',
+  autoSelectDefault = false,
+  allowNone = true,
+  noneLabel = 'بدون انتخاب — شماره حساب در شرح',
 }: Props) {
   const [accounts, setAccounts] = useState<CounterpartyBankAccount[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,7 +48,7 @@ export function CounterpartyBankAccountSelect({
       if (res.success) {
         setAccounts(res.data);
         onAccountsLoaded?.(res.data);
-        if (!value || value < 1) {
+        if (autoSelectDefault && (!value || value < 1)) {
           const def = res.data.find((a) => a.isDefault) ?? res.data[0];
           if (def) onChange(def.id);
         }
@@ -53,9 +63,9 @@ export function CounterpartyBankAccountSelect({
 
   return (
     <Select
-      disabled={disabled || loading || !counterpartyId || accounts.length === 0}
-      value={value > 0 ? String(value) : ''}
-      onValueChange={(v) => onChange(Number(v))}
+      disabled={disabled || loading || !counterpartyId}
+      value={value > 0 ? String(value) : allowNone ? NONE_VALUE : ''}
+      onValueChange={(v) => onChange(v === NONE_VALUE ? 0 : Number(v))}
     >
       <SelectTrigger>
         <SelectValue
@@ -64,13 +74,17 @@ export function CounterpartyBankAccountSelect({
               ? 'ابتدا طرف‌حساب را انتخاب کنید'
               : loading
                 ? 'در حال بارگذاری…'
-                : accounts.length === 0
-                  ? 'حسابی برای این طرف تعریف نشده'
-                  : placeholder
+                : placeholder
           }
         />
       </SelectTrigger>
       <SelectContent>
+        {allowNone ? <SelectItem value={NONE_VALUE}>{noneLabel}</SelectItem> : null}
+        {accounts.length === 0 && !loading && counterpartyId > 0 ? (
+          <SelectItem value="__empty_hint__" disabled>
+            حسابی برای این طرف تعریف نشده
+          </SelectItem>
+        ) : null}
         {accounts.map((a) => (
           <SelectItem key={a.id} value={String(a.id)}>
             {formatBankAccountLabel(a)}

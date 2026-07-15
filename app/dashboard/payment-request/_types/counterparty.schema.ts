@@ -26,21 +26,26 @@ export function paymentOrderCreateSchema(requirePayerCompanyAccount: boolean) {
       paymentOrderKind: z.enum([PaymentOrderKind.INDIVIDUAL, PaymentOrderKind.COLLECTIVE], {
         message: 'نوع دستور پرداخت را انتخاب کنید',
       }),
+      /** انتخاب از لیست طرف‌حساب‌ها — اختیاری */
       counterpartyId: z.number().int().min(0).optional(),
       counterpartyBankAccountId: z.number().int().min(0).optional(),
-    payerCompanyAccountId: requirePayerCompanyAccount
-      ? z
-          .number({ error: 'حساب مبدأ شرکت را انتخاب کنید' })
-          .int()
-          .min(1, 'حساب مبدأ شرکت را انتخاب کنید')
-      : z.number().int().min(0).optional(),
-    paymentDate: trimStr,
-    reason: trimStr.min(5, 'شرح درخواست حداقل ۵ کاراکتر').max(2000),
-    amount: z.number({ error: 'مبلغ نامعتبر است' }).min(0),
-    paymentMethod: z.enum([PaymentMethod.CHECK, PaymentMethod.TRANSFER], {
-      message: 'روش پرداخت را انتخاب کنید (چک یا حواله)',
-    }),
-  })
+      /** نام طرف‌حساب یا شماره اشتراک آب */
+      receiverName: trimStr.max(255).optional().or(z.literal('')),
+      /** شماره حساب مقصد */
+      receiverAccountNumber: trimStr.max(50).optional().or(z.literal('')),
+      payerCompanyAccountId: requirePayerCompanyAccount
+        ? z
+            .number({ error: 'حساب مبدأ شرکت را انتخاب کنید' })
+            .int()
+            .min(1, 'حساب مبدأ شرکت را انتخاب کنید')
+        : z.number().int().min(0).optional(),
+      paymentDate: trimStr,
+      reason: trimStr.min(5, 'شرح درخواست حداقل ۵ کاراکتر').max(2000),
+      amount: z.number({ error: 'مبلغ نامعتبر است' }).min(0),
+      paymentMethod: z.enum([PaymentMethod.CHECK, PaymentMethod.TRANSFER], {
+        message: 'روش پرداخت را انتخاب کنید (چک یا حواله)',
+      }),
+    })
     .superRefine((data, ctx) => {
       if (data.paymentOrderKind === PaymentOrderKind.INDIVIDUAL) {
         if (!data.paymentDate?.trim()) {
@@ -57,18 +62,20 @@ export function paymentOrderCreateSchema(requirePayerCompanyAccount: boolean) {
             path: ['amount'],
           });
         }
-        if (!data.counterpartyId || data.counterpartyId < 1) {
+        const name = String(data.receiverName ?? '').trim();
+        const account = String(data.receiverAccountNumber ?? '').trim();
+        if (name.length < 2) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'طرف حساب را انتخاب کنید',
-            path: ['counterpartyId'],
+            message: 'نام یا شماره اشتراک آب را وارد کنید',
+            path: ['receiverName'],
           });
         }
-        if (!data.counterpartyBankAccountId || data.counterpartyBankAccountId < 1) {
+        if (account.length < 5) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'حساب طرف‌حساب را انتخاب کنید',
-            path: ['counterpartyBankAccountId'],
+            message: 'شماره حساب را وارد کنید',
+            path: ['receiverAccountNumber'],
           });
         }
       }

@@ -37,9 +37,9 @@ function emptyToUndefined(value: string | undefined): string | undefined {
 }
 
 function sanitizeProfileUpdate(model: UpdateProfileModel): UpdateProfileModel {
-  const account = model.account_number?.replace(/\s|-/g, '').trim();
-  const card = model.card_number?.replace(/\s|-/g, '').trim();
-  let sheba = model.sheba_number?.replace(/\s/g, '').trim().toUpperCase();
+  const account = model.account_number?.replace(/\s|-/g, '').trim() || null;
+  const card = model.card_number?.replace(/\s|-/g, '').trim() || null;
+  let sheba = model.sheba_number?.replace(/\s/g, '').trim().toUpperCase() || '';
   if (sheba && !sheba.startsWith('IR')) sheba = `IR${sheba}`;
   return {
     email: model.email.trim(),
@@ -48,9 +48,9 @@ function sanitizeProfileUpdate(model: UpdateProfileModel): UpdateProfileModel {
     last_name: model.last_name.trim(),
     national_id: emptyToUndefined(model.national_id),
     father_name: emptyToUndefined(model.father_name),
-    account_number: account || undefined,
-    card_number: card || undefined,
-    sheba_number: sheba || undefined,
+    account_number: account,
+    card_number: card,
+    sheba_number: sheba || null,
   };
 }
 
