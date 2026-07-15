@@ -48,6 +48,18 @@ function isPublicAuthPath(pathname: string): boolean {
   return PUBLIC_AUTH_PATHS.includes(pathname);
 }
 
+/** Server Action / RSC mutation — نباید با redirect شکسته شود */
+function isNextMutationRequest(request: NextRequest): boolean {
+  if (request.method !== "POST" && request.method !== "PUT" && request.method !== "PATCH") {
+    return false;
+  }
+  return (
+    request.headers.has("next-action") ||
+    request.headers.has("Next-Action") ||
+    request.headers.get("accept")?.includes("text/x-component") === true
+  );
+}
+
 function redirectToDashboard(request: NextRequest): NextResponse {
   const u = request.nextUrl.clone();
   u.pathname = "/dashboard";
@@ -120,8 +132,12 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
     const accessExpired = parsed.exp < now;
     const refreshExpired = parsed.sessionExpiry < now;
 
-    // سشن معتبر و روی صفحهٔ ورود/ثبت‌نام → داشبورد
+    // سشن معتبر و روی صفحهٔ ورود → داشبورد (اما نه برای Server Action؛ وگرنه
+    // پاسخ action خراب می‌شود: Unexpected response was received from the server)
     if (!accessExpired && !refreshExpired && isAuthRoute) {
+      if (isNextMutationRequest(request)) {
+        return NextResponse.next();
+      }
       return redirectToDashboard(request);
     }
 

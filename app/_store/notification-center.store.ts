@@ -38,9 +38,13 @@ export const useNotificationCenterStore = create<State>()(
     loadedAt: undefined,
 
     refreshBadgeCounts: async () => {
-      const res = await getBellUnreadCountAction();
-      if (res.success) {
-        set({ totalUnread: res.count });
+      try {
+        const res = await getBellUnreadCountAction();
+        if (res.success) {
+          set({ totalUnread: res.count });
+        }
+      } catch {
+        // نادیده بگیر — مثلاً هنگام ناوبری به /login یا قطع سشن
       }
     },
 

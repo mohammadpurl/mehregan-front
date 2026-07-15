@@ -5,7 +5,7 @@ export function buildUserFormSchema(isEdit: boolean): FormSchema {
     fields: [
       {
         name: 'username',
-        label: 'شناسه فنی',
+        label: 'نام کاربری',
         type: 'text',
         required: true,
         row: 0,
