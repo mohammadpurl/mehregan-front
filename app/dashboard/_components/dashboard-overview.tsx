@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   getExecutiveFinancialReportAction,
   getManagementDashboardAction,
@@ -16,6 +16,13 @@ import { Button } from '@/app/components/ui/button';
 import { formatAmount } from '@/app/utils/number-format';
 import { cn } from '@/lib/utils';
 import {
+  canAccessByPermissions,
+  filterNavItemsByAccess,
+  flattenAccessibleNavLinks,
+} from '@/lib/nav-access';
+import { navItems } from '@/public/assets';
+import { useSessionStore } from '@/app/_store/auth-store';
+import {
   ArrowLeft,
   ChevronLeft,
   Inbox,
@@ -25,7 +32,6 @@ import {
   Wallet,
   Warehouse,
   Workflow,
-  Timer,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -110,7 +116,10 @@ function SoftStatCard({
 
   if (href) {
     return (
-      <Link href={href} className="block outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-2xl">
+      <Link
+        href={href}
+        className="block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
         {content}
       </Link>
     );
@@ -164,6 +173,30 @@ function SoftPanel({
   );
 }
 
+function SummaryLinkRow({
+  href,
+  label,
+  value,
+  valueClassName,
+}: {
+  href: string;
+  label: string;
+  value: string | number;
+  valueClassName?: string;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm transition-colors hover:bg-muted/40"
+      >
+        <span className="text-muted-foreground">{label}</span>
+        <span className={cn('text-lg font-bold tabular-nums', valueClassName)}>{value}</span>
+      </Link>
+    </li>
+  );
+}
+
 function LoadingSkeleton() {
   return (
     <div className="dashboard-canvas -mx-3 min-h-full px-3 py-6 sm:-mx-4 sm:px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
@@ -184,6 +217,32 @@ function LoadingSkeleton() {
 }
 
 export function DashboardOverview() {
+  const session = useSessionStore((s) => s.session);
+  const userRoles = session?.roles ?? [];
+  const userPermissions = session?.permissions ?? [];
+
+  const can = (required: string[]) => canAccessByPermissions(userPermissions, required);
+
+  const canInbox = can(['workflow.inbox.read', 'dashboard.read']);
+  const canTracking = can(['workflow.tracking.read']);
+  const canSla = can(['workflow.tracking.read', 'dashboard.read']);
+  const canPayment = can(['payment.create', 'payment.approve']);
+  const canPettyCash = can(['payment.create', 'payment.approve']);
+  const canInventory = can(['inventory.read']);
+  const canInventoryTx = can(['inventory.transfer']);
+  const canProcurement = can(['procurement.read']);
+  const canWarehousesMaster = can(['masterdata.manage']);
+  const canFinancialSection = canPayment;
+  const canWarehouseSection = can(['inventory.read', 'inventory.transfer', 'procurement.read']);
+  const canWorkflowSection = canTracking || can(['workflow.all.read', 'workflow.read']);
+
+  const quickLinks = useMemo(() => {
+    const accessible = filterNavItemsByAccess(navItems, userRoles, userPermissions);
+    return flattenAccessibleNavLinks(accessible).filter(
+      (item) => item.href && item.href !== '/dashboard',
+    );
+  }, [userRoles, userPermissions]);
+
   const [loading, setLoading] = useState(true);
   const [userDash, setUserDash] = useState<UserDashboard | null>(null);
   const [mgmt, setMgmt] = useState<ManagementDashboard | null>(null);
@@ -194,23 +253,47 @@ export function DashboardOverview() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [u, m, f, w] = await Promise.all([
-        getUserDashboardAction(),
-        getManagementDashboardAction(),
-        getExecutiveFinancialReportAction(),
-        getWarehouseDailyReportAction(),
-      ]);
-      if (cancelled) return;
-      if (u.success && u.data) setUserDash(u.data);
-      if (m.success && m.data) setMgmt(m.data);
-      if (f.success && f.data) setFinancial(f.data);
-      if (w.success && w.data) setWarehouse(w.data);
-      setLoading(false);
+      const tasks: Promise<void>[] = [];
+
+      tasks.push(
+        getUserDashboardAction().then((u) => {
+          if (!cancelled && u.success && u.data) setUserDash(u.data);
+        }),
+      );
+
+      if (canWorkflowSection) {
+        tasks.push(
+          getManagementDashboardAction().then((m) => {
+            if (!cancelled && m.success && m.data) setMgmt(m.data);
+          }),
+        );
+      }
+
+      if (canFinancialSection) {
+        tasks.push(
+          getExecutiveFinancialReportAction().then((f) => {
+            if (!cancelled && f.success && f.data) setFinancial(f.data);
+          }),
+        );
+      }
+
+      if (canWarehouseSection) {
+        tasks.push(
+          getWarehouseDailyReportAction().then((w) => {
+            if (!cancelled && w.success && w.data) setWarehouse(w.data);
+          }),
+        );
+      }
+
+      await Promise.all(tasks);
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+    // فقط بر اساس دسترسی‌های نشست؛ توابع can* از permissions مشتق می‌شوند
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPermissions.join('|'), userRoles.join('|')]);
 
   if (loading) {
     return <LoadingSkeleton />;
@@ -220,20 +303,102 @@ export function DashboardOverview() {
   const wfPending = mgmt?.workflow.pending ?? financial?.workflow.all_pending_instances ?? 0;
   const slaOverdue = userDash?.stats.overdue ?? mgmt?.operations.sla_overdue ?? 0;
 
-  const quickLinks = [
-    { href: '/dashboard/workflow/inbox', label: 'کارتابل من', icon: Inbox },
-    { href: '/dashboard/payment-request', label: 'درخواست پرداخت', icon: Wallet },
-    { href: '/dashboard/petty-cash', label: 'تنخواه', icon: Wallet },
-    { href: '/dashboard/procurement/requests', label: 'درخواست خرید', icon: ShoppingCart },
-    { href: '/dashboard/inventory/stock', label: 'موجودی انبار', icon: Package },
-    { href: '/dashboard/workflow/tracking', label: 'پیگیری گردش‌کار', icon: Workflow },
-    { href: '/dashboard/reports/sla', label: 'گزارش SLA', icon: Timer },
-  ];
+  const myWorkCards: Array<{
+    key: string;
+    title: string;
+    value: string | number;
+    subtitle?: string;
+    href: string;
+    icon: LucideIcon;
+    accent: Accent;
+  }> = [];
+
+  if (canInbox) {
+    myWorkCards.push({
+      key: 'inbox',
+      title: 'کارتابل باز',
+      value: inboxPending,
+      href: '/dashboard/workflow/inbox',
+      icon: Inbox,
+      accent: 'blue',
+    });
+    myWorkCards.push({
+      key: 'done',
+      title: 'انجام‌شده',
+      value: userDash?.stats.done ?? 0,
+      subtitle: 'آیتم‌های inbox',
+      href: '/dashboard/workflow/tracking?scope=mine',
+      icon: TrendingUp,
+      accent: 'teal',
+    });
+  }
+  if (canSla) {
+    myWorkCards.push({
+      key: 'sla',
+      title: 'تأخیر SLA',
+      value: slaOverdue,
+      subtitle: slaOverdue > 0 ? 'نیاز به پیگیری' : 'بدون تأخیر',
+      href: '/dashboard/reports/sla',
+      icon: Workflow,
+      accent: slaOverdue > 0 ? 'rose' : 'teal',
+    });
+  }
+  if (canPayment) {
+    myWorkCards.push({
+      key: 'my-payments',
+      title: 'درخواست پرداخت من',
+      value: userDash?.stats.my_payment_requests ?? 0,
+      href: '/dashboard/payment-request',
+      icon: Wallet,
+      accent: 'violet',
+    });
+  }
+
+  const summaryRows: Array<{
+    key: string;
+    href: string;
+    label: string;
+    value: string | number;
+    valueClassName?: string;
+  }> = [];
+  if (canInbox) {
+    summaryRows.push({
+      key: 'inbox',
+      href: '/dashboard/workflow/inbox',
+      label: 'کارتابل باز',
+      value: inboxPending,
+      valueClassName: 'text-primary',
+    });
+  }
+  if (canTracking || canWorkflowSection) {
+    summaryRows.push({
+      key: 'wf',
+      href: '/dashboard/workflow/tracking?scope=all',
+      label: 'گردش‌کار در جریان',
+      value: wfPending,
+    });
+  }
+  if (financial && canPayment) {
+    summaryRows.push({
+      key: 'pay',
+      href: '/dashboard/payment-request?scope=all',
+      label: 'پرداخت معلق',
+      value: financial.payment_requests.pending_count,
+    });
+  }
+  if (warehouse && canInventory) {
+    summaryRows.push({
+      key: 'stock',
+      href: '/dashboard/inventory/stock',
+      label: 'کمبود موجودی',
+      value: warehouse.low_stock_count,
+      valueClassName: 'text-destructive',
+    });
+  }
 
   return (
     <div className="dashboard-canvas -mx-3 min-h-full px-3 py-5 sm:-mx-4 sm:px-4 sm:py-6 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-8">
-        {/* هدر */}
         <header className="soft-card overflow-hidden">
           <div className="bg-gradient-to-l from-primary/10 via-transparent to-accent/5 px-6 py-6 sm:px-8 sm:py-7">
             <p className="text-xs font-medium text-muted-foreground">خانه / داشبورد</p>
@@ -241,143 +406,171 @@ export function DashboardOverview() {
               داشبورد مدیریتی
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              نمای کلی مالی، انبار و گردش‌کار — مطابق سامانه اتوماسیون امور اداری و مالی
+              نمای کلی بر اساس دسترسی شما — مالی، انبار و گردش‌کار
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button asChild size="sm" className="rounded-xl shadow-sm">
-                <Link href="/dashboard/workflow/inbox">
-                  <Inbox className="ms-1.5 h-4 w-4" />
-                  کارتابل ({inboxPending})
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm" className="rounded-xl border-border/60 bg-white/80">
-                <Link href="/dashboard/workflow/tracking">پیگیری درخواست‌ها</Link>
-              </Button>
-            </div>
+            {(canInbox || canTracking) && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {canInbox ? (
+                  <Button asChild size="sm" className="rounded-xl shadow-sm">
+                    <Link href="/dashboard/workflow/inbox">
+                      <Inbox className="ms-1.5 h-4 w-4" />
+                      کارتابل ({inboxPending})
+                    </Link>
+                  </Button>
+                ) : null}
+                {canTracking ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-border/60 bg-white/80"
+                  >
+                    <Link href="/dashboard/workflow/tracking">پیگیری درخواست‌ها</Link>
+                  </Button>
+                ) : null}
+              </div>
+            )}
           </div>
         </header>
 
         <div className="grid gap-8 xl:grid-cols-[1fr_320px]">
-          {/* ستون اصلی */}
-          <div className="space-y-8 min-w-0">
-            <SectionBlock title="کارهای من" icon={Inbox} accent="blue">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SoftStatCard
-                  title="کارتابل باز"
-                  value={inboxPending}
-                  href="/dashboard/workflow/inbox"
-                  icon={Inbox}
-                  accent="blue"
-                />
-                <SoftStatCard
-                  title="انجام‌شده"
-                  value={userDash?.stats.done ?? 0}
-                  subtitle="آیتم‌های inbox"
-                  icon={TrendingUp}
-                  accent="teal"
-                />
-                <SoftStatCard
-                  title="تأخیر SLA"
-                  value={slaOverdue}
-                  subtitle={slaOverdue > 0 ? 'نیاز به پیگیری' : 'بدون تأخیر'}
-                  href="/dashboard/reports/sla"
-                  icon={Workflow}
-                  accent={slaOverdue > 0 ? 'rose' : 'teal'}
-                />
-                <SoftStatCard
-                  title="درخواست پرداخت من"
-                  value={userDash?.stats.my_payment_requests ?? 0}
-                  href="/dashboard/payment-request"
-                  icon={Wallet}
-                  accent="violet"
-                />
-              </div>
-            </SectionBlock>
-
-            {financial ? (
-              <SectionBlock title="وضعیت مالی سازمان" icon={Wallet} accent="violet">
+          <div className="min-w-0 space-y-8">
+            {myWorkCards.length > 0 ? (
+              <SectionBlock title="کارهای من" icon={Inbox} accent="blue">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <SoftStatCard
-                    title="پرداخت — در انتظار"
-                    value={financial.payment_requests.pending_count}
-                    subtitle={`جمع: ${formatAmount(financial.payment_requests.total_amount)}`}
-                    href="/dashboard/payment-request?scope=all"
-                    icon={Wallet}
-                    accent="violet"
-                  />
-                  <SoftStatCard
-                    title="تنخواه — در انتظار تأیید"
-                    value={financial.petty_cash.pending_count}
-                    subtitle={`${financial.petty_cash.total} مورد ثبت‌شده`}
-                    href="/dashboard/petty-cash/ledger"
-                    icon={Wallet}
-                    accent="amber"
-                  />
-                  <SoftStatCard
-                    title="تنخواه — منتظر تسویه"
-                    value={financial.petty_cash.awaiting_settlement_count}
-                    href="/dashboard/petty-cash/settlement"
-                    icon={Wallet}
-                    accent="teal"
-                  />
-                  <SoftStatCard
-                    title="گردش مالی معلق"
-                    value={financial.workflow.financial_pending_instances}
-                    subtitle={`${financial.workflow.financial_pending_steps} مرحله در صف`}
-                    href="/dashboard/workflow/tracking?scope=all"
-                    icon={Workflow}
-                    accent="blue"
-                  />
+                  {myWorkCards.map((card) => (
+                    <SoftStatCard
+                      key={card.key}
+                      title={card.title}
+                      value={card.value}
+                      subtitle={card.subtitle}
+                      href={card.href}
+                      icon={card.icon}
+                      accent={card.accent}
+                    />
+                  ))}
                 </div>
               </SectionBlock>
             ) : null}
 
-            {warehouse ? (
+            {financial && canFinancialSection ? (
+              <SectionBlock title="وضعیت مالی سازمان" icon={Wallet} accent="violet">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {canPayment ? (
+                    <SoftStatCard
+                      title="پرداخت — در انتظار"
+                      value={financial.payment_requests.pending_count}
+                      subtitle={`جمع: ${formatAmount(financial.payment_requests.total_amount)}`}
+                      href="/dashboard/payment-request?scope=all"
+                      icon={Wallet}
+                      accent="violet"
+                    />
+                  ) : null}
+                  {canPettyCash ? (
+                    <>
+                      <SoftStatCard
+                        title="تنخواه — در انتظار تأیید"
+                        value={financial.petty_cash.pending_count}
+                        subtitle={`${financial.petty_cash.total} مورد ثبت‌شده`}
+                        href="/dashboard/petty-cash/ledger"
+                        icon={Wallet}
+                        accent="amber"
+                      />
+                      <SoftStatCard
+                        title="تنخواه — منتظر تسویه"
+                        value={financial.petty_cash.awaiting_settlement_count}
+                        href="/dashboard/petty-cash/settlement"
+                        icon={Wallet}
+                        accent="teal"
+                      />
+                    </>
+                  ) : null}
+                  {canTracking ? (
+                    <SoftStatCard
+                      title="گردش مالی معلق"
+                      value={financial.workflow.financial_pending_instances}
+                      subtitle={`${financial.workflow.financial_pending_steps} مرحله در صف`}
+                      href="/dashboard/workflow/tracking?scope=all"
+                      icon={Workflow}
+                      accent="blue"
+                    />
+                  ) : null}
+                </div>
+              </SectionBlock>
+            ) : null}
+
+            {warehouse && canWarehouseSection ? (
               <SectionBlock title={`انبار — امروز (${warehouse.date})`} icon={Warehouse} accent="amber">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <SoftStatCard
-                    title="تراکنش امروز"
-                    value={warehouse.transactions_today.total}
-                    href="/dashboard/inventory/transactions"
-                    icon={Package}
-                    accent="teal"
-                  />
-                  <SoftStatCard
-                    title="رسید کالا (GRN)"
-                    value={warehouse.grn.created_today}
-                    subtitle={`ثبت‌شده: ${warehouse.grn.posted_today}`}
-                    href="/dashboard/procurement/grn"
-                    icon={ShoppingCart}
-                    accent="amber"
-                  />
-                  <SoftStatCard title="انبارها" value={warehouse.warehouses_count} icon={Warehouse} accent="blue" />
-                  <SoftStatCard
-                    title="کمبود موجودی"
-                    value={warehouse.low_stock_count}
-                    subtitle="حداکثر ۵۰ مورد در گزارش"
-                    href="/dashboard/inventory/stock"
-                    icon={Package}
-                    accent="rose"
-                  />
+                  {canInventoryTx ? (
+                    <SoftStatCard
+                      title="تراکنش امروز"
+                      value={warehouse.transactions_today.total}
+                      href="/dashboard/inventory/transactions"
+                      icon={Package}
+                      accent="teal"
+                    />
+                  ) : null}
+                  {canProcurement ? (
+                    <SoftStatCard
+                      title="رسید کالا (GRN)"
+                      value={warehouse.grn.created_today}
+                      subtitle={`ثبت‌شده: ${warehouse.grn.posted_today}`}
+                      href="/dashboard/procurement/grn"
+                      icon={ShoppingCart}
+                      accent="amber"
+                    />
+                  ) : null}
+                  {canWarehousesMaster ? (
+                    <SoftStatCard
+                      title="انبارها"
+                      value={warehouse.warehouses_count}
+                      href="/dashboard/master/warehouses"
+                      icon={Warehouse}
+                      accent="blue"
+                    />
+                  ) : canInventory ? (
+                    <SoftStatCard
+                      title="انبارها"
+                      value={warehouse.warehouses_count}
+                      href="/dashboard/inventory/stock"
+                      icon={Warehouse}
+                      accent="blue"
+                    />
+                  ) : null}
+                  {canInventory ? (
+                    <SoftStatCard
+                      title="کمبود موجودی"
+                      value={warehouse.low_stock_count}
+                      subtitle="حداکثر ۵۰ مورد در گزارش"
+                      href="/dashboard/inventory/stock"
+                      icon={Package}
+                      accent="rose"
+                    />
+                  ) : null}
                 </div>
 
-                {warehouse.low_stock.length > 0 ? (
+                {canInventory && warehouse.low_stock.length > 0 ? (
                   <SoftPanel title="اقلام کم‌موجودی" className="mt-4">
                     <ul className="space-y-2">
                       {warehouse.low_stock.slice(0, 8).map((row) => (
-                        <li
-                          key={`${row.sku}-${row.warehouse_name}`}
-                          className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-2.5 text-sm"
-                        >
-                          <span
-                            className="h-8 w-1 shrink-0 rounded-full bg-gradient-to-b from-rose-400 to-orange-400"
-                            aria-hidden
-                          />
-                          <span className="min-w-0 flex-1 font-medium text-foreground">{row.item_name}</span>
-                          <span className="shrink-0 text-xs text-muted-foreground">{row.sku}</span>
-                          <span className="shrink-0 tabular-nums text-muted-foreground">
-                            {row.warehouse_name}: {row.quantity}
-                          </span>
+                        <li key={`${row.sku}-${row.warehouse_name}`}>
+                          <Link
+                            href="/dashboard/inventory/stock"
+                            className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-2.5 text-sm transition-colors hover:bg-muted/50"
+                          >
+                            <span
+                              className="h-8 w-1 shrink-0 rounded-full bg-gradient-to-b from-rose-400 to-orange-400"
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1 font-medium text-foreground">
+                              {row.item_name}
+                            </span>
+                            <span className="shrink-0 text-xs text-muted-foreground">{row.sku}</span>
+                            <span className="shrink-0 tabular-nums text-muted-foreground">
+                              {row.warehouse_name}: {row.quantity}
+                            </span>
+                          </Link>
                         </li>
                       ))}
                     </ul>
@@ -386,7 +579,7 @@ export function DashboardOverview() {
               </SectionBlock>
             ) : null}
 
-            {mgmt ? (
+            {mgmt && canWorkflowSection ? (
               <SectionBlock title="گردش‌کار" icon={Workflow} accent="violet">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <SoftStatCard
@@ -396,25 +589,44 @@ export function DashboardOverview() {
                     icon={Workflow}
                     accent="violet"
                   />
-                  <SoftStatCard title="در جریان" value={wfPending} icon={TrendingUp} accent="blue" />
-                  <SoftStatCard title="تأییدشده" value={mgmt.workflow.approved} icon={TrendingUp} accent="teal" />
-                  <SoftStatCard title="ردشده" value={mgmt.workflow.rejected} icon={Workflow} accent="rose" />
+                  <SoftStatCard
+                    title="در جریان"
+                    value={wfPending}
+                    href="/dashboard/workflow/tracking?scope=all"
+                    icon={TrendingUp}
+                    accent="blue"
+                  />
+                  <SoftStatCard
+                    title="تأییدشده"
+                    value={mgmt.workflow.approved}
+                    href="/dashboard/workflow/tracking?scope=all"
+                    icon={TrendingUp}
+                    accent="teal"
+                  />
+                  <SoftStatCard
+                    title="ردشده"
+                    value={mgmt.workflow.rejected}
+                    href="/dashboard/workflow/tracking?scope=all"
+                    icon={Workflow}
+                    accent="rose"
+                  />
                 </div>
 
                 {Object.keys(mgmt.workflow.by_ref_type || {}).length > 0 ? (
                   <SoftPanel title="تفکیک بر اساس نوع" className="mt-4">
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(mgmt.workflow.by_ref_type).map(([k, v]) => (
-                        <span
+                        <Link
                           key={k}
+                          href="/dashboard/workflow/tracking?scope=all"
                           className={cn(
-                            'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset',
+                            'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset transition-opacity hover:opacity-80',
                             accentStyles.violet.pill,
                           )}
                         >
                           {k}
                           <strong className="tabular-nums">{v}</strong>
-                        </span>
+                        </Link>
                       ))}
                     </div>
                   </SoftPanel>
@@ -423,56 +635,44 @@ export function DashboardOverview() {
             ) : null}
           </div>
 
-          {/* ستون کناری — خلاصه و دسترسی سریع */}
           <aside className="space-y-5 xl:sticky xl:top-4 xl:self-start">
-            <SoftPanel title="خلاصه امروز">
-              <ul className="space-y-4">
-                <li className="flex items-center justify-between gap-2 text-sm">
-                  <span className="text-muted-foreground">کارتابل باز</span>
-                  <span className="text-lg font-bold tabular-nums text-primary">{inboxPending}</span>
-                </li>
-                <li className="flex items-center justify-between gap-2 text-sm">
-                  <span className="text-muted-foreground">گردش‌کار در جریان</span>
-                  <span className="text-lg font-bold tabular-nums">{wfPending}</span>
-                </li>
-                {financial ? (
-                  <li className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">پرداخت معلق</span>
-                    <span className="text-lg font-bold tabular-nums">
-                      {financial.payment_requests.pending_count}
-                    </span>
-                  </li>
-                ) : null}
-                {warehouse ? (
-                  <li className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">کمبود موجودی</span>
-                    <span className="text-lg font-bold tabular-nums text-destructive">
-                      {warehouse.low_stock_count}
-                    </span>
-                  </li>
-                ) : null}
-              </ul>
-            </SoftPanel>
+            {summaryRows.length > 0 ? (
+              <SoftPanel title="خلاصه امروز">
+                <ul className="space-y-2">
+                  {summaryRows.map((row) => (
+                    <SummaryLinkRow
+                      key={row.key}
+                      href={row.href}
+                      label={row.label}
+                      value={row.value}
+                      valueClassName={row.valueClassName}
+                    />
+                  ))}
+                </ul>
+              </SoftPanel>
+            ) : null}
 
-            <SoftPanel title="دسترسی سریع">
-              <nav className="space-y-1">
-                {quickLinks.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Icon className="h-4 w-4" />
+            {quickLinks.length > 0 ? (
+              <SoftPanel title="دسترسی سریع">
+                <nav className="space-y-1">
+                  {quickLinks.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={`${href}-${label}`}
+                      href={href!}
+                      className="flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        {label}
                       </span>
-                      {label}
-                    </span>
-                    <ArrowLeft className="h-4 w-4 text-muted-foreground" />
-                  </Link>
-                ))}
-              </nav>
-            </SoftPanel>
+                      <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+                    </Link>
+                  ))}
+                </nav>
+              </SoftPanel>
+            ) : null}
           </aside>
         </div>
       </div>

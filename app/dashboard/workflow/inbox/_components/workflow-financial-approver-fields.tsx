@@ -15,6 +15,8 @@ type Props<T extends FieldValues> = {
   readOnly?: boolean;
   amountLabel?: string;
   dateLabel?: string;
+  /** نمایش ستارهٔ الزامی — پیش‌فرض در جریان تأیید */
+  required?: boolean;
 };
 
 /** مبلغ و تاریخ پرداخت — مشترک بین انواع درخواست‌های مالی در workflow */
@@ -23,6 +25,7 @@ export function WorkflowFinancialApproverFields<T extends FieldValues>({
   readOnly = false,
   amountLabel = 'مبلغ تأیید (ریال)',
   dateLabel = 'تاریخ پرداخت',
+  required = true,
 }: Props<T>) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -31,7 +34,7 @@ export function WorkflowFinancialApproverFields<T extends FieldValues>({
         name={'amount' as Path<T>}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{amountLabel}</FormLabel>
+            <FormLabel required={required}>{amountLabel}</FormLabel>
             <FormControl>
               <FormattedNumberInput
                 value={field.value ?? 0}
@@ -49,7 +52,7 @@ export function WorkflowFinancialApproverFields<T extends FieldValues>({
         name={'paymentDate' as Path<T>}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{dateLabel}</FormLabel>
+            <FormLabel required={required}>{dateLabel}</FormLabel>
             <FormControl>
               <JalaliDateInput
                 value={field.value ?? ''}

@@ -16,6 +16,8 @@ import { PaymentRequestRequesterInfoCard } from '@/app/dashboard/payment-request
 import { WorkflowFinancialApproverFields } from '@/app/dashboard/workflow/inbox/_components/workflow-financial-approver-fields';
 import { formatPaymentAccountLines } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
 import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
+import { RequiredFieldsHint } from '@/app/components/ui/required-mark';
+import { SepidarRegistrationStatus } from '@/app/dashboard/workflow/_components/sepidar-registration-status';
 import {
   paymentResponseToAdvanceApproverValues,
   paymentResponseToEmployeeFormValues,
@@ -178,6 +180,10 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
         )}
 
         <PaymentRequestRequesterInfoCard record={record} />
+        <SepidarRegistrationStatus
+          registeredAt={record.paymentMarkedAt}
+          confirmedAt={record.sepidarConfirmedAt}
+        />
         <RequestAttachmentsPanel
           documentsUrls={record.documentsUrls}
           attachments={record.attachments}
@@ -204,6 +210,7 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
         <Form {...approverForm}>
           <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
             <p className="text-sm font-medium">تأیید توسط مسئول</p>
+            <RequiredFieldsHint />
             <p className="text-xs text-muted-foreground">
               مبلغ و تاریخ پرداخت را در صورت نیاز اصلاح کنید؛ این مقادیر در تأیید شما ثبت می‌شوند.
             </p>
@@ -219,7 +226,7 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
                 name="paymentMethod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>روش پرداخت *</FormLabel>
+                    <FormLabel required>روش پرداخت</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger>
@@ -243,7 +250,7 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
                 name="payerCompanyAccountId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>حساب مبدأ پرداخت (شرکت) *</FormLabel>
+                    <FormLabel required>حساب مبدأ پرداخت (شرکت)</FormLabel>
                     <FormControl>
                       <CompanyBankAccountSelect
                         value={field.value ?? 0}

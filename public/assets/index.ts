@@ -39,7 +39,7 @@ export const navItems: NavigationItemsType[] = [
   {
     label: "درخواست‌های مالی",
     icon: DollarSign,
-    requiredPermissions: ["payment.create"],
+    requiredPermissions: ["payment.create", "payment.approve"],
     children: [
       {
         href: "/dashboard/payment-request",
@@ -99,7 +99,8 @@ export const navItems: NavigationItemsType[] = [
         href: "/dashboard/ad-hoc-tasks",
         label: "کارهای پیش‌بینی‌نشده",
         icon: ClipboardList,
-        requiredPermissions: ["dashboard.read"],
+        // همه کاربران واردشده می‌توانند ببینند و تعریف کنند
+        requiredPermissions: [],
       },
       {
         href: "/dashboard/workflow/tracking",

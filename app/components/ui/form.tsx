@@ -5,6 +5,7 @@ import { Controller, ControllerProps, FieldPath, FieldValues, FormProvider, useF
 
 import { cn } from "@/lib/utils";
 import { Label } from "./label";
+import { RequiredMark } from "./required-mark";
 
 const Form = FormProvider;
 
@@ -74,11 +75,16 @@ FormItem.displayName = "FormItem";
 
 const FormLabel = React.forwardRef<
   React.ElementRef<typeof LabelPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
->(({ className, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> & { required?: boolean }
+>(({ className, required, children, ...props }, ref) => {
   const { error, formItemId } = useFormField();
 
-  return <Label ref={ref} className={cn(error && "text-destructive", className)} htmlFor={formItemId} {...props} />;
+  return (
+    <Label ref={ref} className={cn(error && "text-destructive", className)} htmlFor={formItemId} {...props}>
+      {children}
+      {required ? <RequiredMark /> : null}
+    </Label>
+  );
 });
 FormLabel.displayName = "FormLabel";
 

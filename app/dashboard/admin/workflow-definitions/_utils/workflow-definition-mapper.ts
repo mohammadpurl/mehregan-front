@@ -41,6 +41,10 @@ function normalizeStep(raw: unknown, index: number): WorkflowStepConfig | null {
     assignee_strategy: coerceStrategy(o.assignee_strategy ?? o.assigneeStrategy),
     assignee_user_id: uid != null && uid !== '' ? Number(uid) : null,
     label: o.label != null ? String(o.label) : null,
+    step_action:
+      o.step_action != null || o.stepAction != null
+        ? String(o.step_action ?? o.stepAction)
+        : null,
   };
 }
 
@@ -77,6 +81,7 @@ export function stepsToUpsertPayload(steps: WorkflowStepConfig[]) {
     assignee_strategy: s.assignee_strategy,
     assignee_user_id: s.assignee_strategy === 'fixed_user' ? s.assignee_user_id ?? undefined : undefined,
     label: s.label?.trim() || undefined,
+    step_action: s.step_action?.trim() || undefined,
   }));
 }
 
@@ -87,5 +92,6 @@ export function createEmptyStep(order: number): WorkflowStepConfig {
     assignee_strategy: 'role_pool',
     assignee_user_id: null,
     label: null,
+    step_action: 'approval',
   };
 }

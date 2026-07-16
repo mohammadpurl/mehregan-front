@@ -12,6 +12,7 @@ export interface WorkflowStepConfig {
   assignee_strategy: AssigneeStrategy;
   assignee_user_id?: number | null;
   label?: string | null;
+  step_action?: string | null;
 }
 
 export interface WorkflowDefinition {

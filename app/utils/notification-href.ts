@@ -31,6 +31,8 @@ export function buildNotificationHref(item: NotificationCenterItem): string | nu
       return id ? `/dashboard/payment-request?paymentId=${encodeURIComponent(id)}` : '/dashboard/payment-request';
     case 'petty-cash':
     case 'petty_cash':
+    case 'petty_cash_settlement':
+    case 'petty-cash-settlement':
       return id
         ? `/dashboard/petty-cash/settlement?pettyCashId=${encodeURIComponent(id)}`
         : '/dashboard/petty-cash/settlement';
@@ -41,6 +43,8 @@ export function buildNotificationHref(item: NotificationCenterItem): string | nu
         : '/dashboard/financial-documents';
     case 'mission_request':
     case 'mission-request':
+    case 'mission_report':
+    case 'mission-report':
       return id
         ? `/dashboard/mission-requests?missionRequestId=${encodeURIComponent(id)}`
         : '/dashboard/mission-requests';

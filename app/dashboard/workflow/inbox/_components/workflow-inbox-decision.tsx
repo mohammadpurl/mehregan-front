@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
+import { Checkbox } from '@/app/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -13,6 +14,7 @@ import {
 } from '@/app/components/ui/select';
 import { AdvancedModal } from '@/app/components/Modal';
 import { AttachmentFileInput } from '@/app/components/attachments/attachment-file-input';
+import { RequiredFieldsHint, RequiredMark } from '@/app/components/ui/required-mark';
 
 export type WorkflowRejectTarget = 'previous' | 'requester';
 
@@ -26,6 +28,10 @@ type Props = {
   showPaymentMethod?: boolean;
   paymentMethod?: string;
   onPaymentMethodChange?: (value: string) => void;
+  /** مرحله سرپرست مالی: تأیید ثبت در سپیدار */
+  showSepidarConfirm?: boolean;
+  sepidarConfirmed?: boolean;
+  onSepidarConfirmedChange?: (value: boolean) => void;
 };
 
 export function WorkflowInboxDecisionFields({
@@ -38,6 +44,9 @@ export function WorkflowInboxDecisionFields({
   showPaymentMethod,
   paymentMethod = 'transfer',
   onPaymentMethodChange,
+  showSepidarConfirm,
+  sepidarConfirmed = false,
+  onSepidarConfirmedChange,
 }: Props) {
   return (
     <div className="space-y-3 rounded-lg border bg-muted/10 p-3 text-right">
@@ -48,9 +57,32 @@ export function WorkflowInboxDecisionFields({
           ثبت می‌شوند.
         </p>
       ) : null}
+      {showSepidarConfirm ? (
+        <div className="flex items-start gap-3 rounded-lg border border-primary/25 bg-background p-3">
+          <Checkbox
+            id="wf-sepidar-confirm"
+            checked={sepidarConfirmed}
+            onCheckedChange={(v) => onSepidarConfirmedChange?.(v === true)}
+            disabled={disabled}
+            className="mt-0.5"
+          />
+          <div className="space-y-1">
+            <Label htmlFor="wf-sepidar-confirm" className="cursor-pointer font-medium leading-relaxed">
+              در نرم‌افزار سپیدار ثبت شده است
+              <RequiredMark />
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              سپیدار نرم‌افزار جداست. پس از بررسی ثبت در سپیدار، این تیک را بزنید و تأیید کنید.
+            </p>
+          </div>
+        </div>
+      ) : null}
       {showPaymentMethod ? (
         <div className="space-y-1">
-          <Label>روش پرداخت (الزامی)</Label>
+          <Label>
+            روش پرداخت
+            <RequiredMark />
+          </Label>
           <Select
             value={paymentMethod}
             onValueChange={onPaymentMethodChange}
@@ -68,7 +100,14 @@ export function WorkflowInboxDecisionFields({
       ) : null}
       <div className="space-y-1">
         <Label htmlFor="wf-approve-comment">
-          {showPaymentMethod ? 'توضیح روش پرداخت (الزامی)' : 'کامنت (اختیاری برای تأیید)'}
+          {showPaymentMethod ? (
+            <>
+              توضیح روش پرداخت
+              <RequiredMark />
+            </>
+          ) : (
+            'کامنت (اختیاری برای تأیید)'
+          )}
         </Label>
         <Textarea
           id="wf-approve-comment"
@@ -111,14 +150,18 @@ export function WorkflowRejectModal({
   onConfirm,
 }: RejectModalProps) {
   const [comment, setComment] = useState('');
-  const [returnTo, setReturnTo] = useState<WorkflowRejectTarget>('requester');
+  const [returnTo, setReturnTo] = useState<WorkflowRejectTarget>(
+    canReturnToPrevious ? 'previous' : 'requester',
+  );
 
   const handleConfirm = () => {
     const trimmed = comment.trim();
     if (!trimmed) return;
-    onConfirm({ comment: trimmed, returnTo });
+    // اگر مرحله قبل هست همیشه previous؛ مرحله ۱ فقط به درخواست‌کننده
+    const resolvedReturnTo: WorkflowRejectTarget = canReturnToPrevious ? 'previous' : 'requester';
+    onConfirm({ comment: trimmed, returnTo: resolvedReturnTo });
     setComment('');
-    setReturnTo('requester');
+    setReturnTo(canReturnToPrevious ? 'previous' : 'requester');
   };
 
   return (
@@ -144,29 +187,39 @@ export function WorkflowRejectModal({
       }
     >
       <div className="space-y-3 text-right text-sm">
+        <RequiredFieldsHint />
         {pendingStepOrder != null ? (
           <p className="text-muted-foreground">مرحله جاری: {pendingStepOrder}</p>
         ) : null}
         <div className="space-y-1">
           <Label>بازگشت به</Label>
           <Select
-            value={returnTo}
+            value={canReturnToPrevious ? 'previous' : 'requester'}
             onValueChange={(v) => setReturnTo(v as WorkflowRejectTarget)}
-            disabled={loading}
+            disabled={loading || canReturnToPrevious}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="requester">درخواست‌کننده (اصلاح و ارسال مجدد)</SelectItem>
               {canReturnToPrevious ? (
                 <SelectItem value="previous">مرحله تأیید قبلی</SelectItem>
-              ) : null}
+              ) : (
+                <SelectItem value="requester">درخواست‌کننده (اصلاح و ارسال مجدد)</SelectItem>
+              )}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">
+            {canReturnToPrevious
+              ? 'با رد، درخواست به مرحله تأیید قبلی برمی‌گردد.'
+              : 'این اولین مرحله است؛ با رد، درخواست به درخواست‌کننده برمی‌گردد.'}
+          </p>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="wf-reject-comment">دلیل رد (الزامی)</Label>
+          <Label htmlFor="wf-reject-comment">
+            دلیل رد
+            <RequiredMark />
+          </Label>
           <Textarea
             id="wf-reject-comment"
             value={comment}

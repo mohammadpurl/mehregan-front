@@ -7,6 +7,8 @@ export const PETTY_CASH_STATUS_LABEL: Record<string, string> = {
 export const PETTY_CASH_SETTLEMENT_LABEL: Record<string, string> = {
   pending_settlement: 'منتظر ثبت خرج',
   PENDING_SETTLEMENT: 'منتظر ثبت خرج',
+  pending_settlement_approval: 'منتظر تأیید خرج',
+  PENDING_SETTLEMENT_APPROVAL: 'منتظر تأیید خرج',
   settled: 'تسویه شده',
   SETTLED: 'تسویه شده',
 };

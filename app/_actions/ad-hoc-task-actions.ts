@@ -121,12 +121,15 @@ export async function getAdHocTasksAction(params?: {
     const data = await readDataWithAuth<{
       items: Record<string, unknown>[];
       total: number;
+      can_view_all?: boolean;
+      canViewAll?: boolean;
     }>(`/ad-hoc-tasks?${query.toString()}`);
     return {
       success: true as const,
       data: {
         items: (data.items ?? []).map(mapListItem),
         total: data.total ?? 0,
+        canViewAll: Boolean(data.can_view_all ?? data.canViewAll),
       },
     };
   } catch (err: unknown) {

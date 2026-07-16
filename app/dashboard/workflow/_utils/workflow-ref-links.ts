@@ -12,8 +12,12 @@ export function workflowRefDetailHref(
   if (rt === 'payment_request' || rt === 'payment_order') {
     return `/dashboard/payment-request?paymentId=${id}`;
   }
-  if (rt === 'petty_cash') return `/dashboard/petty-cash?pettyCashId=${id}`;
-  if (rt === 'mission_request') return `/dashboard/mission-requests?missionRequestId=${id}`;
+  if (rt === 'petty_cash' || rt === 'petty_cash_settlement') {
+    return `/dashboard/petty-cash/settlement?pettyCashId=${id}`;
+  }
+  if (rt === 'mission_request' || rt === 'mission_report') {
+    return `/dashboard/mission-requests?missionRequestId=${id}`;
+  }
   if (rt === 'financial_document') return `/dashboard/financial-documents?financialDocumentId=${id}`;
   if (
     rt === 'request' ||

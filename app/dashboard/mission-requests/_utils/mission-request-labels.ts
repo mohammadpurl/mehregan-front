@@ -4,6 +4,7 @@ const STATUS_LABELS: Record<MissionRequestStatus, string> = {
   PENDING: 'در انتظار تأیید',
   APPROVED: 'تأیید شده — در انتظار گزارش',
   REJECTED: 'رد شده',
+  REPORT_PENDING_APPROVAL: 'منتظر تأیید گزارش',
   COMPLETED: 'انجام شده',
 };
 

@@ -47,6 +47,16 @@ export function normalizeFinancialDocumentFromApi(raw: unknown): FinancialDocume
     partyName: (r.partyName ?? r.party_name) as string | null,
     status: String(r.status ?? 'pending').toLowerCase() as FinancialDocumentResponse['status'],
     financeConfirmedAt: (r.financeConfirmedAt ?? r.finance_confirmed_at) as string | null,
+    sepidarRegisteredAt: (r.sepidarRegisteredAt ?? r.sepidar_registered_at) as string | null,
+    sepidarRegisteredBy:
+      r.sepidarRegisteredBy != null || r.sepidar_registered_by != null
+        ? Number(r.sepidarRegisteredBy ?? r.sepidar_registered_by)
+        : null,
+    sepidarConfirmedAt: (r.sepidarConfirmedAt ?? r.sepidar_confirmed_at) as string | null,
+    sepidarConfirmedBy:
+      r.sepidarConfirmedBy != null || r.sepidar_confirmed_by != null
+        ? Number(r.sepidarConfirmedBy ?? r.sepidar_confirmed_by)
+        : null,
     workflowInstanceId:
       r.workflowInstanceId != null
         ? Number(r.workflowInstanceId)

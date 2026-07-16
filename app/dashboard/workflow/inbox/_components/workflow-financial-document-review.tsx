@@ -12,9 +12,11 @@ import { formatAmount } from '@/app/utils/number-format';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
 import { Form } from '@/app/components/ui/form';
+import { RequiredFieldsHint } from '@/app/components/ui/required-mark';
 import { WorkflowFinancialApproverFields } from '@/app/dashboard/workflow/inbox/_components/workflow-financial-approver-fields';
 import { FinancialApproverAmountDateSchema } from '@/app/dashboard/payment-request/_types/payment-request.schema';
 import type { WorkflowApprovePayload } from '@/app/_actions/workflow-runtime-actions';
+import { SepidarRegistrationStatus } from '@/app/dashboard/workflow/_components/sepidar-registration-status';
 
 export type WorkflowFinancialDocumentReviewHandle = {
   buildApprovePayload: () => { ok: true; payload: WorkflowApprovePayload } | { ok: false; error: string };
@@ -100,6 +102,11 @@ export const WorkflowFinancialDocumentReview = forwardRef<
         )}
       </div>
 
+      <SepidarRegistrationStatus
+        registeredAt={record.sepidarRegisteredAt}
+        confirmedAt={record.sepidarConfirmedAt}
+      />
+
       <RequestAttachmentsPanel
         documentsUrls={record.documentsUrls}
         attachments={record.attachments}
@@ -108,6 +115,7 @@ export const WorkflowFinancialDocumentReview = forwardRef<
       <Form {...form}>
         <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
           <p className="text-sm font-medium">تأیید سند مالی</p>
+          <RequiredFieldsHint />
           <p className="text-xs text-muted-foreground">
             مبلغ و تاریخ پرداخت/سررسید را در صورت نیاز اصلاح کنید.
           </p>

@@ -242,98 +242,99 @@ export default function CounterpartiesAdminPage() {
           </div>
         }
       >
-        <Form {...form}>
-          <form id="counterparty-admin-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="partyType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>نوع</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="person">حقیقی</SelectItem>
-                      <SelectItem value="company">حقوقی</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>نام</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {partyType === 'company' && (
+        <div className="space-y-4">
+          <Form {...form}>
+            <form id="counterparty-admin-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="companyName"
+                name="partyType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>نام شرکت</FormLabel>
+                    <FormLabel>نوع</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="person">حقیقی</SelectItem>
+                        <SelectItem value="company">حقوقی</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>نام</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value ?? ''} />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
 
-            {editingId != null && (
-              <CounterpartyBankAccountsPanel counterpartyId={editingId} />
-            )}
-
-            {editingId == null && (
-              <p className="text-sm text-muted-foreground">
-                پس از ذخیره طرف‌حساب، می‌توانید چند حساب بانکی برای آن تعریف کنید.
-              </p>
-            )}
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>یادداشت</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} value={field.value ?? ''} rows={2} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {partyType === 'company' && (
+                <FormField
+                  control={form.control}
+                  name="companyName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>نام شرکت</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
 
-            <FormField
-              control={form.control}
-              name="isActive"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                  <FormLabel>فعال</FormLabel>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                </FormItem>
+              {editingId == null && (
+                <p className="text-sm text-muted-foreground">
+                  پس از ذخیره طرف‌حساب، می‌توانید چند حساب بانکی برای آن تعریف کنید.
+                </p>
               )}
-            />
-          </form>
-        </Form>
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>یادداشت</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value ?? ''} rows={2} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <FormLabel>فعال</FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </form>
+          </Form>
+
+          {/* خارج از فرم طرف‌حساب — جلوگیری از submit تو در تو و بستن مودال */}
+          {editingId != null && <CounterpartyBankAccountsPanel counterpartyId={editingId} />}
+        </div>
       </AdvancedModal>
     </DashboardPageShell>
   );

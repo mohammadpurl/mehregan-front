@@ -73,7 +73,7 @@ export function FinancialDocumentNewForm({
         files,
       );
       if (result.success) {
-        notifySuccess('سند مالی ثبت شد و برای تأیید مدیرعامل ارسال شد');
+        notifySuccess('سند مالی ثبت شد و وارد روال تأیید مالی شد');
         if (result.attachmentError) notifyAttachmentUploadFailed(result.attachmentError);
         onSuccess?.();
       } else {
@@ -86,7 +86,7 @@ export function FinancialDocumentNewForm({
     <Form {...form}>
       <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          ثبت سند توسط واحد مالی — پس از بارگذاری تصویر، ابتدا مدیرعامل و سپس مدیر مالی تأیید می‌کنند.
+          ثبت سند توسط واحد مالی — پس از بارگذاری، روال تأیید (مدیر مستقیم تا سرپرست مالی / سپیدار) شروع می‌شود.
         </p>
 
         <FormField

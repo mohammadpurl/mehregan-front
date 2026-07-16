@@ -76,6 +76,11 @@ interface AdvancedDataGridProps<T> {
   columnSizingStorageKey?: string;
   /** گزینه‌های تعداد ردیف در هر صفحه — پیش‌فرض ۱۰ / ۲۰ / ۵۰ / ۱۰۰ */
   pageSizeOptions?: number[];
+  /**
+   * حداکثر ارتفاع ناحیهٔ بدنهٔ جدول؛ با زیاد بودن ردیف‌ها فقط همین ناحیه اسکرول می‌شود.
+   * پیش‌فرض: حدود ۶۵٪ ارتفاع ویوپورت (حداکثر ۳۶rem)
+   */
+  maxBodyHeight?: string;
   variant?: 'default' | 'erpClassic';
 }
 
@@ -161,6 +166,7 @@ export function AdvancedDataGrid<T>({
   enableColumnResizing = true,
   columnSizingStorageKey,
   pageSizeOptions = [...DEFAULT_PAGE_SIZE_OPTIONS],
+  maxBodyHeight = 'min(65vh, 36rem)',
   variant = 'erpClassic',
 }: AdvancedDataGridProps<T>) {
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState('');
@@ -362,13 +368,16 @@ export function AdvancedDataGrid<T>({
   const tableShellClass = isClassic
     ? 'border border-sky-200 rounded-xl bg-white dark:bg-zinc-950'
     : 'border-blue-400 rounded-2xl bg-white dark:bg-zinc-950';
-  const theadClass = isClassic ? 'bg-sky-50 dark:bg-zinc-900' : 'bg-zinc-50 dark:bg-zinc-900';
+  const theadClass = cn(
+    'sticky top-0 z-20',
+    isClassic ? 'bg-sky-50 dark:bg-zinc-900' : 'bg-zinc-50 dark:bg-zinc-900',
+  );
   const columnDividerClass = isClassic ? 'border-l border-sky-200' : 'border-l border-zinc-200';
   /** در RTL، ps = فاصله از راست (شروع سطر) */
   const headerCellClass = cn(
     isClassic
-      ? 'ps-5 pe-3 py-2.5 text-xs text-right text-sky-900 border-b border-sky-200 whitespace-nowrap'
-      : 'ps-6 pe-4 py-3 text-xs text-right text-zinc-500',
+      ? 'ps-5 pe-3 py-2.5 text-xs text-right text-sky-900 border-b border-sky-200 whitespace-nowrap bg-sky-50 dark:bg-zinc-900'
+      : 'ps-6 pe-4 py-3 text-xs text-right text-zinc-500 bg-zinc-50 dark:bg-zinc-900',
     enableColumnResizing && columnDividerClass,
   );
   const rowClass = isClassic
@@ -554,13 +563,14 @@ export function AdvancedDataGrid<T>({
         </div>
       )}
 
-      {/* دسکتاپ: جدول کامل — اسکرول افقی در صورت زیاد بودن ستون‌ها */}
+      {/* دسکتاپ: جدول کامل — اسکرول افقی/عمودی داخل خود جدول */}
       <div className="hidden md:block min-w-0 w-full max-w-full">
         <div
           className={cn(
             tableShellClass,
-            'overflow-x-auto overscroll-x-contain max-w-full [scrollbar-gutter:stable]',
+            'max-w-full overflow-auto overscroll-contain [scrollbar-gutter:stable]',
           )}
+          style={{ maxHeight: maxBodyHeight }}
         >
             <table
               dir="rtl"
@@ -684,7 +694,10 @@ export function AdvancedDataGrid<T>({
       </div>
 
       {/* موبایل: کارت + ردیف بازشونده برای ستون‌های اضافه */}
-      <div className="md:hidden space-y-3">
+      <div
+        className="md:hidden space-y-3 overflow-y-auto overscroll-contain pe-1"
+        style={{ maxHeight: maxBodyHeight }}
+      >
         {isLoading ? (
           <div className={cn('flex min-h-48 items-center justify-center text-sm text-muted-foreground', mobileCardClass)}>
             در حال بارگذاری...

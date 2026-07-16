@@ -103,10 +103,15 @@ export function CounterpartyBankAccountsPanel({ counterpartyId }: Props) {
 
       {showForm && (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 border-t pt-4">
+          <div className="space-y-4 border-t pt-4">
             <BankAccountFormFields control={form.control} />
             <div className="flex flex-row-reverse gap-2">
-              <Button type="submit" size="sm" disabled={isPending}>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isPending}
+                onClick={form.handleSubmit(onSubmit)}
+              >
                 {isPending && <Loader2 className="ml-1 h-4 w-4 animate-spin" />}
                 ذخیره حساب
               </Button>
@@ -114,7 +119,7 @@ export function CounterpartyBankAccountsPanel({ counterpartyId }: Props) {
                 انصراف
               </Button>
             </div>
-          </form>
+          </div>
         </Form>
       )}
     </div>

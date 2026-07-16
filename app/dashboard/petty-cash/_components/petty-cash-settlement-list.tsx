@@ -113,7 +113,7 @@ export function PettyCashSettlementList() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">ثبت خرج تنخواه</h1>
           <p className="text-sm text-muted-foreground">
-            پس از تأیید مدیر مالی و مدیرعامل، اقلام هزینه را دستی یا با اکسل ثبت کنید.
+            پس از تکمیل روال تأیید مالی، اقلام هزینه را ثبت کنید؛ سپس برای تأیید مدیر، مدیر مالی و مدیرعامل ارسال می‌شود.
           </p>
         </div>
         <Button type="button" variant="outline" asChild>

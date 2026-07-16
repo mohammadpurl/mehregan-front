@@ -35,7 +35,7 @@ export function AdvancedModal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out" />
         <Dialog.Content
           className={cn(
             'fixed z-50 flex w-full max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border border-primary bg-white shadow-2xl duration-200 dark:bg-zinc-950 data-[state=open]:animate-in data-[state=closed]:animate-out',

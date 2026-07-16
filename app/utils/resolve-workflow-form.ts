@@ -60,7 +60,8 @@ export async function resolveWorkflowFormAction(
         data: buildPaymentRequestResolved(refType, refId, r.data),
       };
     }
-    case 'petty_cash': {
+    case 'petty_cash':
+    case 'petty_cash_settlement': {
       const r = await getPettyCashByIdAction(id);
       if (!r.success || !r.data) return { success: false, error: r.error };
       return {
@@ -68,7 +69,8 @@ export async function resolveWorkflowFormAction(
         data: buildPettyCashResolved(refType, refId, r.data),
       };
     }
-    case 'mission_request': {
+    case 'mission_request':
+    case 'mission_report': {
       const r = await getMissionRequestByIdAction(id);
       if (!r.success || !r.data) return { success: false, error: r.error };
       return {
@@ -153,6 +155,12 @@ export async function resolveWorkflowFormFromInstanceAction(
             'ثبت‌کننده': d.requesterName ?? '—',
             شرح: d.description ?? '—',
             وضعیت: d.status,
+            ...(d.sepidarRegisteredAt
+              ? { 'ثبت در سپیدار (کارشناس)': d.sepidarRegisteredAt }
+              : {}),
+            ...(d.sepidarConfirmedAt
+              ? { 'تأیید ثبت سپیدار (سرپرست)': d.sepidarConfirmedAt }
+              : {}),
           },
           raw: d,
         },
@@ -166,12 +174,12 @@ export async function resolveWorkflowFormFromInstanceAction(
     };
   }
 
-  if (refType === 'petty_cash') {
+  if (refType === 'petty_cash' || refType === 'petty_cash_settlement') {
     const pettyCashResult = await getPettyCashByWorkflowInstanceAction(workflowInstanceId);
     if (pettyCashResult.success && pettyCashResult.data) {
       return {
         success: true,
-        data: buildPettyCashResolved('petty_cash', Number(pettyCashResult.data.id), pettyCashResult.data),
+        data: buildPettyCashResolved(refType, Number(pettyCashResult.data.id), pettyCashResult.data),
         approvalPlanStatus: plan.status,
       };
     }
@@ -182,13 +190,13 @@ export async function resolveWorkflowFormFromInstanceAction(
     };
   }
 
-  if (refType === 'mission_request') {
+  if (refType === 'mission_request' || refType === 'mission_report') {
     const missionResult = await getMissionRequestByWorkflowInstanceAction(workflowInstanceId);
     if (missionResult.success && missionResult.data) {
       return {
         success: true,
         data: buildMissionRequestResolved(
-          'mission_request',
+          refType,
           Number(missionResult.data.id),
           missionResult.data,
         ),

@@ -26,7 +26,9 @@ const REF_LABELS: Record<WorkflowBusinessRefType, string> = {
   payment_order: 'دستور پرداخت',
   financial_document: 'سند مالی',
   petty_cash: 'تنخواه',
+  petty_cash_settlement: 'تأیید خرج تنخواه',
   mission_request: 'درخواست ماموریت',
+  mission_report: 'تأیید گزارش ماموریت',
   warehouse_form: 'فرم انبار',
   request: 'درخواست خرید',
   purchase_request: 'درخواست خرید کالا',
@@ -73,7 +75,10 @@ export function buildPaymentRequestResolved(
     summary['طرف‌حساب'] = '— (پرداخت جمعی)';
   }
   if (data.paymentMarkedAt) {
-    summary['زمان ثبت پرداخت'] = formatJalaliDate(data.paymentMarkedAt);
+    summary['ثبت در سپیدار (کارشناس)'] = formatJalaliDate(data.paymentMarkedAt);
+  }
+  if (data.sepidarConfirmedAt) {
+    summary['تأیید ثبت سپیدار (سرپرست)'] = formatJalaliDate(data.sepidarConfirmedAt);
   }
   if (data.receiverAccountDetail) {
     const r = data.receiverAccountDetail;
@@ -124,6 +129,12 @@ export function buildPettyCashResolved(
       تسویه: pettyCashSettlementLabel(data.settlementStatus),
       'درخواست‌کننده': data.requesterName || '—',
       تاریخ: data.createdAt ? formatJalaliDate(data.createdAt) : '—',
+      ...(data.sepidarRegisteredAt
+        ? { 'ثبت در سپیدار (کارشناس)': formatJalaliDate(data.sepidarRegisteredAt) }
+        : {}),
+      ...(data.sepidarConfirmedAt
+        ? { 'تأیید ثبت سپیدار (سرپرست)': formatJalaliDate(data.sepidarConfirmedAt) }
+        : {}),
     },
     raw: data,
   };
@@ -145,6 +156,10 @@ export function buildMissionRequestResolved(
       وضعیت: missionStatusLabel(data.status),
       'درخواست‌کننده': data.requesterName || '—',
       تاریخ: data.createdAt ? formatJalaliDate(data.createdAt) : '—',
+      ...(data.reportText ? { 'گزارش ماموریت': data.reportText } : {}),
+      ...(data.reportedAt
+        ? { 'تاریخ ثبت گزارش': formatJalaliDate(data.reportedAt) }
+        : {}),
     },
     raw: data,
   };

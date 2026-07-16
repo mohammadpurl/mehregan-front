@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
+import { RequiredFieldsHint } from '@/app/components/ui/required-mark';
 import { Input } from '@/app/components/ui/input';
 import { updatePaymentRequestAction } from '@/app/_actions/payment-request-actions';
 import { useFormAction } from '@/app/hooks/use-form-action';
@@ -142,6 +143,7 @@ export function PaymentRequestApproverReviewForm({
         {(needsLoan || needsAdvance || needsPayer) && (
           <div className="space-y-3">
             <p className="text-sm font-medium">تکمیل توسط تأییدکننده</p>
+            <RequiredFieldsHint />
             {(needsLoan || needsAdvance) && (
               <p className="text-xs text-muted-foreground">
                 شرایط وام یا مساعده را قبل از تأیید نهایی مشخص کنید.
@@ -157,7 +159,7 @@ export function PaymentRequestApproverReviewForm({
                   name="payerCompanyAccountId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>انتخاب حساب</FormLabel>
+                      <FormLabel required>انتخاب حساب</FormLabel>
                       <FormControl>
                         <CompanyBankAccountSelect value={field.value ?? 0} onChange={field.onChange} />
                       </FormControl>

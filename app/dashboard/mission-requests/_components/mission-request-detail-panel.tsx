@@ -21,12 +21,11 @@ export function MissionRequestDetailPanel({ data, onUpdated }: Props) {
   const { toast } = useToast();
   const session = useSessionStore((s) => s.session);
   const myUserId = getNumericUserIdFromClientSession(session);
-  const [reportText, setReportText] = useState('');
+  const [reportText, setReportText] = useState(data.reportText ?? '');
   const [busy, setBusy] = useState(false);
 
   const canSubmitReport =
     data.status === 'APPROVED' &&
-    !data.reportText &&
     myUserId > 0 &&
     data.requesterId === myUserId;
 
@@ -49,8 +48,9 @@ export function MissionRequestDetailPanel({ data, onUpdated }: Props) {
       toast({ title: 'خطا', description: res.error, variant: 'destructive' });
       return;
     }
-    setReportText('');
-    toast({ title: 'گزارش ماموریت ثبت شد' });
+    toast({
+      title: 'گزارش ماموریت ثبت شد و برای تأیید مدیر و مدیرعامل ارسال شد',
+    });
     onUpdated?.(res.data);
   };
 
@@ -78,7 +78,7 @@ export function MissionRequestDetailPanel({ data, onUpdated }: Props) {
         ]}
       />
 
-      {data.reportText ? (
+      {data.reportText && !canSubmitReport ? (
         <section className="rounded-xl border bg-muted/10 p-4">
           <h4 className="mb-2 text-sm font-bold">گزارش ماموریت</h4>
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{data.reportText}</p>
@@ -88,6 +88,9 @@ export function MissionRequestDetailPanel({ data, onUpdated }: Props) {
       {canSubmitReport ? (
         <section className="rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-4">
           <h4 className="mb-3 text-sm font-semibold text-primary">ثبت گزارش پس از اتمام ماموریت</h4>
+          <p className="mb-3 text-xs text-muted-foreground">
+            پس از ثبت، گزارش برای تأیید مدیر مستقیم و مدیرعامل ارسال می‌شود.
+          </p>
           <div className="space-y-3">
             <CommentWithVoice
               label="گزارش ماموریت"
@@ -98,10 +101,16 @@ export function MissionRequestDetailPanel({ data, onUpdated }: Props) {
               rows={8}
             />
             <Button onClick={() => void onSubmitReport()} disabled={busy}>
-              ثبت گزارش
+              ثبت و ارسال برای تأیید
             </Button>
           </div>
         </section>
+      ) : null}
+
+      {data.status === 'REPORT_PENDING_APPROVAL' ? (
+        <p className="text-sm text-muted-foreground">
+          گزارش ثبت شده و منتظر تأیید مدیر مستقیم و مدیرعامل است.
+        </p>
       ) : null}
 
       {data.status === 'APPROVED' && data.requesterId !== myUserId ? (

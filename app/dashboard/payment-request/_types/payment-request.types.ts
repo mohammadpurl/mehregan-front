@@ -77,6 +77,8 @@ export interface PaymentRequestResponse {
   paymentMethod?: PaymentMethodType | null;
   paymentOrderKind?: PaymentOrderKindType | null;
   paymentMarkedAt?: string | null;
+  sepidarConfirmedAt?: string | null;
+  sepidarConfirmedBy?: number | null;
   counterpartyId?: number | null;
   counterparty?: Counterparty | null;
   payerCompanyAccountId?: number | null;

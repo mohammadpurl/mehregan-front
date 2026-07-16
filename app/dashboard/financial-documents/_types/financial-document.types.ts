@@ -21,6 +21,10 @@ export interface FinancialDocumentResponse {
   partyName?: string | null;
   status: FinancialDocumentStatus;
   financeConfirmedAt?: string | null;
+  sepidarRegisteredAt?: string | null;
+  sepidarRegisteredBy?: number | null;
+  sepidarConfirmedAt?: string | null;
+  sepidarConfirmedBy?: number | null;
   workflowInstanceId?: number | null;
   createdAt?: string | null;
   attachments?: FinancialDocumentAttachment[];

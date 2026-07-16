@@ -36,7 +36,7 @@ export interface WorkflowApprovalPlanStep {
   approvedAt: string | null;
   /** مرحله‌ای که همان تأییدکننده مرحله قبل به‌صورت خودکار تأیید کرده */
   autoSkippedSameApprover?: boolean;
-  /** نوع اقدام مرحله: approval | upload_proforma | approve_proforma | upload_invoice | confirm_payment */
+  /** نوع اقدام: approval | mark_payment | confirm_sepidar | upload_proforma | … */
   stepAction?: string | null;
 }
 

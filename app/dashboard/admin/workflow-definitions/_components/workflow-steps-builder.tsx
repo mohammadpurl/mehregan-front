@@ -38,6 +38,24 @@ import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.type
 import { createEmptyStep } from '../_utils/workflow-definition-mapper';
 import { cn } from '@/lib/utils';
 
+const STEP_ACTION_OPTIONS: { value: string; label: string; description: string }[] = [
+  {
+    value: 'approval',
+    label: 'تأیید عادی',
+    description: 'دکمه تأیید معمول در کارتابل',
+  },
+  {
+    value: 'mark_payment',
+    label: 'ثبت در سپیدار (کارشناس مالی)',
+    description: 'پس از ثبت بیرونی در سپیدار، دکمه «ثبت در سپیدار انجام شد»',
+  },
+  {
+    value: 'confirm_sepidar',
+    label: 'تأیید ثبت سپیدار (سرپرست مالی)',
+    description: 'چک‌باکس اجباری «در سپیدار ثبت شده» + تأیید',
+  },
+];
+
 const STRATEGY_OPTIONS: {
   value: AssigneeStrategy;
   label: string;
@@ -283,6 +301,33 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
                       disabled={disabled}
                       dir="rtl"
                     />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">نوع اقدام مرحله</label>
+                    <Select
+                      value={step.step_action?.trim() || 'approval'}
+                      onValueChange={(v) => updateStep(index, { step_action: v })}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STEP_ACTION_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {
+                        STEP_ACTION_OPTIONS.find(
+                          (o) => o.value === (step.step_action?.trim() || 'approval'),
+                        )?.description
+                      }
+                    </p>
                   </div>
 
                   <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">

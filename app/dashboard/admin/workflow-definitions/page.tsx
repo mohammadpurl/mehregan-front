@@ -29,29 +29,157 @@ import { WorkflowStepsBuilder } from './_components/workflow-steps-builder';
 import { createEmptyStep } from './_utils/workflow-definition-mapper';
 
 const REF_TYPES: { value: WorkflowBusinessRefType; label: string }[] = [
-  { value: 'workflow_form', label: 'فرم گردش کار' },
   { value: 'payment_request', label: 'درخواست پرداخت / وام / مساعده' },
+  { value: 'payment_order', label: 'دستور پرداخت' },
   { value: 'petty_cash', label: 'تنخواه' },
+  { value: 'petty_cash_settlement', label: 'تأیید خرج تنخواه' },
+  { value: 'mission_request', label: 'درخواست ماموریت' },
+  { value: 'mission_report', label: 'تأیید گزارش ماموریت' },
+  { value: 'financial_document', label: 'اسناد مالی' },
+  { value: 'purchase_request', label: 'درخواست خرید کالا' },
+  { value: 'procurement_proforma', label: 'پیش‌فاکتور خرید' },
+  { value: 'request', label: 'درخواست خرید (legacy)' },
   { value: 'warehouse_form', label: 'فرم انبار' },
-  { value: 'request', label: 'درخواست خرید' },
+  { value: 'workflow_form', label: 'فرم گردش کار' },
 ];
 
-const DEFAULT_STEPS: WorkflowStepConfig[] = [
+/** روال یکسان مالی: مدیر مستقیم → مدیر مالی → مدیرعامل → کارشناس → سرپرست سپیدار */
+const FINANCIAL_DEFAULT_STEPS: WorkflowStepConfig[] = [
   {
     order: 1,
-    role_aliases: ['finance_manager', 'مدیر مالی'],
-    assignee_strategy: 'role_pool',
-    assignee_user_id: null,
-    label: 'تأیید مدیر مالی',
-  },
-  {
-    order: 2,
-    role_aliases: ['ceo', 'مدیرعامل'],
+    role_aliases: ['manager', 'project_manager', 'مدیر واحد', 'مدیر مستقیم'],
     assignee_strategy: 'submitter_manager',
     assignee_user_id: null,
     label: 'تأیید مدیر مستقیم',
+    step_action: 'approval',
+  },
+  {
+    order: 2,
+    role_aliases: ['finance_manager', 'accountant', 'مدیر مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید مدیر مالی',
+    step_action: 'approval',
+  },
+  {
+    order: 3,
+    role_aliases: ['ceo', 'managing_director', 'مدیرعامل'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید مدیرعامل',
+    step_action: 'approval',
+  },
+  {
+    order: 4,
+    role_aliases: ['finance_officer', 'کارشناس مالی', 'مسئول پرداخت'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'ثبت در سپیدار — کارشناس مالی',
+    step_action: 'mark_payment',
+  },
+  {
+    order: 5,
+    role_aliases: ['finance_supervisor', 'سرپرست مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید ثبت سپیدار — سرپرست مالی',
+    step_action: 'confirm_sepidar',
   },
 ];
+
+const SIMPLE_DEFAULT_STEPS: WorkflowStepConfig[] = [
+  {
+    order: 1,
+    role_aliases: ['manager', 'project_manager', 'مدیر مستقیم'],
+    assignee_strategy: 'submitter_manager',
+    assignee_user_id: null,
+    label: 'تأیید مدیر مستقیم',
+    step_action: 'approval',
+  },
+  {
+    order: 2,
+    role_aliases: ['ceo', 'managing_director', 'مدیرعامل'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید مدیرعامل',
+    step_action: 'approval',
+  },
+];
+
+/** تأیید خرج تنخواه: مدیر مستقیم → مدیر مالی → مدیرعامل */
+const SETTLEMENT_DEFAULT_STEPS: WorkflowStepConfig[] = [
+  {
+    order: 1,
+    role_aliases: ['manager', 'project_manager', 'مدیر واحد', 'مدیر مستقیم'],
+    assignee_strategy: 'submitter_manager',
+    assignee_user_id: null,
+    label: 'تأیید مدیر مستقیم — خرج تنخواه',
+    step_action: 'approval',
+  },
+  {
+    order: 2,
+    role_aliases: ['finance_manager', 'accountant', 'مدیر مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید مدیر مالی — خرج تنخواه',
+    step_action: 'approval',
+  },
+  {
+    order: 3,
+    role_aliases: ['ceo', 'managing_director', 'مدیرعامل'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید مدیرعامل — خرج تنخواه',
+    step_action: 'approval',
+  },
+];
+
+const FINANCIAL_REF_TYPES = new Set<WorkflowBusinessRefType>([
+  'payment_request',
+  'payment_order',
+  'petty_cash',
+  'financial_document',
+]);
+
+/** تأیید گزارش ماموریت: مدیر مستقیم → مدیرعامل */
+const MISSION_REPORT_DEFAULT_STEPS: WorkflowStepConfig[] = [
+  {
+    order: 1,
+    role_aliases: ['manager', 'project_manager', 'مدیر مستقیم', 'مدیر واحد'],
+    assignee_strategy: 'submitter_manager',
+    assignee_user_id: null,
+    label: 'تأیید گزارش — مدیر مستقیم',
+    step_action: 'approval',
+  },
+  {
+    order: 2,
+    role_aliases: ['ceo', 'managing_director', 'مدیرعامل'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید گزارش — مدیرعامل',
+    step_action: 'approval',
+  },
+];
+
+function defaultStepsForRefType(ref: WorkflowBusinessRefType): WorkflowStepConfig[] {
+  if (ref === 'petty_cash_settlement') {
+    return SETTLEMENT_DEFAULT_STEPS.map((s, i) => ({ ...s, order: i + 1 }));
+  }
+  if (ref === 'mission_request' || ref === 'mission_report') {
+    return MISSION_REPORT_DEFAULT_STEPS.map((s, i) => ({
+      ...s,
+      order: i + 1,
+      label:
+        ref === 'mission_request'
+          ? i === 0
+            ? 'تأیید مدیر مستقیم'
+            : 'تأیید مدیرعامل'
+          : s.label,
+    }));
+  }
+  const base = FINANCIAL_REF_TYPES.has(ref) ? FINANCIAL_DEFAULT_STEPS : SIMPLE_DEFAULT_STEPS;
+  return base.map((s, i) => ({ ...s, order: i + 1 }));
+}
 
 function strategyLabel(strategy: string): string {
   switch (strategy) {
@@ -117,7 +245,7 @@ export default function WorkflowDefinitionsPage() {
     setRefType('payment_request');
     setName('درخواست پرداخت / وام / مساعده');
     setCode('payment_request');
-    setSteps(DEFAULT_STEPS.map((s, i) => ({ ...s, order: i + 1 })));
+    setSteps(defaultStepsForRefType('payment_request'));
     setFormError(null);
     setModalOpen(true);
   };
@@ -275,7 +403,16 @@ export default function WorkflowDefinitionsPage() {
             {!editing && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">نوع فرم (ref_type)</label>
-                <Select value={refType} onValueChange={(v) => setRefType(v as WorkflowBusinessRefType)}>
+                <Select
+                  value={refType}
+                  onValueChange={(v) => {
+                    const next = v as WorkflowBusinessRefType;
+                    setRefType(next);
+                    setCode(next);
+                    setName(REF_TYPES.find((t) => t.value === next)?.label ?? next);
+                    setSteps(defaultStepsForRefType(next));
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

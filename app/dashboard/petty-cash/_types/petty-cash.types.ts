@@ -3,6 +3,8 @@ export type PettyCashStatus = 'pending' | 'approved' | 'rejected' | string;
 export type PettyCashSettlementStatus =
   | 'pending_settlement'
   | 'PENDING_SETTLEMENT'
+  | 'pending_settlement_approval'
+  | 'PENDING_SETTLEMENT_APPROVAL'
   | 'settled'
   | 'SETTLED'
   | string;
@@ -34,6 +36,10 @@ export interface PettyCashResponse {
   totalExpenses?: number;
   remainingAmount?: number;
   requestedDate?: string | null;
+  sepidarRegisteredAt?: string | null;
+  sepidarRegisteredBy?: number | null;
+  sepidarConfirmedAt?: string | null;
+  sepidarConfirmedBy?: number | null;
   createdAt?: string;
   updatedAt?: string;
   documentsUrls?: string[];

@@ -57,6 +57,16 @@ export function normalizePettyCashFromApi(row: unknown): PettyCashResponse | nul
     totalExpenses: pick<number>(r, 'total_expenses', 'totalExpenses'),
     remainingAmount: pick<number>(r, 'remaining_amount', 'remainingAmount'),
     requestedDate: pick<string>(r, 'requested_date', 'requestedDate') ?? null,
+    sepidarRegisteredAt: pick<string>(r, 'sepidar_registered_at', 'sepidarRegisteredAt') ?? null,
+    sepidarRegisteredBy:
+      pick<number>(r, 'sepidar_registered_by', 'sepidarRegisteredBy') != null
+        ? Number(pick(r, 'sepidar_registered_by', 'sepidarRegisteredBy'))
+        : null,
+    sepidarConfirmedAt: pick<string>(r, 'sepidar_confirmed_at', 'sepidarConfirmedAt') ?? null,
+    sepidarConfirmedBy:
+      pick<number>(r, 'sepidar_confirmed_by', 'sepidarConfirmedBy') != null
+        ? Number(pick(r, 'sepidar_confirmed_by', 'sepidarConfirmedBy'))
+        : null,
     createdAt: pick<string>(r, 'created_at', 'createdAt'),
     updatedAt: pick<string>(r, 'updated_at', 'updatedAt'),
     documentsUrls: attachmentItems.map((a) => a.fileUrl),
@@ -99,7 +109,10 @@ export function isPettyCashSettled(record: PettyCashResponse): boolean {
 export function canSettlePettyCash(record: PettyCashResponse): boolean {
   const status = String(record.status).toLowerCase();
   if (status !== 'approved') return false;
-  return !isPettyCashSettled(record);
+  if (isPettyCashSettled(record)) return false;
+  const settlement = String(record.settlementStatus ?? '').toUpperCase();
+  // فقط وقتی منتظر ثبت خرج است؛ در حال تأیید خرج قابل ویرایش نیست
+  return settlement === 'PENDING_SETTLEMENT' || settlement === '';
 }
 
 export function sumExpenseLines(lines: PettyCashExpenseLine[]): number {

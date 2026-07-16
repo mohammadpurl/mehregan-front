@@ -52,6 +52,8 @@ import type { FinancialDocumentResponse } from '@/app/dashboard/financial-docume
 import { WorkflowPurchaseRequestReview } from './_components/workflow-purchase-request-review';
 import type { PurchaseRequest } from '@/app/_types/purchase-request.types';
 import type { PettyCashResponse } from '@/app/dashboard/petty-cash/_types/petty-cash.types';
+import type { MissionRequestResponse } from '@/app/dashboard/mission-requests/_types/mission-request.types';
+import { MissionRequestDetailPanel } from '@/app/dashboard/mission-requests/_components/mission-request-detail-panel';
 import { WorkflowInboxReviewPanel } from './_components/workflow-inbox-review-panel';
 import { RelatedRequestsPanel } from '@/app/dashboard/workflow/_components/related-requests-panel';
 import { WorkflowRejectModal } from './_components/workflow-inbox-decision';
@@ -81,6 +83,13 @@ function workflowStatusLabelFa(status?: string): string {
 function inboxRefTypeLabel(refType: string | undefined): string {
   if (refType === 'ad_hoc_task') return 'کار پیش‌بینی‌نشده';
   if (refType === 'workflow') return 'گردش تأیید';
+  if (refType === 'petty_cash') return 'تنخواه';
+  if (refType === 'petty_cash_settlement') return 'تأیید خرج تنخواه';
+  if (refType === 'payment_request') return 'درخواست پرداخت';
+  if (refType === 'payment_order') return 'دستور پرداخت';
+  if (refType === 'financial_document') return 'سند مالی';
+  if (refType === 'mission_request') return 'درخواست ماموریت';
+  if (refType === 'mission_report') return 'تأیید گزارش ماموریت';
   return refType ?? '—';
 }
 
@@ -98,6 +107,7 @@ export default function WorkflowInboxPage() {
   const [actionPending, setActionPending] = useState(false);
   const [approveComment, setApproveComment] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('transfer');
+  const [sepidarConfirmed, setSepidarConfirmed] = useState(false);
   const [stepAttachmentFiles, setStepAttachmentFiles] = useState<File[]>([]);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
@@ -180,6 +190,19 @@ export default function WorkflowInboxPage() {
     [router, refreshBadgeCounts],
   );
 
+  const closeDetailsAfterDecision = useCallback(() => {
+    setDetailsOpen(false);
+    setSelectedInbox(null);
+    setApprovalHistory(null);
+    setResolvedForm(null);
+    setPlanError(null);
+    setFormError(null);
+    setApproveComment('');
+    setPaymentMethod('transfer');
+    setSepidarConfirmed(false);
+    setStepAttachmentFiles([]);
+  }, []);
+
   const openWorkflowDetails = useCallback(
     async (row: InboxItem) => {
       setSelectedInbox(row);
@@ -190,6 +213,7 @@ export default function WorkflowInboxPage() {
       setFormError(null);
       setApproveComment('');
       setPaymentMethod('transfer');
+      setSepidarConfirmed(false);
       setStepAttachmentFiles([]);
       void markInboxReadAction(row.id).then(() => void refreshBadgeCounts());
       await loadInstanceDetails(row.ref_id);
@@ -242,7 +266,13 @@ export default function WorkflowInboxPage() {
       ? (resolvedForm.raw as PaymentRequestResponse)
       : null;
   const pettyCashRecord =
-    resolvedForm?.refType === 'petty_cash' ? (resolvedForm.raw as PettyCashResponse) : null;
+    resolvedForm?.refType === 'petty_cash' || resolvedForm?.refType === 'petty_cash_settlement'
+      ? (resolvedForm.raw as PettyCashResponse)
+      : null;
+  const missionRecord =
+    resolvedForm?.refType === 'mission_request' || resolvedForm?.refType === 'mission_report'
+      ? (resolvedForm.raw as MissionRequestResponse)
+      : null;
   const financialDocumentRecord =
     resolvedForm?.refType === 'financial_document'
       ? (resolvedForm.raw as FinancialDocumentResponse)
@@ -308,10 +338,15 @@ export default function WorkflowInboxPage() {
       purchaseRecord?.status === 'proforma_review');
   const pendingStepAction = pendingPlanStep?.stepAction ?? null;
   const isMarkPaymentStep = pendingStepAction === 'mark_payment';
+  const isConfirmSepidarStep =
+    pendingStepAction === 'confirm_sepidar' ||
+    pendingStepAction === 'final_payment_approval';
   const isOperationalInboxStep =
     pendingStepAction === 'upload_proforma' || pendingStepAction === 'upload_invoice';
-  const detailsReady = Boolean(resolvedForm || paymentRecord);
-  const canDecide = detailsReady && !planLoading && !isOperationalInboxStep && !isMarkPaymentStep;
+  const detailsReady = Boolean(resolvedForm || paymentRecord || pettyCashRecord || financialDocumentRecord);
+  const canActOnStep = detailsReady && !planLoading && !isOperationalInboxStep;
+  /** نمایش فیلدهای اقدام (کامنت/چک‌باکس) — برای کارشناس و سرپرست هم فعال */
+  const canDecide = canActOnStep;
 
   const workflowStatus = currentSection?.status ?? approvalHistory?.sections[0]?.status;
   const summaryFields: WorkflowSummaryField[] = [];
@@ -343,7 +378,12 @@ export default function WorkflowInboxPage() {
     null;
 
   const detailsContent =
-    paymentRecord || pettyCashRecord || financialDocumentRecord || purchaseRecord || resolvedForm ? (
+    paymentRecord ||
+    pettyCashRecord ||
+    missionRecord ||
+    financialDocumentRecord ||
+    purchaseRecord ||
+    resolvedForm ? (
       <>
         {paymentRecord && (
           <WorkflowPaymentRequestReview
@@ -355,6 +395,7 @@ export default function WorkflowInboxPage() {
           />
         )}
         {pettyCashRecord && <WorkflowPettyCashReview ref={pettyCashReviewRef} record={pettyCashRecord} />}
+        {missionRecord && <MissionRequestDetailPanel data={missionRecord} />}
         {financialDocumentRecord && (
           <WorkflowFinancialDocumentReview ref={financialDocumentReviewRef} record={financialDocumentRecord} />
         )}
@@ -367,6 +408,7 @@ export default function WorkflowInboxPage() {
         {resolvedForm &&
           !paymentRecord &&
           !pettyCashRecord &&
+          !missionRecord &&
           !financialDocumentRecord &&
           !purchaseRecord && (
           <div className="space-y-2 text-right text-sm">
@@ -413,7 +455,10 @@ export default function WorkflowInboxPage() {
 
     let approvePayload: Parameters<typeof approveWorkflowAction>[1] | undefined;
 
-    if (paymentRecord && !isMarkPaymentStep) {
+    const needsApproverFinancialFields =
+      !isMarkPaymentStep && !isConfirmSepidarStep;
+
+    if (paymentRecord && needsApproverFinancialFields) {
       const built = paymentReviewRef.current?.buildApprovePayload();
       if (!built?.ok) {
         toast({
@@ -424,7 +469,7 @@ export default function WorkflowInboxPage() {
         return;
       }
       approvePayload = built.payload;
-    } else if (pettyCashRecord) {
+    } else if (pettyCashRecord && needsApproverFinancialFields) {
       const built = pettyCashReviewRef.current?.buildApprovePayload();
       if (!built?.ok) {
         toast({
@@ -435,7 +480,7 @@ export default function WorkflowInboxPage() {
         return;
       }
       approvePayload = built.payload;
-    } else if (financialDocumentRecord) {
+    } else if (financialDocumentRecord && needsApproverFinancialFields) {
       const built = financialDocumentReviewRef.current?.buildApprovePayload();
       if (!built?.ok) {
         toast({
@@ -460,36 +505,33 @@ export default function WorkflowInboxPage() {
     if (isMarkPaymentStep) {
       approvePayload = { ...approvePayload, payment_executed: true };
     }
+    if (isConfirmSepidarStep) {
+      if (!sepidarConfirmed) {
+        toast({
+          title: 'تأیید ثبت سپیدار الزامی است',
+          description: 'تیک «در نرم‌افزار سپیدار ثبت شده است» را بزنید.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      approvePayload = { ...approvePayload, sepidar_confirmed: true };
+    }
     runAction(
       async () => {
         await uploadPendingStepAttachments(instanceId);
         return approveWorkflowAction(instanceId, approvePayload);
       },
       {
-      successMessage: 'درخواست تأیید شد',
+      successMessage: isMarkPaymentStep
+        ? 'ثبت در سپیدار در سیستم ثبت شد'
+        : isConfirmSepidarStep
+          ? 'تأیید ثبت سپیدار انجام شد'
+          : 'درخواست تأیید شد',
       errorMessage: 'تأیید ناموفق بود',
-      onSuccess: async () => {
+      onSuccess: () => {
         void markInboxDoneAction(inboxId).then(() => void refreshBadgeCounts());
-        const { historyResult, formResult } = await loadInstanceDetails(instanceId);
+        closeDetailsAfterDecision();
         triggerLoad();
-        const rawStatus =
-          formResult.data?.raw && typeof formResult.data.raw === 'object' && 'status' in formResult.data.raw
-            ? String((formResult.data.raw as { status?: string }).status ?? '').toLowerCase()
-            : '';
-        const refreshedCurrent =
-          historyResult.data?.sections.find((s) => s.isCurrent) ??
-          historyResult.data?.sections[historyResult.data.sections.length - 1];
-        const workflowDone =
-          refreshedCurrent?.status === 'approved' ||
-          refreshedCurrent?.status === 'rejected' ||
-          rawStatus === 'approved' ||
-          rawStatus === 'rejected';
-        if (workflowDone) {
-          toast({
-            title: 'فرآیند تأیید تکمیل شد',
-            description: 'مسیر تأیید و وضعیت درخواست به‌روزرسانی شد.',
-          });
-        }
       },
       onSettled: () => setActionPending(false),
     });
@@ -507,19 +549,14 @@ export default function WorkflowInboxPage() {
       },
       {
         successMessage:
-          payload.returnTo === 'previous'
-            ? 'درخواست به مرحله قبل برگردانده شد'
-            : 'درخواست به درخواست‌کننده برگردانده شد',
+          payload.returnTo === 'requester'
+            ? 'درخواست به درخواست‌کننده برگردانده شد'
+            : 'درخواست به مرحله قبل برگردانده شد',
         errorMessage: 'رد ناموفق بود',
         onSuccess: () => {
           setRejectModalOpen(false);
           void markInboxDoneAction(inboxId).then(() => void refreshBadgeCounts());
-          if (payload.returnTo === 'requester') {
-            setDetailsOpen(false);
-            setSelectedInbox(null);
-          } else {
-            void loadInstanceDetails(instanceId);
-          }
+          closeDetailsAfterDecision();
           triggerLoad();
         },
         onSettled: () => setActionPending(false),
@@ -601,7 +638,7 @@ export default function WorkflowInboxPage() {
               type="button"
               variant="destructive"
               className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={actionPending || !canDecide}
+              disabled={actionPending || !canActOnStep}
               onClick={() => setRejectModalOpen(true)}
             >
               <X className="ml-1 h-4 w-4" />
@@ -610,14 +647,22 @@ export default function WorkflowInboxPage() {
             {isMarkPaymentStep ? (
               <Button
                 type="button"
-                disabled={actionPending || !detailsReady || planLoading}
+                disabled={actionPending || !canActOnStep}
                 onClick={() => void handleApprove()}
               >
                 <Check className="ml-1 h-4 w-4" />
-                پرداخت انجام شد
+                ثبت در سپیدار انجام شد
               </Button>
             ) : (
-              <Button type="button" disabled={actionPending || !canDecide} onClick={() => void handleApprove()}>
+              <Button
+                type="button"
+                disabled={
+                  actionPending ||
+                  !canActOnStep ||
+                  (isConfirmSepidarStep && !sepidarConfirmed)
+                }
+                onClick={() => void handleApprove()}
+              >
                 <Check className="ml-1 h-4 w-4" />
                 تأیید
               </Button>
@@ -661,14 +706,19 @@ export default function WorkflowInboxPage() {
             showPaymentMethod={isProformaApproval}
             paymentMethod={paymentMethod}
             onPaymentMethodChange={setPaymentMethod}
+            showSepidarConfirm={isConfirmSepidarStep}
+            sepidarConfirmed={sepidarConfirmed}
+            onSepidarConfirmedChange={setSepidarConfirmed}
             operationalNotice={
               isMarkPaymentStep
-                ? 'پس از انجام واقعی پرداخت، دکمه «پرداخت انجام شد» را بزنید. تأیید معمول این مرحله از کارتابل انجام نمی‌شود.'
-                : isOperationalInboxStep
-                  ? pendingStepAction === 'upload_proforma'
-                    ? 'این مرحله «ثبت پیش‌فاکتور» است و از کارتابل تأیید نمی‌شود. به صفحه درخواست‌های خرید بروید، پیش‌فاکتور را بارگذاری و دکمه «ارسال برای تأیید» را بزنید تا گردش‌کار یک مرحله جلو برود.'
-                    : 'این مرحله «بارگذاری فاکتور» است. از صفحه درخواست‌های خرید فاکتور را آپلود کنید.'
-                  : null
+                ? 'کار را در نرم‌افزار سپیدار (جدا از این سامانه) ثبت کنید؛ سپس دکمه «ثبت در سپیدار انجام شد» را بزنید.'
+                : isConfirmSepidarStep
+                  ? 'ثبت در سپیدار را در نرم‌افزار سپیدار بررسی کنید؛ سپس تیک «در نرم‌افزار سپیدار ثبت شده است» را بزنید و تأیید کنید.'
+                  : isOperationalInboxStep
+                    ? pendingStepAction === 'upload_proforma'
+                      ? 'این مرحله «ثبت پیش‌فاکتور» است و از کارتابل تأیید نمی‌شود. به صفحه درخواست‌های خرید بروید، پیش‌فاکتور را بارگذاری و دکمه «ارسال برای تأیید» را بزنید تا گردش‌کار یک مرحله جلو برود.'
+                      : 'این مرحله «بارگذاری فاکتور» است. از صفحه درخواست‌های خرید فاکتور را آپلود کنید.'
+                    : null
             }
           />
         )}

@@ -25,6 +25,7 @@ export type WorkflowApprovePayload = {
   payer_company_account_id?: number;
   payment_method?: string;
   payment_executed?: boolean;
+  sepidar_confirmed?: boolean;
 };
 
 export async function getWorkflowInstanceAction(instanceId: number) {
@@ -247,7 +248,7 @@ export async function rejectWorkflowAction(instanceId: number, payload: Workflow
   try {
     await createDataWithAuth(`/workflow/${instanceId}/reject`, {
       comment: payload.comment.trim(),
-      returnTo: payload.returnTo ?? 'requester',
+      returnTo: payload.returnTo ?? 'previous',
     });
     return { success: true as const };
   } catch (err: unknown) {

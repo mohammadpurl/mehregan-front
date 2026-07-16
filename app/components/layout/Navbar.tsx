@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import NavbarBottomItem from './NavbarBottomItem';
 import { NavigationItemsType } from '@/types/navigation-items-type';
 import { useSessionStore } from '@/app/_store/auth-store';
-import { hasAnyPermission, hasAnyRole } from '@/lib/permissions';
+import { filterNavItemsByAccess } from '@/lib/nav-access';
 
 interface NavbarProps {
   pathname: string;
@@ -236,43 +236,6 @@ const NavItem = ({
       {sidebarOpen && <span className="text-sm min-w-0 whitespace-normal leading-5">{item.label}</span>}
     </Link>
   );
-};
-
-const canAccessNavItem = (
-  item: NavigationItemsType,
-  userRoles: string[],
-  userPermissions: string[]
-) => {
-  return (
-    hasAnyRole(userRoles, item.requiredRoles) &&
-    hasAnyPermission(userPermissions, item.requiredPermissions)
-  );
-};
-
-const filterNavItemsByAccess = (
-  items: NavigationItemsType[],
-  userRoles: string[],
-  userPermissions: string[]
-): NavigationItemsType[] => {
-  return items.reduce<NavigationItemsType[]>((acc, item) => {
-    if (!canAccessNavItem(item, userRoles, userPermissions)) {
-      return acc;
-    }
-
-    if (item.children && item.children.length > 0) {
-      const filteredChildren = filterNavItemsByAccess(item.children, userRoles, userPermissions);
-
-      if (filteredChildren.length === 0) {
-        return acc;
-      }
-
-      acc.push({ ...item, children: filteredChildren });
-      return acc;
-    }
-
-    acc.push(item);
-    return acc;
-  }, []);
 };
 
 const Navbar = ({ pathname, sidebarOpen }: NavbarProps) => {

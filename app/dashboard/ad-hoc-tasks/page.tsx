@@ -21,6 +21,7 @@ export default function AdHocTasksPage() {
   const [scope, setScope] = useState<Scope>('all');
   const [items, setItems] = useState<AdHocTaskListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [canViewAll, setCanViewAll] = useState(false);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
@@ -37,6 +38,7 @@ export default function AdHocTasksPage() {
     if (res.success && res.data) {
       setItems(res.data.items);
       setTotal(res.data.total);
+      setCanViewAll(Boolean(res.data.canViewAll));
     }
     setLoading(false);
   }, [pagination.pageIndex, pagination.pageSize, scope]);
@@ -101,7 +103,9 @@ export default function AdHocTasksPage() {
         <CardContent className="space-y-4">
           <Tabs value={scope} onValueChange={(v) => setScope(v as Scope)}>
             <TabsList>
-              <TabsTrigger value="all">همه</TabsTrigger>
+              <TabsTrigger value="all">
+                {canViewAll ? 'همه (سازمان)' : 'مرتبط با من'}
+              </TabsTrigger>
               <TabsTrigger value="assigned">ارجاع‌شده به من</TabsTrigger>
               <TabsTrigger value="mine">ایجادشده توسط من</TabsTrigger>
             </TabsList>

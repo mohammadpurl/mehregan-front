@@ -7,6 +7,7 @@ import { Input } from '@/app/components/ui/input';
 import { JalaliDateInput } from '@/app/components/ui/jalali-date-input';
 import { FormattedNumberInput } from '@/app/components/ui/formatted-number-input';
 import { PaymentRequestType } from '../_types/payment-request.types';
+import { RequiredFieldsHint } from '@/app/components/ui/required-mark';
 
 type EmployeeFields = {
   type: PaymentRequestType;
@@ -60,13 +61,14 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
     return (
       <div className="space-y-3 rounded-lg border border-sky-200/80 bg-sky-50/40 p-4 dark:border-sky-900/40">
         <p className="text-sm font-medium text-sky-950 dark:text-sky-100">شرایط وام (مرحله مالی)</p>
+        <RequiredFieldsHint />
         <div className="grid gap-4 md:grid-cols-2">
           <FormField
             control={control}
             name={'loanInstallmentCount' as Path<T>}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>تعداد اقساط</FormLabel>
+              <FormLabel required>تعداد اقساط</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -86,7 +88,7 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
             name={'loanFirstInstallmentDate' as Path<T>}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>تاریخ شروع قسط اول</FormLabel>
+                <FormLabel required>تاریخ شروع قسط اول</FormLabel>
                 <FormControl>
                   <JalaliDateInput
                     value={field.value ?? ''}
@@ -108,12 +110,13 @@ export function PaymentRequestExtendedFields<T extends FieldValues>({
     return (
       <div className="space-y-3 rounded-lg border border-amber-200/80 bg-amber-50/40 p-4 dark:border-amber-900/40">
         <p className="text-sm font-medium">تاریخ تسویه مساعده (مرحله مالی)</p>
+        <RequiredFieldsHint />
         <FormField
           control={control}
           name={'advanceExpectedRepaymentDate' as Path<T>}
           render={({ field }) => (
             <FormItem className="max-w-md">
-              <FormLabel>تاریخ تسویه</FormLabel>
+              <FormLabel required>تاریخ تسویه</FormLabel>
               <FormControl>
                 <JalaliDateInput
                   value={field.value ?? ''}

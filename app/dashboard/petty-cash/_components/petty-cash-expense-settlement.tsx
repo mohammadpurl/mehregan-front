@@ -55,7 +55,7 @@ export function PettyCashExpenseSettlement({ record, onUpdated }: Props) {
     startTransition(async () => {
       const result = await submitPettyCashExpensesAction(record.id, values.lines);
       if (result.success) {
-        notifySuccess('اقلام هزینه ثبت شد');
+        notifySuccess('اقلام هزینه ثبت شد و برای تأیید مدیر، مدیر مالی و مدیرعامل ارسال شد');
         if (result.data) onUpdated(result.data);
         else {
           const refreshed = await getPettyCashByIdAction(record.id);
@@ -73,7 +73,7 @@ export function PettyCashExpenseSettlement({ record, onUpdated }: Props) {
     const result = await importPettyCashExpensesExcelAction(record.id, file);
     setExcelBusy(false);
     if (result.success) {
-      notifySuccess('فایل اکسل بارگذاری شد');
+      notifySuccess('فایل اکسل بارگذاری شد و برای تأیید مدیر، مدیر مالی و مدیرعامل ارسال شد');
       if (result.data) onUpdated(result.data);
       else {
         const refreshed = await getPettyCashByIdAction(record.id);
@@ -89,7 +89,7 @@ export function PettyCashExpenseSettlement({ record, onUpdated }: Props) {
       <Alert>
         <AlertTitle>ثبت خرج</AlertTitle>
         <AlertDescription className="text-sm">
-          پس از تأیید کامل مدیر مالی و مدیرعامل می‌توانید اقلام هزینه را ثبت کنید.
+          پس از تکمیل روال تأیید مالی می‌توانید اقلام هزینه را ثبت کنید. سپس برای تأیید مدیر، مدیر مالی و مدیرعامل ارسال می‌شود.
         </AlertDescription>
       </Alert>
     );

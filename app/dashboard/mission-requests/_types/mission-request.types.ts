@@ -1,4 +1,9 @@
-export type MissionRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+export type MissionRequestStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'REPORT_PENDING_APPROVAL'
+  | 'COMPLETED';
 
 export type MissionRequestResponse = {
   id: number;

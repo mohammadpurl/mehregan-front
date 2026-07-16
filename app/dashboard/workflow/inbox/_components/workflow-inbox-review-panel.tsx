@@ -13,6 +13,7 @@ import { WorkflowApprovalPlanTimeline } from './workflow-approval-plan';
 import { WorkflowInboxSummaryHeader, type WorkflowSummaryField } from './workflow-inbox-summary-header';
 import { WorkflowInboxDecisionFields } from './workflow-inbox-decision';
 import { WorkflowSameAssigneeAlert } from '@/app/dashboard/workflow/_components/workflow-same-assignee-alert';
+import { RequiredFieldsHint } from '@/app/components/ui/required-mark';
 
 type Props = {
   title: string;
@@ -39,6 +40,9 @@ type Props = {
   showPaymentMethod?: boolean;
   paymentMethod?: string;
   onPaymentMethodChange?: (value: string) => void;
+  showSepidarConfirm?: boolean;
+  sepidarConfirmed?: boolean;
+  onSepidarConfirmedChange?: (value: boolean) => void;
   operationalNotice?: string | null;
 };
 
@@ -67,6 +71,9 @@ export function WorkflowInboxReviewPanel({
   showPaymentMethod,
   paymentMethod,
   onPaymentMethodChange,
+  showSepidarConfirm,
+  sepidarConfirmed,
+  onSepidarConfirmedChange,
   operationalNotice,
 }: Props) {
   return (
@@ -96,10 +103,10 @@ export function WorkflowInboxReviewPanel({
       <WorkflowSameAssigneeAlert show={Boolean(showSameAssigneeAlert)} />
 
       {detailsContent ? (
-        <Collapsible defaultOpen={false} className="rounded-xl border bg-muted/10">
+        <Collapsible defaultOpen className="rounded-xl border bg-muted/10">
           <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium">
             <span>جزئیات درخواست</span>
-            <ChevronDown className="h-4 w-4 transition-transform [[data-state=open]_&]:rotate-180" />
+            <ChevronDown className="h-4 w-4 shrink-0 transition-transform [[data-state=open]_&]:rotate-180" />
           </CollapsibleTrigger>
           <CollapsibleContent className="border-t px-4 py-3">{detailsContent}</CollapsibleContent>
         </Collapsible>
@@ -107,21 +114,26 @@ export function WorkflowInboxReviewPanel({
 
       {relatedRequestsContent}
 
-      <section className="rounded-xl border bg-muted/5 p-4 sm:p-5">
-        <div className="mb-4 text-right">
-          <h4 className="text-sm font-bold text-foreground">جریان تأیید</h4>
-          <p className="mt-1 text-xs text-muted-foreground">
-            هر مرحله با زمان، توضیحات و پیوست‌های همان مرحله
-          </p>
-        </div>
-        <WorkflowApprovalPlanTimeline
-          history={approvalHistory}
-          loading={planLoading}
-          error={planError}
-          createdAt={createdAt}
-          requesterName={requesterName}
-        />
-      </section>
+      <Collapsible defaultOpen={false} className="rounded-xl border bg-muted/5">
+        <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium sm:px-5">
+          <span className="text-right">
+            <span className="block font-bold text-foreground">روال و مراحل تأیید</span>
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+              هر مرحله با زمان، توضیحات و پیوست‌های همان مرحله
+            </span>
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 transition-transform [[data-state=open]_&]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t px-4 py-3 sm:px-5 sm:py-4">
+          <WorkflowApprovalPlanTimeline
+            history={approvalHistory}
+            loading={planLoading}
+            error={planError}
+            createdAt={createdAt}
+            requesterName={requesterName}
+          />
+        </CollapsibleContent>
+      </Collapsible>
 
       {canDecide ? (
         <section
@@ -130,6 +142,7 @@ export function WorkflowInboxReviewPanel({
           )}
         >
           <p className="mb-3 text-sm font-semibold text-primary">اقدام شما در این مرحله</p>
+          <RequiredFieldsHint className="mb-3" />
           <WorkflowInboxDecisionFields
             approveComment={approveComment}
             onApproveCommentChange={onApproveCommentChange}
@@ -140,6 +153,9 @@ export function WorkflowInboxReviewPanel({
             showPaymentMethod={showPaymentMethod}
             paymentMethod={paymentMethod}
             onPaymentMethodChange={onPaymentMethodChange}
+            showSepidarConfirm={showSepidarConfirm}
+            sepidarConfirmed={sepidarConfirmed}
+            onSepidarConfirmedChange={onSepidarConfirmedChange}
           />
         </section>
       ) : null}

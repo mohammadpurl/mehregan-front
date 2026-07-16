@@ -1,9 +1,10 @@
 import { getUsersAction } from '@/app/_actions/user-actions';
 import type { AdminUser } from '@/app/_types/user.types';
-import type {
-  PaymentAccount,
-  PaymentRequestRequesterInfo,
-  PaymentRequestResponse,
+import {
+  PaymentRequestType,
+  type PaymentAccount,
+  type PaymentRequestRequesterInfo,
+  type PaymentRequestResponse,
 } from '../_types/payment-request.types';
 import { isPlaceholderPaymentAccount } from './payment-request-display.utils';
 function adminUserDisplayName(user: AdminUser): string {
@@ -53,7 +54,10 @@ export async function enrichPaymentRequestForApprover(
   }
 
   const needsName = !record.requesterName?.trim() || record.requesterName === '—';
-  const needsReceiver = isPlaceholderPaymentAccount(record.receiver);
+  // دستور پرداخت مقصدش طرف‌حساب است؛ حساب ثبت‌کننده را جایگزین نکن
+  const needsReceiver =
+    record.type !== PaymentRequestType.PAYMENT_ORDER &&
+    isPlaceholderPaymentAccount(record.receiver);
   const needsInfo = !record.requesterInfo;
 
   if (!needsName && !needsReceiver && !needsInfo) {

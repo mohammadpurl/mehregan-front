@@ -168,7 +168,7 @@ export function PettyCashList() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">تنخواه</h1>
           <p className="text-sm text-muted-foreground">
-            ثبت مبلغ → تأیید مدیر مالی و مدیرعامل → ثبت خرج (دستی یا اکسل)
+            ثبت مبلغ → تأیید مالی/سپیدار → ثبت خرج → تأیید مدیر، مدیر مالی و مدیرعامل
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -264,7 +264,7 @@ export function PettyCashList() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="درخواست تنخواه جدید"
-        description="پس از ثبت، درخواست برای تأیید مدیر مالی و مدیرعامل ارسال می‌شود."
+        description="پس از ثبت، درخواست در روال تأیید مالی (مدیر مستقیم تا سرپرست مالی / سپیدار) قرار می‌گیرد."
         footer={
           <div className="flex gap-2">
             <Button type="submit" form="petty-cash-new-form" disabled={formBusy}>

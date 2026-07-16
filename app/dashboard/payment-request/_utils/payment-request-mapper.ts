@@ -397,29 +397,81 @@ export function normalizePaymentRequestFromApi(raw: unknown): PaymentRequestResp
     '—';
 
   const payerAccountDetail = parseBankAccountDetail(r.payerAccountDetail ?? r.payer_account_detail);
-  const receiverAccountDetail = parseBankAccountDetail(
+  let receiverAccountDetail = parseBankAccountDetail(
     r.receiverAccountDetail ?? r.receiver_account_detail,
   );
+
+  const freeReceiverName = coerceString(r.receiver_name ?? r.receiverName);
+  const freeReceiverAcct = coerceString(r.receiver_account_number ?? r.receiverAccountNumber);
+  const freeReceiverSheba = coerceString(r.receiver_sheba ?? r.receiverSheba);
+  const freeReceiverCard = coerceString(r.receiver_card ?? r.receiverCard);
+  const freeDestNumber = freeReceiverAcct || freeReceiverSheba || freeReceiverCard;
+
+  const counterpartyIdRaw = r.counterpartyId ?? r.counterparty_id;
+  const counterpartyId =
+    counterpartyIdRaw != null && Number.isFinite(Number(counterpartyIdRaw))
+      ? Number(counterpartyIdRaw)
+      : null;
+  const counterparty = normalizeCounterpartyFromApi(r.counterparty);
 
   const payer =
     payerAccountDetail != null
       ? accountDetailToPaymentAccount(payerAccountDetail)
       : (parseAccountField(r.payer ?? r.payer_account) ?? { name: '—', accountNumber: '—' });
-  let receiver =
-    receiverAccountDetail != null
-      ? accountDetailToPaymentAccount(receiverAccountDetail)
-      : (parseAccountField(r.receiver ?? r.receiver_account) ?? null);
 
-  if (!receiver || (receiver.name === '—' && receiver.accountNumber === '—')) {
-    const sheba = coerceString(r.receiver_sheba ?? r.receiverSheba);
-    const card = coerceString(r.receiver_card ?? r.receiverCard);
-    const acct = coerceString(r.receiver_account_number ?? r.receiverAccountNumber);
-    const num = sheba || card || acct;
-    const holder = nestedRequester?.name || requesterName;
-    if (num && holder && holder !== '—') {
-      receiver = { name: holder, accountNumber: num };
+  const detailPayout =
+    receiverAccountDetail != null
+      ? receiverAccountDetail.accountNumber?.trim() ||
+        receiverAccountDetail.shebaNumber?.trim() ||
+        receiverAccountDetail.cardNumber?.trim() ||
+        ''
+      : '';
+
+  let receiver: PaymentAccount | null = null;
+
+  // دستور پرداخت: مقصد = نام/اشتراک + شماره حساب (دستی یا طرف‌حساب).
+  // هرگز از receiver_account قدیمی / حساب ثبت‌کننده استفاده نکن.
+  if (type === PaymentRequestType.PAYMENT_ORDER) {
+    if (freeDestNumber) {
+      const holder = freeReceiverName || counterparty?.name?.trim() || '—';
+      receiver = { name: holder, accountNumber: freeDestNumber };
+      // اگر جزئیات ساختاریافته با همان مقصد هست نگه دار؛ وگرنه از ورود دستی بساز
+      const detailMatchesFree =
+        Boolean(detailPayout) &&
+        detailPayout.replace(/\s/g, '').toLowerCase() ===
+          freeDestNumber.replace(/\s/g, '').toLowerCase();
+      if (!detailMatchesFree) {
+        receiverAccountDetail = {
+          label: holder !== '—' ? holder : null,
+          bankName: null,
+          accountNumber: freeReceiverAcct || null,
+          shebaNumber:
+            freeReceiverSheba ||
+            (freeDestNumber.toUpperCase().startsWith('IR') ? freeDestNumber : null),
+          cardNumber: freeReceiverCard || null,
+        };
+      } else if (receiverAccountDetail) {
+        receiver = accountDetailToPaymentAccount(receiverAccountDetail);
+      }
+    } else if (detailPayout && receiverAccountDetail) {
+      receiver = accountDetailToPaymentAccount(receiverAccountDetail);
     } else {
-      receiver = receiver ?? { name: '—', accountNumber: '—' };
+      receiver = { name: '—', accountNumber: '—' };
+    }
+  } else {
+    receiver =
+      receiverAccountDetail != null
+        ? accountDetailToPaymentAccount(receiverAccountDetail)
+        : (parseAccountField(r.receiver ?? r.receiver_account) ?? null);
+
+    if (!receiver || (receiver.name === '—' && receiver.accountNumber === '—')) {
+      const num = freeDestNumber;
+      const holder = freeReceiverName || nestedRequester?.name || requesterName;
+      if (num && holder && holder !== '—') {
+        receiver = { name: holder, accountNumber: num };
+      } else {
+        receiver = receiver ?? { name: '—', accountNumber: '—' };
+      }
     }
   }
 
@@ -477,12 +529,6 @@ export function normalizePaymentRequestFromApi(raw: unknown): PaymentRequestResp
         : settlementRaw
       : null;
 
-  const counterpartyIdRaw = r.counterpartyId ?? r.counterparty_id;
-  const counterpartyId =
-    counterpartyIdRaw != null && Number.isFinite(Number(counterpartyIdRaw))
-      ? Number(counterpartyIdRaw)
-      : null;
-  const counterparty = normalizeCounterpartyFromApi(r.counterparty);
   const paymentMethodRaw = r.paymentMethod ?? r.payment_method;
   const paymentMethod =
     typeof paymentMethodRaw === 'string' && paymentMethodRaw.trim()
@@ -498,12 +544,24 @@ export function normalizePaymentRequestFromApi(raw: unknown): PaymentRequestResp
   const paymentMarkedAtRaw = r.paymentMarkedAt ?? r.payment_marked_at;
   const paymentMarkedAt =
     typeof paymentMarkedAtRaw === 'string' && paymentMarkedAtRaw ? paymentMarkedAtRaw : null;
+  const sepidarConfirmedAtRaw = r.sepidarConfirmedAt ?? r.sepidar_confirmed_at;
+  const sepidarConfirmedAt =
+    typeof sepidarConfirmedAtRaw === 'string' && sepidarConfirmedAtRaw
+      ? sepidarConfirmedAtRaw
+      : null;
+  const sepidarConfirmedByRaw = r.sepidarConfirmedBy ?? r.sepidar_confirmed_by;
+  const sepidarConfirmedBy =
+    sepidarConfirmedByRaw != null && Number.isFinite(Number(sepidarConfirmedByRaw))
+      ? Number(sepidarConfirmedByRaw)
+      : null;
 
   return {
     id,
     paymentMethod,
     paymentOrderKind,
     paymentMarkedAt,
+    sepidarConfirmedAt,
+    sepidarConfirmedBy,
     counterpartyId,
     counterparty,
     payerCompanyAccountId,
