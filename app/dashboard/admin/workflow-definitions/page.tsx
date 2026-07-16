@@ -207,7 +207,9 @@ export default function WorkflowDefinitionsPage() {
   const [refType, setRefType] = useState<WorkflowBusinessRefType>('payment_request');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [steps, setSteps] = useState<WorkflowStepConfig[]>(DEFAULT_STEPS);
+  const [steps, setSteps] = useState<WorkflowStepConfig[]>(() =>
+    defaultStepsForRefType('payment_request'),
+  );
   const [formError, setFormError] = useState<string | null>(null);
 
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
