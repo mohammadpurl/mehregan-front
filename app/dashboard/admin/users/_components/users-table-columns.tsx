@@ -35,7 +35,7 @@ export function getUsersTableColumns({
     },
     {
       accessorKey: 'username',
-      header: 'شناسه فنی',
+      header: 'نام کاربری',
       meta: {
         filterComponent: ({ onFilterChange, value }: { onFilterChange: (value: unknown) => void; value: unknown }) => (
           <Input

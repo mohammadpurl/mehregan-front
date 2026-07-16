@@ -3,7 +3,8 @@ import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { Eye, EyeOff, Scale } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 import { Suspense, useMemo, useState, useTransition } from "react";
 import { signinAction } from "@/app/_actions/auth-actions";
 import { useSessionStore } from "@/app/_store/auth-store";
@@ -86,8 +87,8 @@ function LoginFormContent() {
      {/* <div className="flex flex-col xl:fixed xl:left-1/2 xl:-translate-x-1/2 xl:top-1/2 xl:-translate-y-1/2 fade-in items-center container  xl:max-w-[500px] self-stretch xl:bg-secondary-870 xl:p-8 xl:rounded-lg xl:shadow-xl xl:shadow-black/5"> */}
       <Card className="w-full max-w-md border-none">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center">
-            <Scale className="w-8 h-8 text-primary-foreground" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-gradient-primary">
+            <Image src="/logo.png" alt="لوگوی رهیار" width={64} height={64} className="object-contain" priority />
           </div>
           <CardTitle className="text-2xl">ورود به رهیار </CardTitle>
           <CardDescription>

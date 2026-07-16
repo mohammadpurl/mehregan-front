@@ -22,10 +22,19 @@ import {
 import { ColumnFilter } from '../column-filter';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 import { Download, Plus, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 interface AdvancedDataGridProps<T> {
   data: T[];
@@ -65,6 +74,8 @@ interface AdvancedDataGridProps<T> {
   enableColumnResizing?: boolean;
   /** ذخیرهٔ عرض ستون‌ها در localStorage (مثلاً admin-users-table) */
   columnSizingStorageKey?: string;
+  /** گزینه‌های تعداد ردیف در هر صفحه — پیش‌فرض ۱۰ / ۲۰ / ۵۰ / ۱۰۰ */
+  pageSizeOptions?: number[];
   variant?: 'default' | 'erpClassic';
 }
 
@@ -149,6 +160,7 @@ export function AdvancedDataGrid<T>({
   manualFiltering = false,
   enableColumnResizing = true,
   columnSizingStorageKey,
+  pageSizeOptions = [...DEFAULT_PAGE_SIZE_OPTIONS],
   variant = 'erpClassic',
 }: AdvancedDataGridProps<T>) {
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState('');
@@ -162,8 +174,36 @@ export function AdvancedDataGrid<T>({
   const resolvedOnColumnFiltersChange = onColumnFiltersChange ?? setInternalColumnFilters;
   const resolvedSorting = sorting ?? internalSorting;
   const resolvedOnSortingChange = onSortingChange ?? setInternalSorting;
-  const resolvedColumnVisibility = columnVisibility ?? internalColumnVisibility;
-  const resolvedOnColumnVisibilityChange = onColumnVisibilityChange ?? setInternalColumnVisibility;
+  const baseColumnVisibility = columnVisibility ?? internalColumnVisibility;
+  /** ستون شناسه (id) همیشه مخفی — در همه جداول */
+  const resolvedColumnVisibility: VisibilityState = {
+    ...baseColumnVisibility,
+    id: false,
+  };
+  const baseOnColumnVisibilityChange = onColumnVisibilityChange ?? setInternalColumnVisibility;
+  const resolvedOnColumnVisibilityChange: OnChangeFn<VisibilityState> = React.useCallback(
+    (updater) => {
+      baseOnColumnVisibilityChange((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        return { ...next, id: false };
+      });
+    },
+    [baseOnColumnVisibilityChange],
+  );
+
+  const displayColumns = React.useMemo(
+    () =>
+      columns.map((col) => {
+        const key =
+          ('id' in col && col.id != null ? String(col.id) : null) ??
+          ('accessorKey' in col && col.accessorKey != null ? String(col.accessorKey) : null);
+        if (key === 'id') {
+          return { ...col, enableHiding: false };
+        }
+        return col;
+      }),
+    [columns],
+  );
 
   const resolvedColumnSizingStorageKey = React.useMemo(
     () =>
@@ -247,7 +287,7 @@ export function AdvancedDataGrid<T>({
 
   const table = useReactTable({
     data,
-    columns,
+    columns: displayColumns,
     defaultColumn: enableColumnResizing
       ? { minSize: 56, size: 128, maxSize: 720 }
       : undefined,
@@ -324,10 +364,11 @@ export function AdvancedDataGrid<T>({
     : 'border-blue-400 rounded-2xl bg-white dark:bg-zinc-950';
   const theadClass = isClassic ? 'bg-sky-50 dark:bg-zinc-900' : 'bg-zinc-50 dark:bg-zinc-900';
   const columnDividerClass = isClassic ? 'border-l border-sky-200' : 'border-l border-zinc-200';
+  /** در RTL، ps = فاصله از راست (شروع سطر) */
   const headerCellClass = cn(
     isClassic
-      ? 'px-3 py-2 text-xs text-right text-sky-900 border-b border-sky-200 whitespace-nowrap'
-      : 'px-6 py-3 text-xs text-right text-zinc-500',
+      ? 'ps-5 pe-3 py-2.5 text-xs text-right text-sky-900 border-b border-sky-200 whitespace-nowrap'
+      : 'ps-6 pe-4 py-3 text-xs text-right text-zinc-500',
     enableColumnResizing && columnDividerClass,
   );
   const rowClass = isClassic
@@ -335,8 +376,8 @@ export function AdvancedDataGrid<T>({
     : 'border-blue-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors';
   const cellClass = cn(
     isClassic
-      ? cn('px-3 py-2 text-sm whitespace-nowrap', !enableColumnResizing && 'border-l border-sky-100')
-      : 'px-6 py-4 text-sm',
+      ? cn('ps-5 pe-3 py-2 text-sm whitespace-nowrap', !enableColumnResizing && 'border-l border-sky-100')
+      : 'ps-6 pe-4 py-4 text-sm',
     enableColumnResizing && columnDividerClass,
   );
 
@@ -360,7 +401,7 @@ export function AdvancedDataGrid<T>({
     <div className="space-y-4 min-w-0 w-full max-w-full">
 
       {/* Toolbar — موبایل‌اول: ستون روی xs، ردیف از sm */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+      <div className="flex flex-col gap-3 pe-1 ps-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 sm:ps-4">
 
         <div className="flex min-w-0 w-full flex-col gap-2 sm:flex-1 sm:flex-row sm:items-center sm:gap-3">
           <Input
@@ -403,7 +444,7 @@ export function AdvancedDataGrid<T>({
 
                 <div className="space-y-2 max-h-64 overflow-auto">
                   {table.getAllLeafColumns().map(column => {
-                    if (!column.getCanHide()) return null;
+                    if (!column.getCanHide() || column.id === 'id') return null;
 
                     return (
                       <label key={column.id} className="flex justify-between text-sm cursor-pointer">
@@ -422,13 +463,23 @@ export function AdvancedDataGrid<T>({
 
                 <div className="flex justify-between pt-2 border-t">
                   <Button size="sm" variant="ghost"
-                    onClick={() => table.getAllLeafColumns().forEach(c => c.toggleVisibility(false))}
+                    onClick={() =>
+                      table.getAllLeafColumns().forEach((c) => {
+                        if (c.id === 'id' || !c.getCanHide()) return;
+                        c.toggleVisibility(false);
+                      })
+                    }
                   >
                     مخفی همه
                   </Button>
 
                   <Button size="sm" variant="ghost"
-                    onClick={() => table.getAllLeafColumns().forEach(c => c.toggleVisibility(true))}
+                    onClick={() =>
+                      table.getAllLeafColumns().forEach((c) => {
+                        if (c.id === 'id' || !c.getCanHide()) return;
+                        c.toggleVisibility(true);
+                      })
+                    }
                   >
                     نمایش همه
                   </Button>
@@ -702,20 +753,60 @@ export function AdvancedDataGrid<T>({
 
       {/* Pagination */}
       <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-center sm:text-start">
-          نمایش {(pagination.pageIndex * pagination.pageSize) + 1} تا {Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalItems)} از {totalItems}
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <div className="text-center sm:text-start">
+            نمایش{' '}
+            {totalItems === 0
+              ? 0
+              : pagination.pageIndex * pagination.pageSize + 1}{' '}
+            تا {Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalItems)} از{' '}
+            {totalItems}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="whitespace-nowrap">تعداد در صفحه</span>
+            <Select
+              value={String(pagination.pageSize)}
+              onValueChange={(value) => {
+                const nextSize = Number(value);
+                if (!Number.isFinite(nextSize) || nextSize < 1) return;
+                onPaginationChange((prev) => ({
+                  ...prev,
+                  pageSize: nextSize,
+                  pageIndex: 0,
+                }));
+              }}
+            >
+              <SelectTrigger className="h-8 w-[4.75rem]" aria-label="تعداد ردیف در صفحه">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(pageSizeOptions.includes(pagination.pageSize)
+                  ? pageSizeOptions
+                  : [...pageSizeOptions, pagination.pageSize].sort((a, b) => a - b)
+                ).map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="flex flex-wrap justify-center gap-2 sm:justify-end">
-          <Button size="sm"
-            onClick={() => onPaginationChange(p => ({ ...p, pageIndex: p.pageIndex - 1 }))}
-            disabled={pagination.pageIndex === 0}>
+          <Button
+            size="sm"
+            onClick={() => onPaginationChange((p) => ({ ...p, pageIndex: p.pageIndex - 1 }))}
+            disabled={pagination.pageIndex === 0}
+          >
             قبلی
           </Button>
 
-          <Button size="sm"
-            onClick={() => onPaginationChange(p => ({ ...p, pageIndex: p.pageIndex + 1 }))}
-            disabled={pagination.pageIndex >= table.getPageCount() - 1}>
+          <Button
+            size="sm"
+            onClick={() => onPaginationChange((p) => ({ ...p, pageIndex: p.pageIndex + 1 }))}
+            disabled={pagination.pageIndex >= table.getPageCount() - 1}
+          >
             بعدی
           </Button>
         </div>
