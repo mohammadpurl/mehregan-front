@@ -93,7 +93,7 @@ export const navItems: NavigationItemsType[] = [
         href: "/dashboard/workflow/inbox",
         label: "کارهای من (Inbox)",
         icon: BarChart3,
-        requiredPermissions: ["workflow.inbox.read", "dashboard.read"],
+        requiredPermissions: ["workflow.inbox.read"],
       },
       {
         href: "/dashboard/ad-hoc-tasks",
@@ -112,13 +112,13 @@ export const navItems: NavigationItemsType[] = [
         href: "/dashboard/reports/sla",
         label: "گزارش SLA",
         icon: Timer,
-        requiredPermissions: ["workflow.tracking.read", "dashboard.read"],
+        requiredPermissions: ["workflow.tracking.read"],
       },
       {
         href: "/dashboard/reports/financial",
         label: "گزارش مالی اجرایی",
         icon: DollarSign,
-        requiredPermissions: ["payment.create", "payment.approve", "workflow.tracking.read"],
+        requiredPermissions: ["payment.approve", "workflow.all.read", "admin.manage"],
       },
       {
         href: "/dashboard/reports/warehouse",

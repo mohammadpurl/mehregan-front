@@ -35,6 +35,30 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+/** نرمال‌سازی لیست مجوز از نشست (آرایه / رشته) */
+function normalizePermissionList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((p) => String(p).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw
+      .split(/[,\s]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeRoleList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((r) => String(r).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    return [raw.trim()];
+  }
+  return [];
+}
+
 type Accent = 'blue' | 'violet' | 'teal' | 'amber' | 'rose';
 
 const accentStyles: Record<
@@ -218,30 +242,38 @@ function LoadingSkeleton() {
 
 export function DashboardOverview() {
   const session = useSessionStore((s) => s.session);
-  const userRoles = session?.roles ?? [];
-  const userPermissions = session?.permissions ?? [];
+  const sessionStatus = useSessionStore((s) => s.status);
+  const userRoles = normalizeRoleList(session?.roles);
+  const userPermissions = normalizePermissionList(session?.permissions);
 
   const can = (required: string[]) => canAccessByPermissions(userPermissions, required);
 
-  const canInbox = can(['workflow.inbox.read', 'dashboard.read']);
+  // دسترسی شخصی — فقط مجوز همان قابلیت (نه dashboard.read عمومی)
+  const canInbox = can(['workflow.inbox.read']);
   const canTracking = can(['workflow.tracking.read']);
-  const canSla = can(['workflow.tracking.read', 'dashboard.read']);
-  const canPayment = can(['payment.create', 'payment.approve']);
-  const canPettyCash = can(['payment.create', 'payment.approve']);
+  const canSla = can(['workflow.tracking.read']);
+  const canMyPayments = can(['payment.create']);
+
+  // نمای سازمانی — فقط نقش‌های نظارتی / مالی / ادمین
+  const canFinancialOrg = can(['payment.approve', 'workflow.all.read', 'admin.manage']);
+  const canWarehouseOrg = can(['inventory.read', 'inventory.transfer']);
+  const canWorkflowOrg = can(['workflow.all.read', 'admin.manage']);
   const canInventory = can(['inventory.read']);
   const canInventoryTx = can(['inventory.transfer']);
   const canProcurement = can(['procurement.read']);
   const canWarehousesMaster = can(['masterdata.manage']);
-  const canFinancialSection = canPayment;
-  const canWarehouseSection = can(['inventory.read', 'inventory.transfer', 'procurement.read']);
-  const canWorkflowSection = canTracking || can(['workflow.all.read', 'workflow.read']);
+  const canPettyCashLedger = can(['payment.approve', 'payment.create']);
+  const canPettyCashSettlement = can(['payment.create']);
+
+  const sessionReady = sessionStatus !== 'loading';
 
   const quickLinks = useMemo(() => {
+    if (!sessionReady) return [];
     const accessible = filterNavItemsByAccess(navItems, userRoles, userPermissions);
     return flattenAccessibleNavLinks(accessible).filter(
       (item) => item.href && item.href !== '/dashboard',
     );
-  }, [userRoles, userPermissions]);
+  }, [sessionReady, userRoles, userPermissions]);
 
   const [loading, setLoading] = useState(true);
   const [userDash, setUserDash] = useState<UserDashboard | null>(null);
@@ -250,9 +282,15 @@ export function DashboardOverview() {
   const [warehouse, setWarehouse] = useState<WarehouseDailyReport | null>(null);
 
   useEffect(() => {
+    if (!sessionReady) return;
+
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setMgmt(null);
+      setFinancial(null);
+      setWarehouse(null);
+
       const tasks: Promise<void>[] = [];
 
       tasks.push(
@@ -261,7 +299,7 @@ export function DashboardOverview() {
         }),
       );
 
-      if (canWorkflowSection) {
+      if (canWorkflowOrg) {
         tasks.push(
           getManagementDashboardAction().then((m) => {
             if (!cancelled && m.success && m.data) setMgmt(m.data);
@@ -269,7 +307,7 @@ export function DashboardOverview() {
         );
       }
 
-      if (canFinancialSection) {
+      if (canFinancialOrg) {
         tasks.push(
           getExecutiveFinancialReportAction().then((f) => {
             if (!cancelled && f.success && f.data) setFinancial(f.data);
@@ -277,7 +315,7 @@ export function DashboardOverview() {
         );
       }
 
-      if (canWarehouseSection) {
+      if (canWarehouseOrg) {
         tasks.push(
           getWarehouseDailyReportAction().then((w) => {
             if (!cancelled && w.success && w.data) setWarehouse(w.data);
@@ -291,11 +329,10 @@ export function DashboardOverview() {
     return () => {
       cancelled = true;
     };
-    // فقط بر اساس دسترسی‌های نشست؛ توابع can* از permissions مشتق می‌شوند
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userPermissions.join('|'), userRoles.join('|')]);
+  }, [sessionReady, userPermissions.join('|'), userRoles.join('|')]);
 
-  if (loading) {
+  if (!sessionReady || loading) {
     return <LoadingSkeleton />;
   }
 
@@ -343,7 +380,7 @@ export function DashboardOverview() {
       accent: slaOverdue > 0 ? 'rose' : 'teal',
     });
   }
-  if (canPayment) {
+  if (canMyPayments) {
     myWorkCards.push({
       key: 'my-payments',
       title: 'درخواست پرداخت من',
@@ -370,15 +407,17 @@ export function DashboardOverview() {
       valueClassName: 'text-primary',
     });
   }
-  if (canTracking || canWorkflowSection) {
+  if (canTracking || canWorkflowOrg) {
     summaryRows.push({
       key: 'wf',
-      href: '/dashboard/workflow/tracking?scope=all',
+      href: canWorkflowOrg
+        ? '/dashboard/workflow/tracking?scope=all'
+        : '/dashboard/workflow/tracking?scope=mine',
       label: 'گردش‌کار در جریان',
       value: wfPending,
     });
   }
-  if (financial && canPayment) {
+  if (financial && canFinancialOrg) {
     summaryRows.push({
       key: 'pay',
       href: '/dashboard/payment-request?scope=all',
@@ -386,7 +425,7 @@ export function DashboardOverview() {
       value: financial.payment_requests.pending_count,
     });
   }
-  if (warehouse && canInventory) {
+  if (warehouse && canWarehouseOrg) {
     summaryRows.push({
       key: 'stock',
       href: '/dashboard/inventory/stock',
@@ -453,39 +492,37 @@ export function DashboardOverview() {
               </SectionBlock>
             ) : null}
 
-            {financial && canFinancialSection ? (
+            {financial && canFinancialOrg ? (
               <SectionBlock title="وضعیت مالی سازمان" icon={Wallet} accent="violet">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {canPayment ? (
+                  <SoftStatCard
+                    title="پرداخت — در انتظار"
+                    value={financial.payment_requests.pending_count}
+                    subtitle={`جمع: ${formatAmount(financial.payment_requests.total_amount)}`}
+                    href="/dashboard/payment-request?scope=all"
+                    icon={Wallet}
+                    accent="violet"
+                  />
+                  {canPettyCashLedger ? (
                     <SoftStatCard
-                      title="پرداخت — در انتظار"
-                      value={financial.payment_requests.pending_count}
-                      subtitle={`جمع: ${formatAmount(financial.payment_requests.total_amount)}`}
-                      href="/dashboard/payment-request?scope=all"
+                      title="تنخواه — در انتظار تأیید"
+                      value={financial.petty_cash.pending_count}
+                      subtitle={`${financial.petty_cash.total} مورد ثبت‌شده`}
+                      href="/dashboard/petty-cash/ledger"
                       icon={Wallet}
-                      accent="violet"
+                      accent="amber"
                     />
                   ) : null}
-                  {canPettyCash ? (
-                    <>
-                      <SoftStatCard
-                        title="تنخواه — در انتظار تأیید"
-                        value={financial.petty_cash.pending_count}
-                        subtitle={`${financial.petty_cash.total} مورد ثبت‌شده`}
-                        href="/dashboard/petty-cash/ledger"
-                        icon={Wallet}
-                        accent="amber"
-                      />
-                      <SoftStatCard
-                        title="تنخواه — منتظر تسویه"
-                        value={financial.petty_cash.awaiting_settlement_count}
-                        href="/dashboard/petty-cash/settlement"
-                        icon={Wallet}
-                        accent="teal"
-                      />
-                    </>
+                  {canPettyCashSettlement ? (
+                    <SoftStatCard
+                      title="تنخواه — منتظر تسویه"
+                      value={financial.petty_cash.awaiting_settlement_count}
+                      href="/dashboard/petty-cash/settlement"
+                      icon={Wallet}
+                      accent="teal"
+                    />
                   ) : null}
-                  {canTracking ? (
+                  {canTracking || canWorkflowOrg ? (
                     <SoftStatCard
                       title="گردش مالی معلق"
                       value={financial.workflow.financial_pending_instances}
@@ -499,7 +536,7 @@ export function DashboardOverview() {
               </SectionBlock>
             ) : null}
 
-            {warehouse && canWarehouseSection ? (
+            {warehouse && canWarehouseOrg ? (
               <SectionBlock title={`انبار — امروز (${warehouse.date})`} icon={Warehouse} accent="amber">
                 <div className="grid gap-4 sm:grid-cols-2">
                   {canInventoryTx ? (
@@ -579,7 +616,7 @@ export function DashboardOverview() {
               </SectionBlock>
             ) : null}
 
-            {mgmt && canWorkflowSection ? (
+            {mgmt && canWorkflowOrg ? (
               <SectionBlock title="گردش‌کار" icon={Workflow} accent="violet">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <SoftStatCard

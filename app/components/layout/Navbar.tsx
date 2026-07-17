@@ -240,8 +240,16 @@ const NavItem = ({
 
 const Navbar = ({ pathname, sidebarOpen }: NavbarProps) => {
   const session = useSessionStore((state) => state.session);
-  const userRoles = session?.roles ?? [];
-  const userPermissions = session?.permissions ?? [];
+  const userRoles = Array.isArray(session?.roles)
+    ? session.roles.map((r) => String(r).trim()).filter(Boolean)
+    : typeof session?.roles === 'string' && session.roles
+      ? [session.roles]
+      : [];
+  const userPermissions = Array.isArray(session?.permissions)
+    ? session.permissions.map((p) => String(p).trim()).filter(Boolean)
+    : typeof session?.permissions === 'string' && session.permissions
+      ? session.permissions.split(/[,\s]+/).map((p) => p.trim()).filter(Boolean)
+      : [];
   const accessibleNavItems = filterNavItemsByAccess(navItems, userRoles, userPermissions);
 
   return (
