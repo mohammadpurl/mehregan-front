@@ -288,7 +288,11 @@ export default function WorkflowInboxPage() {
     approvalHistory?.sections[approvalHistory.sections.length - 1];
   const pendingPlanStep = currentSection?.steps.find((s) => s.status === 'pending');
   const pendingStepId = pendingPlanStep?.id;
-  const canReturnRejectToPrevious = (pendingPlanStep?.order ?? 0) > 1;
+  const pendingOrder = pendingPlanStep?.order ?? 0;
+  const canReturnRejectToPrevious = Boolean(
+    pendingOrder > 0 &&
+      currentSection?.steps.some((s) => typeof s.order === 'number' && s.order < pendingOrder),
+  );
 
   const uploadPendingStepAttachments = async (instanceId: number) => {
     if (!pendingStepId || stepAttachmentFiles.length === 0) return;

@@ -429,13 +429,12 @@ export function normalizePaymentRequestFromApi(raw: unknown): PaymentRequestResp
 
   let receiver: PaymentAccount | null = null;
 
-  // دستور پرداخت: مقصد = نام/اشتراک + شماره حساب (دستی یا طرف‌حساب).
-  // هرگز از receiver_account قدیمی / حساب ثبت‌کننده استفاده نکن.
+  // دستور پرداخت: مقصد = نام + شماره حساب (دستی، طرف‌حساب، یا اسنپ‌شات receiver_account).
+  // حساب ثبت‌کننده را جایگزین مقصد نکن؛ فقط اسنپ‌شات مقصد دستور پرداخت را بخوان.
   if (type === PaymentRequestType.PAYMENT_ORDER) {
     if (freeDestNumber) {
       const holder = freeReceiverName || counterparty?.name?.trim() || '—';
       receiver = { name: holder, accountNumber: freeDestNumber };
-      // اگر جزئیات ساختاریافته با همان مقصد هست نگه دار؛ وگرنه از ورود دستی بساز
       const detailMatchesFree =
         Boolean(detailPayout) &&
         detailPayout.replace(/\s/g, '').toLowerCase() ===
@@ -456,7 +455,23 @@ export function normalizePaymentRequestFromApi(raw: unknown): PaymentRequestResp
     } else if (detailPayout && receiverAccountDetail) {
       receiver = accountDetailToPaymentAccount(receiverAccountDetail);
     } else {
-      receiver = { name: '—', accountNumber: '—' };
+      const snapRaw = coerceString(r.receiver_account ?? r.receiverAccount ?? r.receiver);
+      const snap = snapRaw && snapRaw !== 'پرداخت جمعی' ? parseAccountField(snapRaw) : null;
+      if (snap && snap.accountNumber && snap.accountNumber !== '—') {
+        receiver = snap;
+        receiverAccountDetail = {
+          label: snap.name !== '—' ? snap.name : counterparty?.name?.trim() || null,
+          bankName: null,
+          accountNumber:
+            snap.accountNumber.toUpperCase().startsWith('IR') ? null : snap.accountNumber,
+          shebaNumber: snap.accountNumber.toUpperCase().startsWith('IR')
+            ? snap.accountNumber
+            : null,
+          cardNumber: null,
+        };
+      } else {
+        receiver = { name: '—', accountNumber: '—' };
+      }
     }
   } else {
     receiver =
