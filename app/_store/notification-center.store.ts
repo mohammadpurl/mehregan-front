@@ -95,13 +95,16 @@ export const useNotificationCenterStore = create<State>()(
         const wasUnread = target && !target.is_read;
         const next = state.items.map((i) => {
           if (i.id === id) return { ...i, is_read: true };
-          // آیتم‌های merge شده‌ی همان workflow را هم محلی بخوان
+          // آیتم‌های merge شده‌ی همان رویداد را هم محلی بخوان
           if (
             target &&
-            target.entity === 'workflow' &&
             target.entity_id != null &&
-            i.entity === 'workflow' &&
-            i.entity_id === target.entity_id
+            i.entity_id != null &&
+            String(i.entity_id) === String(target.entity_id) &&
+            (
+              (target.entity === 'workflow' && i.entity === 'workflow') ||
+              (target.entity === 'ad_hoc_task' && i.entity === 'ad_hoc_task')
+            )
           ) {
             return { ...i, is_read: true };
           }

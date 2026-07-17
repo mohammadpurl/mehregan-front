@@ -53,12 +53,22 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
               type: 'info',
               message: `${title}\n${body}`,
             });
-          } else if (data.type === 'workflow.rejected') {
+          } else if (
+            data.type === 'workflow.rejected' ||
+            data.type === 'workflow.step_approved' ||
+            data.type === 'workflow.approved'
+          ) {
             void refreshBadgeCounts();
             void fetchLatest(6, true);
+            const isReject = data.type === 'workflow.rejected';
             useNotificationStore.getState().showNotification({
-              type: 'error',
-              message: `${data.title || 'درخواست رد شد'}\n${data.message || 'درخواست شما توسط تأییدکننده رد شد.'}`,
+              type: isReject ? 'error' : 'success',
+              message: `${data.title || (isReject ? 'درخواست رد شد' : 'تأیید مرحله')}\n${
+                data.message ||
+                (isReject
+                  ? 'درخواست شما توسط تأییدکننده رد شد.'
+                  : 'یک مرحله از درخواست شما تأیید شد.')
+              }`,
             });
           } else if (data.type === 'sla.escalated') {
             void refreshBadgeCounts();

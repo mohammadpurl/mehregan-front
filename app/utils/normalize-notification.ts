@@ -12,8 +12,19 @@ function coerceRefId(value: unknown): string | number | null {
 function mapRefTypeToEntity(refType: unknown): NotificationCenterItem['entity'] {
   const rt = String(refType ?? '').toLowerCase();
   if (rt === 'workflow') return 'workflow';
-  if (rt === 'payment_request' || rt === 'payment-request') return 'payment-request';
+  if (rt === 'ad_hoc_task' || rt === 'ad-hoc-task') return 'ad_hoc_task';
+  if (rt === 'payment_request' || rt === 'payment-request' || rt === 'payment_order') {
+    return 'payment-request';
+  }
   if (rt === 'product_request' || rt === 'product-request') return 'product-request';
+  if (rt === 'petty_cash' || rt === 'petty-cash' || rt === 'petty_cash_settlement') {
+    return 'petty_cash';
+  }
+  if (rt === 'mission_request' || rt === 'mission_report') return 'mission_request';
+  if (rt === 'financial_document') return 'financial_document';
+  if (rt === 'purchase_request' || rt === 'request' || rt === 'procurement_proforma') {
+    return 'request';
+  }
   return 'other';
 }
 
@@ -25,6 +36,9 @@ export function normalizeNotificationItem(raw: RawNotification): NotificationCen
   const eventType = String(raw.type ?? raw.event_type ?? raw.eventType ?? '').trim() || null;
   let level = (raw.level as NotificationCenterItem['level']) ?? 'info';
   if (eventType === 'workflow.rejected') level = 'error';
+  if (eventType === 'workflow.step_approved' || eventType === 'workflow.approved') {
+    level = 'success';
+  }
   if (eventType === 'sla.escalated') level = 'warning';
 
   const requestCreatedAt = raw.request_created_at ?? raw.requestCreatedAt;

@@ -50,8 +50,8 @@ export function buildNotificationHref(item: NotificationCenterItem): string | nu
         : '/dashboard/mission-requests';
     case 'ad_hoc_task':
       return id
-        ? `/dashboard/workflow/inbox?adHocTaskId=${encodeURIComponent(id)}`
-        : '/dashboard/workflow/inbox';
+        ? `/dashboard/ad-hoc-tasks/${encodeURIComponent(id)}`
+        : '/dashboard/ad-hoc-tasks';
     default:
       return '/dashboard/notifications';
   }
