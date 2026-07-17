@@ -4,12 +4,56 @@ import type {
   WorkflowStepConfig,
 } from '@/app/_types/workflow-definition.types';
 import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.types';
+import { roleLabel, type Role } from '@/app/_types/role.types';
 
 const STRATEGIES: AssigneeStrategy[] = ['role_pool', 'fixed_user', 'submitter_manager', 'department_head'];
 
 function coerceStrategy(v: unknown): AssigneeStrategy {
   const s = String(v ?? 'role_pool').toLowerCase();
   return STRATEGIES.includes(s as AssigneeStrategy) ? (s as AssigneeStrategy) : 'role_pool';
+}
+
+/**
+ * برچسب‌های فارسی/alias تکراری را به role.name پایدار نگاشت می‌کند.
+ * بدون این کار، بعد از عوض کردن نقش در UI هنوز alias فارسی نقش قبلی می‌ماند
+ * و در بک‌اند دوباره به همان نقش قبلی resolve می‌شود.
+ */
+export function canonicalizeAliasesAgainstRoles(
+  aliases: string[],
+  roles: Role[],
+): string[] {
+  if (!roles.length) return aliases.map(String).map((a) => a.trim()).filter(Boolean);
+  const byKey = new Map<string, string>();
+  for (const role of roles) {
+    const name = role.name?.trim();
+    if (!name) continue;
+    byKey.set(name.toLowerCase(), name);
+    const label = roleLabel(role).trim();
+    if (label) byKey.set(label.toLowerCase(), name);
+  }
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of aliases) {
+    const key = String(raw).trim().toLowerCase();
+    if (!key) continue;
+    const canonical = byKey.get(key);
+    if (!canonical || seen.has(canonical)) continue;
+    seen.add(canonical);
+    out.push(canonical);
+  }
+  return out;
+}
+
+export function scrubStepsRoleAliases(
+  steps: WorkflowStepConfig[],
+  roles: Role[],
+): WorkflowStepConfig[] {
+  if (!roles.length) return steps;
+  return steps.map((s, i) => ({
+    ...s,
+    order: i + 1,
+    role_aliases: canonicalizeAliasesAgainstRoles(s.role_aliases, roles),
+  }));
 }
 
 function normalizeStep(raw: unknown, index: number): WorkflowStepConfig | null {

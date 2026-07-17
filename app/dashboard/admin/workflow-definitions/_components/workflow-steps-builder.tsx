@@ -35,7 +35,7 @@ import type {
   WorkflowStepConfig,
 } from '@/app/_types/workflow-definition.types';
 import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.types';
-import { createEmptyStep } from '../_utils/workflow-definition-mapper';
+import { createEmptyStep, canonicalizeAliasesAgainstRoles, scrubStepsRoleAliases } from '../_utils/workflow-definition-mapper';
 import { cn } from '@/lib/utils';
 
 const STEP_ACTION_OPTIONS: { value: string; label: string; description: string }[] = [
@@ -119,11 +119,18 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
         getUsersAction({ page: 1, pageSize: 100 }),
         getProfileAction(),
       ]);
-      if (rolesRes.success && rolesRes.data?.items) setRoles(rolesRes.data.items);
+      if (rolesRes.success && rolesRes.data?.items) {
+        const loaded = rolesRes.data.items;
+        setRoles(loaded);
+        // حذف aliasهای فارسی/تکراری تا فقط role.name در فرم بماند
+        onChange(scrubStepsRoleAliases(steps, loaded));
+      }
       if (usersRes.success && usersRes.data?.items) setUsers(usersRes.data.items);
       if (profileRes.success && profileRes.data) setCurrentProfile(profileRes.data);
       setProfileLoading(false);
     })();
+    // فقط یک‌بار هنگام باز شدن فرم
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateStep = useCallback(
@@ -152,10 +159,11 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
 
   const toggleRoleAlias = (index: number, roleName: string) => {
     const step = steps[index];
-    const has = step.role_aliases.includes(roleName);
+    const current = canonicalizeAliasesAgainstRoles(step.role_aliases, roles);
+    const has = current.includes(roleName);
     const role_aliases = has
-      ? step.role_aliases.filter((a) => a !== roleName)
-      : [...step.role_aliases, roleName];
+      ? current.filter((a) => a !== roleName)
+      : [...current, roleName];
     updateStep(index, { role_aliases });
   };
 
@@ -187,7 +195,7 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
     const submitterId = rawId;
     setPreviewError(null);
     startTransition(async () => {
-      const res = await getWorkflowAssigneesPreviewAction(refType, submitterId);
+      const res = await getWorkflowAssigneesPreviewAction(refType, submitterId, steps);
       if (res.success && res.data) {
         setPreview(res.data);
       } else {
@@ -337,7 +345,10 @@ export function WorkflowStepsBuilder({ refType, steps, onChange, disabled }: Pro
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {roles.map((role) => {
-                        const selected = step.role_aliases.includes(role.name);
+                        const selected = canonicalizeAliasesAgainstRoles(
+                          step.role_aliases,
+                          roles,
+                        ).includes(role.name);
                         return (
                           <button
                             key={role.id}

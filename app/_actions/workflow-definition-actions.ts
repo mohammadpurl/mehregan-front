@@ -1,6 +1,7 @@
 'use server';
 
 import {
+  createDataWithAuth,
   deleteDataWithAuth,
   readDataWithAuth,
   updateDataWithAuth,
@@ -71,7 +72,6 @@ export async function upsertWorkflowDefinitionAction(model: WorkflowDefinitionUp
       code: model.code,
       steps: stepsToUpsertPayload(model.steps),
     };
-    console.log(body);
     const raw = await updateDataWithAuth<typeof body, unknown>(
       `/workflow-definitions/${model.ref_type}`,
       body,
@@ -124,8 +124,24 @@ function normalizeAssigneePreviewRow(raw: unknown): WorkflowAssigneePreview | nu
 export async function getWorkflowAssigneesPreviewAction(
   refType: WorkflowBusinessRefType,
   submitterId: number,
+  draftSteps?: WorkflowDefinitionUpsert['steps'],
 ) {
   try {
+    // پیش‌نویس فرم ادمین را بفرست تا پیش‌نمایش قبل از ذخیره هم درست باشد
+    if (draftSteps && draftSteps.length > 0) {
+      const data = await createDataWithAuth<
+        { submitter_id: number; steps: ReturnType<typeof stepsToUpsertPayload> },
+        unknown[]
+      >(`/workflow-definitions/${refType}/assignees-preview`, {
+        submitter_id: submitterId,
+        steps: stepsToUpsertPayload(draftSteps),
+      });
+      const items = (Array.isArray(data) ? data : [])
+        .map((row) => normalizeAssigneePreviewRow(row))
+        .filter((x): x is WorkflowAssigneePreview => x != null);
+      return { success: true as const, data: items };
+    }
+
     const data = await readDataWithAuth<unknown[]>(
       `/workflow-definitions/${refType}/assignees-preview?submitterId=${submitterId}`,
     );
