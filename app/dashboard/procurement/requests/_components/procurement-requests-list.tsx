@@ -145,21 +145,14 @@ export function ProcurementRequestsList() {
     setPageIndex(0);
   };
 
-  const showRequester = listScope !== 'mine';
-
   const columns = useMemo<ColumnDef<PurchaseRequest>[]>(
     () => [
       { accessorKey: 'id', header: 'شناسه' },
-      ...(showRequester
-        ? [
-            {
-              accessorKey: 'requesterName',
-              header: 'درخواست‌کننده',
-              cell: ({ row }: { row: { original: PurchaseRequest } }) =>
-                row.original.requesterName ?? '—',
-            } as ColumnDef<PurchaseRequest>,
-          ]
-        : []),
+      {
+        accessorKey: 'requesterName',
+        header: 'درخواست‌کننده',
+        cell: ({ row }) => row.original.requesterName ?? '—',
+      },
       {
         accessorKey: 'status',
         header: 'وضعیت',
@@ -180,8 +173,11 @@ export function ProcurementRequestsList() {
       },
       {
         accessorKey: 'createdAt',
-        header: 'تاریخ',
-        cell: ({ row }) => (row.original.createdAt ? formatJalaliDate(row.original.createdAt) : '—'),
+        header: 'تاریخ ثبت',
+        cell: ({ row }) =>
+          row.original.createdAt
+            ? formatJalaliDate(row.original.createdAt, { withTime: true })
+            : '—',
       },
       {
         id: 'actions',
@@ -215,7 +211,7 @@ export function ProcurementRequestsList() {
         },
       },
     ],
-    [deletePending, handleDelete, showRequester],
+    [deletePending, handleDelete],
   );
 
   return (

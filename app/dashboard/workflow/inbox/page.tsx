@@ -371,9 +371,29 @@ export default function WorkflowInboxPage() {
   }
 
   const requesterName =
-    purchaseRecord?.requesterName ??
-    paymentRecord?.requesterName ??
-    (resolvedForm?.summary['درخواست‌کننده'] as string | undefined) ??
+    (purchaseRecord?.requesterName && purchaseRecord.requesterName !== '—'
+      ? purchaseRecord.requesterName
+      : null) ??
+    (paymentRecord?.requesterName && paymentRecord.requesterName !== '—'
+      ? paymentRecord.requesterName
+      : null) ??
+    (pettyCashRecord?.requesterName && pettyCashRecord.requesterName !== '—'
+      ? pettyCashRecord.requesterName
+      : null) ??
+    (missionRecord?.requesterName && missionRecord.requesterName !== '—'
+      ? missionRecord.requesterName
+      : null) ??
+    (financialDocumentRecord?.requesterName && financialDocumentRecord.requesterName !== '—'
+      ? financialDocumentRecord.requesterName
+      : null) ??
+    (typeof resolvedForm?.summary['درخواست‌کننده'] === 'string' &&
+    resolvedForm.summary['درخواست‌کننده'] !== '—'
+      ? resolvedForm.summary['درخواست‌کننده']
+      : null) ??
+    (typeof resolvedForm?.summary['ثبت‌کننده'] === 'string' &&
+    resolvedForm.summary['ثبت‌کننده'] !== '—'
+      ? resolvedForm.summary['ثبت‌کننده']
+      : null) ??
     null;
 
   const recordCreatedAt =

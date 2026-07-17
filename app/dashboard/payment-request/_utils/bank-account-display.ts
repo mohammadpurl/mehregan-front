@@ -25,11 +25,23 @@ export function formatBankAccountLabel(account: BankAccountDetail & { id?: numbe
   return account.id != null ? `حساب #${account.id}` : 'حساب';
 }
 
-export function bankAccountDetailLines(account: BankAccountDetail): string[] {
+export function bankAccountDetailLines(
+  account: BankAccountDetail,
+  options?: { includeLabel?: boolean },
+): string[] {
   const lines: string[] = [];
+  // در حساب واریز فقط شناسه‌های بانکی؛ label (نام/اشتراک) جدا نمایش داده می‌شود
+  if (options?.includeLabel && account.label?.trim()) {
+    lines.push(account.label.trim());
+  }
   if (account.bankName?.trim()) lines.push(`بانک: ${account.bankName.trim()}`);
   if (account.accountNumber?.trim()) lines.push(`حساب: ${account.accountNumber.trim()}`);
   if (account.shebaNumber?.trim()) lines.push(`شبا: ${account.shebaNumber.trim()}`);
   if (account.cardNumber?.trim()) lines.push(`کارت: ${account.cardNumber.trim()}`);
   return lines;
+}
+
+/** فقط شماره مقصد واریز (بدون نام/اشتراک) */
+export function bankAccountDepositLines(account: BankAccountDetail): string[] {
+  return bankAccountDetailLines(account, { includeLabel: false });
 }

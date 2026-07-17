@@ -8,9 +8,11 @@ import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.type
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { formatAmount } from '@/app/utils/number-format';
 import {
+  formatDepositAccountLines,
   formatPaymentAccountLines,
   formatRequesterSummary,
 } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
+import { PaymentRequestType } from '@/app/dashboard/payment-request/_types/payment-request.types';
 
 export type ResolvedWorkflowForm = {
   refType: WorkflowBusinessRefType;
@@ -48,6 +50,17 @@ export function buildPaymentRequestResolved(
   refId: number,
   data: PaymentRequestResponse,
 ): ResolvedWorkflowForm {
+  const isOrder = data.type === PaymentRequestType.PAYMENT_ORDER || refType === 'payment_order';
+  const depositLines = isOrder
+    ? formatDepositAccountLines(data.receiver, data.receiverAccountDetail)
+    : formatPaymentAccountLines(data.receiver, data.receiverAccountDetail);
+  const partyLabel =
+    data.counterparty?.name?.trim() ||
+    (isOrder && data.receiver?.name && data.receiver.name !== data.receiver.accountNumber
+      ? data.receiver.name.trim()
+      : '') ||
+    '';
+
   const orderKind = data.paymentOrderKind;
   const summary: Record<string, string> = {
     نوع: paymentTypeLabel(data.type),
@@ -61,7 +74,7 @@ export function buildPaymentRequestResolved(
     دلیل: data.reason || '—',
     وضعیت: PAYMENT_STATUS_LABEL[data.status] ?? data.status,
     'تاریخ پرداخت': formatJalaliDate(data.paymentDate),
-    'حساب واریز': formatPaymentAccountLines(data.receiver, data.receiverAccountDetail).join(' — '),
+    'حساب واریز': depositLines.join(' — '),
   };
   if (data.requesterInfo?.departmentName) {
     summary['واحد سازمانی'] = data.requesterInfo.departmentName;
@@ -69,8 +82,8 @@ export function buildPaymentRequestResolved(
   if (data.requesterInfo?.username) {
     summary['نام کاربری'] = data.requesterInfo.username;
   }
-  if (data.counterparty?.name) {
-    summary['طرف‌حساب'] = data.counterparty.name;
+  if (partyLabel) {
+    summary['طرف‌حساب'] = partyLabel;
   } else if (orderKind === 'collective') {
     summary['طرف‌حساب'] = '— (پرداخت جمعی)';
   }
@@ -80,12 +93,14 @@ export function buildPaymentRequestResolved(
   if (data.sepidarConfirmedAt) {
     summary['تأیید ثبت سپیدار (سرپرست)'] = formatJalaliDate(data.sepidarConfirmedAt);
   }
-  if (data.receiverAccountDetail) {
+  if (data.receiverAccountDetail && !isOrder) {
     const r = data.receiverAccountDetail;
     const recv =
       [r.label, r.bankName, r.accountNumber || r.shebaNumber || r.cardNumber].filter(Boolean).join(' — ') ||
       `${data.receiver.name} — ${data.receiver.accountNumber}`;
     summary['حساب واریز'] = recv;
+  } else if (isOrder) {
+    summary['حساب واریز'] = depositLines.join(' — ') || '—';
   }
   if (data.payerAccountDetail) {
     const p = data.payerAccountDetail;

@@ -14,7 +14,7 @@ import { CompanyBankAccountSelect } from '@/app/dashboard/payment-request/_compo
 import { PaymentRequestAccountDetailsPanel } from '@/app/dashboard/payment-request/_components/payment-request-account-details-panel';
 import { PaymentRequestRequesterInfoCard } from '@/app/dashboard/payment-request/_components/payment-request-requester-info-card';
 import { WorkflowFinancialApproverFields } from '@/app/dashboard/workflow/inbox/_components/workflow-financial-approver-fields';
-import { formatPaymentAccountLines } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
+import { formatDepositAccountLines, formatPaymentAccountLines } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
 import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
 import { RequiredFieldsHint } from '@/app/components/ui/required-mark';
 import { SepidarRegistrationStatus } from '@/app/dashboard/workflow/_components/sepidar-registration-status';
@@ -200,7 +200,9 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
               loanAdvanceOnly={isLoan || isAdvance}
               receiverBanner={{
                 title: 'حساب واریز',
-                lines: formatPaymentAccountLines(record.receiver, record.receiverAccountDetail),
+                lines: isPaymentOrder
+                  ? formatDepositAccountLines(record.receiver, record.receiverAccountDetail)
+                  : formatPaymentAccountLines(record.receiver, record.receiverAccountDetail),
               }}
               attachmentLinks={[]}
             />

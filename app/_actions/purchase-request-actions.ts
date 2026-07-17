@@ -249,6 +249,8 @@ export async function getPurchaseRequestsAction(params?: {
   const query = new URLSearchParams();
   query.set('page', String(params?.page ?? 1));
   query.set('pageSize', String(params?.pageSize ?? 10));
+  query.set('sortBy', 'created_at');
+  query.set('sortOrder', 'desc');
   if (params?.search) query.set('search', params.search);
   if (params?.filterBy) query.set('filterBy', params.filterBy);
   if (params?.filterValue) query.set('filterValue', params.filterValue);

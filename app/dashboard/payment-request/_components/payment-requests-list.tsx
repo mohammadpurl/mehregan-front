@@ -135,8 +135,6 @@ export function PaymentRequestsList({
     [listScope],
   );
 
-  const showRequester = listScope !== 'mine';
-
   const columns = useMemo(
     () =>
       getPaymentRequestsTableColumns({
@@ -144,9 +142,8 @@ export function PaymentRequestsList({
         onDelete: handleDelete,
         deletePending,
         canEdit: canEditRow,
-        showRequester,
       }),
-    [canEditRow, deletePending, handleDelete, showRequester],
+    [canEditRow, deletePending, handleDelete],
   );
 
   const applyFilters = () => {

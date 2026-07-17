@@ -1,6 +1,6 @@
 import type { BankAccountDetail } from '../_types/bank-account.types';
 import type { PaymentAccount, PaymentRequestRequesterInfo } from '../_types/payment-request.types';
-import { bankAccountDetailLines } from './bank-account-display';
+import { bankAccountDepositLines, bankAccountDetailLines } from './bank-account-display';
 import {
   PAYMENT_PAYER_PENDING_ACCOUNT,
   PAYMENT_PAYER_PENDING_NAME,
@@ -20,12 +20,16 @@ export function isPlaceholderPaymentAccount(account: PaymentAccount): boolean {
   );
 }
 
+/** خطوط نمایش حساب مبدأ/مقصد — برای مبدأ می‌توان label داشت؛ برای مقصد واریز فقط شماره */
 export function formatPaymentAccountLines(
   account: PaymentAccount,
   detail?: BankAccountDetail | null,
+  options?: { depositOnly?: boolean },
 ): string[] {
   if (detail) {
-    const lines = bankAccountDetailLines(detail);
+    const lines = options?.depositOnly
+      ? bankAccountDepositLines(detail)
+      : bankAccountDetailLines(detail, { includeLabel: true });
     if (lines.length) return lines;
   }
   if (isPlaceholderPaymentAccount(account)) {
@@ -34,9 +38,21 @@ export function formatPaymentAccountLines(
   const lines: string[] = [];
   const name = account.name.trim();
   const num = account.accountNumber.trim();
-  if (name && name !== num && name !== '—') lines.push(name);
-  if (num && num !== '—') lines.push(`شماره: ${num}`);
+  if (!options?.depositOnly && name && name !== num && name !== '—') {
+    lines.push(name);
+  }
+  if (num && num !== '—') {
+    lines.push(options?.depositOnly ? num : `شماره: ${num}`);
+  }
   return lines.length ? lines : ['—'];
+}
+
+/** فقط شماره حساب مقصد واریز */
+export function formatDepositAccountLines(
+  account: PaymentAccount,
+  detail?: BankAccountDetail | null,
+): string[] {
+  return formatPaymentAccountLines(account, detail, { depositOnly: true });
 }
 
 export function formatRequesterSummary(info: PaymentRequestRequesterInfo | null | undefined): string {

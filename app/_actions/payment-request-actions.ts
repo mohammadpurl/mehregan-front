@@ -263,6 +263,8 @@ export async function getPaymentRequestsQueryAction(params?: {
   id?: string;
   status?: string;
   type?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
   /** mine (default) | team | all | approver | participated */
   scope?: 'mine' | 'team' | 'all' | 'approver' | 'participated';
 }) {
@@ -271,6 +273,8 @@ export async function getPaymentRequestsQueryAction(params?: {
   const query = new URLSearchParams();
   query.set('page', String(page));
   query.set('pageSize', String(pageSize));
+  query.set('sortBy', params?.sortBy ?? 'created_at');
+  query.set('sortOrder', params?.sortOrder ?? 'desc');
   if (params?.search) query.set('search', params.search);
   if (params?.id) query.set('id', params.id);
   if (params?.status) query.set('status', params.status);

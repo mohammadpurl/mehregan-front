@@ -4,7 +4,10 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Edit, Trash2 } from 'lucide-react';
-import type { PaymentRequestResponse } from '../_types/payment-request.types';
+import {
+  PaymentRequestType,
+  type PaymentRequestResponse,
+} from '../_types/payment-request.types';
 import { paymentTypeLabel } from '../_utils/payment-type-labels';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { formatAmount } from '@/app/utils/number-format';
@@ -23,12 +26,41 @@ const statusClass: Record<string, string> = {
   paid: 'bg-blue-100 text-blue-800',
 };
 
+function partyCell(row: PaymentRequestResponse): string {
+  if (
+    row.type === PaymentRequestType.LOAN ||
+    row.type === PaymentRequestType.ADVANCE
+  ) {
+    // وام/مساعده: طرف حساب = خود درخواست‌کننده
+    return row.requesterName && row.requesterName !== '—'
+      ? row.requesterName
+      : 'خود درخواست‌کننده';
+  }
+  if (row.type === PaymentRequestType.PAYMENT_ORDER) {
+    const name =
+      row.counterparty?.name?.trim() ||
+      (row.receiver?.name && row.receiver.name !== row.receiver.accountNumber
+        ? row.receiver.name.trim()
+        : '') ||
+      '';
+    const account =
+      row.receiver?.accountNumber?.trim() ||
+      row.receiverAccountDetail?.accountNumber?.trim() ||
+      row.receiverAccountDetail?.shebaNumber?.trim() ||
+      '';
+    if (name && account) return `${name} — ${account}`;
+    if (name) return name;
+    if (account) return account;
+    return '—';
+  }
+  return row.counterparty?.name ?? '—';
+}
+
 type Handlers = {
   onEdit: (row: PaymentRequestResponse) => void;
   onDelete: (id: string) => void;
   deletePending?: boolean;
   canEdit?: (row: PaymentRequestResponse) => boolean;
-  showRequester?: boolean;
 };
 
 export function getPaymentRequestsTableColumns({
@@ -36,25 +68,21 @@ export function getPaymentRequestsTableColumns({
   onDelete,
   deletePending,
   canEdit,
-  showRequester = false,
 }: Handlers): ColumnDef<PaymentRequestResponse>[] {
-  const cols: ColumnDef<PaymentRequestResponse>[] = [
+  return [
     {
       accessorKey: 'id',
       header: 'شناسه',
       cell: ({ row }) => row.original.id,
     },
-  ];
-
-  if (showRequester) {
-    cols.push({
+    {
       id: 'requester',
       header: 'درخواست‌کننده',
-      cell: ({ row }) => row.original.requesterName ?? '—',
-    });
-  }
-
-  cols.push(
+      cell: ({ row }) =>
+        row.original.requesterName && row.original.requesterName !== '—'
+          ? row.original.requesterName
+          : '—',
+    },
     {
       accessorKey: 'type',
       header: 'نوع',
@@ -62,8 +90,8 @@ export function getPaymentRequestsTableColumns({
     },
     {
       id: 'counterparty',
-      header: 'طرف‌حساب',
-      cell: ({ row }) => row.original.counterparty?.name ?? '—',
+      header: 'طرف‌حساب / مقصد',
+      cell: ({ row }) => partyCell(row.original),
     },
     {
       accessorKey: 'amount',
@@ -71,8 +99,16 @@ export function getPaymentRequestsTableColumns({
       cell: ({ row }) => formatAmount(row.original.amount, { unit: 'ریال' }),
     },
     {
+      id: 'createdAt',
+      header: 'تاریخ ثبت',
+      cell: ({ row }) =>
+        formatJalaliDate(row.original.createdAt ?? row.original.paymentDate, {
+          withTime: Boolean(row.original.createdAt),
+        }),
+    },
+    {
       accessorKey: 'paymentDate',
-      header: 'تاریخ',
+      header: 'تاریخ پرداخت',
       cell: ({ row }) => formatJalaliDate(row.original.paymentDate),
     },
     {
@@ -115,7 +151,5 @@ export function getPaymentRequestsTableColumns({
         );
       },
     },
-  );
-
-  return cols;
+  ];
 }

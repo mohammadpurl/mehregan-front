@@ -124,6 +124,54 @@ function resolveColumnSizingStorageKey(entityName?: string, explicit?: string): 
   return normalized ? `erp-column-sizing:${normalized}` : undefined;
 }
 
+/**
+ * وقتی موس روی جدول است، چرخ موس فقط همان ناحیه را اسکرول می‌کند (بدون نیاز به کلیک).
+ * اگر جدول در آن جهت جا نداشت یا به لبه رسیده بود، اسکرول به صفحه واگذار می‌شود.
+ */
+function attachHoverWheelScroll(el: HTMLElement | null): () => void {
+  if (!el) return () => {};
+
+  const onWheel = (e: WheelEvent) => {
+    const canScrollY = el.scrollHeight > el.clientHeight + 1;
+    const canScrollX = el.scrollWidth > el.clientWidth + 1;
+    if (!canScrollY && !canScrollX) return;
+
+    const deltaY = e.deltaY;
+    const deltaX = e.deltaX !== 0 ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+    let handled = false;
+
+    if (canScrollY && deltaY !== 0 && !e.shiftKey) {
+      const atTop = el.scrollTop <= 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      const goingUp = deltaY < 0;
+      const goingDown = deltaY > 0;
+      if ((goingUp && !atTop) || (goingDown && !atBottom)) {
+        el.scrollTop += deltaY;
+        handled = true;
+      }
+    }
+
+    if (canScrollX && deltaX !== 0) {
+      const atStart = el.scrollLeft <= 0;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+      const goingStart = deltaX < 0;
+      const goingEnd = deltaX > 0;
+      if ((goingStart && !atStart) || (goingEnd && !atEnd)) {
+        el.scrollLeft += deltaX;
+        handled = true;
+      }
+    }
+
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  el.addEventListener('wheel', onWheel, { passive: false });
+  return () => el.removeEventListener('wheel', onWheel);
+}
+
 function getColumnHeaderLabel<T>(column: Column<T, unknown>): string {
   const h = column.columnDef.header;
   if (typeof h === 'string') return h;
@@ -169,6 +217,12 @@ export function AdvancedDataGrid<T>({
   maxBodyHeight = 'min(65vh, 36rem)',
   variant = 'erpClassic',
 }: AdvancedDataGridProps<T>) {
+  const desktopScrollRef = React.useRef<HTMLDivElement>(null);
+  const mobileScrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => attachHoverWheelScroll(desktopScrollRef.current), []);
+  React.useEffect(() => attachHoverWheelScroll(mobileScrollRef.current), []);
+
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState('');
   const [internalColumnFilters, setInternalColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
@@ -566,6 +620,7 @@ export function AdvancedDataGrid<T>({
       {/* دسکتاپ: جدول کامل — اسکرول افقی/عمودی داخل خود جدول */}
       <div className="hidden md:block min-w-0 w-full max-w-full">
         <div
+          ref={desktopScrollRef}
           className={cn(
             tableShellClass,
             'max-w-full overflow-auto overscroll-contain [scrollbar-gutter:stable]',
@@ -695,6 +750,7 @@ export function AdvancedDataGrid<T>({
 
       {/* موبایل: کارت + ردیف بازشونده برای ستون‌های اضافه */}
       <div
+        ref={mobileScrollRef}
         className="md:hidden space-y-3 overflow-y-auto overscroll-contain pe-1"
         style={{ maxHeight: maxBodyHeight }}
       >
