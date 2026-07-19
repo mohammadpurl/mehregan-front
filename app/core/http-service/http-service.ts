@@ -175,6 +175,20 @@ async function readDataWithAuth<T>(url: string): Promise<T> {
     return await readData<T>(url, headers);
 }
 
+/** GET با پاسخ باینری (مثلاً Excel) و احراز هویت نشست */
+async function readBlobWithAuth(url: string): Promise<{ data: ArrayBuffer; contentType: string }> {
+    const headers = await getAuthHeaders();
+    const response: AxiosResponse<ArrayBuffer> = await httpService(url, {
+        method: 'GET',
+        headers,
+        responseType: 'arraybuffer',
+    });
+    const contentType =
+        String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '') ||
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    return { data: response.data, contentType };
+}
+
 /**
  * Create data with automatic authentication from session
  */
@@ -230,6 +244,7 @@ export {
     deleteData,
     createDataWithAuth,
     readDataWithAuth,
+    readBlobWithAuth,
     updateDataWithAuth,
     patchDataWithAuth,
     uploadDataWithAuth,

@@ -45,6 +45,7 @@ export function normalizePettyCashFromApi(row: unknown): PettyCashResponse | nul
 
   return {
     id,
+    title: pick<string>(r, 'title') ?? null,
     amount: Number(pick<number>(r, 'amount') ?? 0),
     reason: String(pick<string>(r, 'reason') ?? ''),
     description: pick<string>(r, 'description') ?? null,
@@ -83,8 +84,14 @@ export function normalizePettyCashFromApi(row: unknown): PettyCashResponse | nul
   };
 }
 
-export function pettyCashCreateToBody(values: { amount: number; reason: string; description?: string }) {
+export function pettyCashCreateToBody(values: {
+  title?: string;
+  amount: number;
+  reason: string;
+  description?: string;
+}) {
   return {
+    title: values.title?.trim() || undefined,
     amount: values.amount,
     reason: values.reason.trim(),
     description: values.description?.trim() || undefined,

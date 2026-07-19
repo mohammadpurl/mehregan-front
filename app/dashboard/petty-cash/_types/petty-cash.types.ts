@@ -22,8 +22,20 @@ export interface PettyCashExpenseLine {
   date?: string | null;
 }
 
+export interface PettyCashRequesterInfo {
+  displayName: string;
+  username?: string;
+  email?: string;
+  phone?: string;
+  departmentName?: string;
+  managerName?: string;
+  shebaNumber?: string;
+  cardNumber?: string;
+}
+
 export interface PettyCashResponse {
   id: number;
+  title?: string | null;
   amount: number;
   reason: string;
   description?: string | null;
@@ -32,6 +44,8 @@ export interface PettyCashResponse {
   workflowInstanceId?: number | null;
   requesterId?: string | null;
   requesterName?: string | null;
+  /** حساب مقصد = حساب خود درخواست‌کننده (از پروفایل / enrich) */
+  requesterInfo?: PettyCashRequesterInfo | null;
   expenseLines?: PettyCashExpenseLine[];
   totalExpenses?: number;
   remainingAmount?: number;
@@ -56,6 +70,7 @@ export interface PettyCashEligibility {
 }
 
 export interface PettyCashCreateInput {
+  title?: string;
   amount: number;
   reason: string;
   description?: string;

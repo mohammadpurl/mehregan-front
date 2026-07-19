@@ -39,6 +39,7 @@ export function paymentOrderCreateSchema(requirePayerCompanyAccount: boolean) {
             .int()
             .min(1, 'حساب مبدأ شرکت را انتخاب کنید')
         : z.number().int().min(0).optional(),
+      title: trimStr.min(2, 'عنوان درخواست الزامی است').max(255),
       paymentDate: trimStr,
       reason: trimStr.min(5, 'شرح درخواست حداقل ۵ کاراکتر').max(2000),
       amount: z.number({ error: 'مبلغ نامعتبر است' }).min(0),

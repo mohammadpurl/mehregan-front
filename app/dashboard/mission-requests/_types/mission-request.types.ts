@@ -9,6 +9,7 @@ export type MissionRequestResponse = {
   id: number;
   requesterId: number;
   requesterName?: string | null;
+  title?: string | null;
   destination: string;
   reason: string;
   vehicle: string;
@@ -22,6 +23,7 @@ export type MissionRequestResponse = {
 };
 
 export type MissionRequestCreateInput = {
+  title: string;
   destination: string;
   reason: string;
   vehicle: string;

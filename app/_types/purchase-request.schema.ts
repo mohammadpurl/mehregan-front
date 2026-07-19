@@ -8,6 +8,7 @@ export const PurchaseLineSchema = z.object({
 });
 
 export const CreatePurchaseRequestSchema = z.object({
+  title: z.string().trim().min(2, 'عنوان درخواست الزامی است').max(255),
   reason: z.string().max(2000).optional().or(z.literal('')),
   lines: z.array(PurchaseLineSchema),
 });

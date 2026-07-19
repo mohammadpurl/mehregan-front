@@ -4,6 +4,8 @@ export interface PurchaseLine {
   itemName: string;
   quantity: number;
   description?: string | null;
+  /** موجودی انبار ثبت‌شده در مرحله fill_stock */
+  stockOnHand?: number | null;
 }
 
 export interface ProcurementPaymentSummary {
@@ -41,6 +43,7 @@ export interface PurchaseRequest {
   status: string;
   requesterId: number;
   requesterName?: string | null;
+  title?: string | null;
   reason?: string | null;
   items: PurchaseLine[];
   workflowInstanceId?: number | null;
@@ -54,7 +57,14 @@ export interface PurchaseRequest {
   invoices?: { id?: number; fileName?: string; fileUrl?: string; downloadUrl?: string }[];
   approvedPaymentMethod?: string | null;
   approvedPaymentComment?: string | null;
+  approvedPaymentLocation?: string | null;
+  approvedCheckNumber?: string | null;
+  approvedCheckDueDate?: string | null;
+  approvedCheckBank?: string | null;
   invoicePaidAt?: string | null;
+  destinationWarehouseId?: number | null;
+  destinationWarehouseName?: string | null;
+  bolAttachments?: { id?: number; fileName?: string; fileUrl?: string; downloadUrl?: string }[];
 }
 
 export interface PurchaseProforma {
@@ -72,6 +82,7 @@ export interface PurchaseProforma {
 }
 
 export interface CreatePurchaseRequestPayload {
+  title?: string;
   reason?: string;
   lines: { itemId?: number; itemName: string; quantity: number; description?: string }[];
 }

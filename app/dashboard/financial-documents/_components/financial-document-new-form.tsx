@@ -86,7 +86,8 @@ export function FinancialDocumentNewForm({
     <Form {...form}>
       <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          ثبت سند توسط واحد مالی — پس از بارگذاری، روال تأیید (مدیر مستقیم تا سرپرست مالی / سپیدار) شروع می‌شود.
+          ثبت سند توسط کارشناس مالی — پس از بارگذاری تصویر، روال سپیدار (کارشناس → سرپرست → مدیر مالی)
+          شروع می‌شود. فقط در این مرحله امکان آپلود تصویر وجود دارد.
         </p>
 
         <FormField
@@ -115,13 +116,7 @@ export function FinancialDocumentNewForm({
           control={form.control}
           name="title"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>عنوان (اختیاری)</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="مثلاً چک دریافتی از …" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <RequestTitleField refType="financial_document" field={field} disabled={isPending} />
           )}
         />
 
@@ -202,7 +197,10 @@ export function FinancialDocumentNewForm({
         <div className="space-y-2">
           <FormLabel>تصویر / پیوست سند *</FormLabel>
           <AttachmentFileInput files={files} onFilesChange={setFiles} />
-          <p className="text-xs text-muted-foreground">برای چک بدون سابقه در سیستم، عکس چک را بارگذاری کنید.</p>
+          <p className="text-xs text-muted-foreground">
+            عکس سند (مثلاً چک) را بارگذاری کنید؛ پیش‌نمایش تصویر همین‌جا نمایش داده می‌شود. مراحل بعدی فقط
+            رویت می‌کنند.
+          </p>
         </div>
       </form>
     </Form>

@@ -109,6 +109,18 @@ export const navItems: NavigationItemsType[] = [
         requiredPermissions: ["workflow.tracking.read"],
       },
       {
+        href: "/dashboard/reports/requests",
+        label: "گزارش درخواست‌ها",
+        icon: FileSpreadsheet,
+        requiredPermissions: ["workflow.tracking.read", "workflow.all.read", "admin.manage"],
+      },
+      {
+        href: "/dashboard/reports/requests",
+        label: "گزارش درخواست‌ها",
+        icon: FileSpreadsheet,
+        requiredPermissions: ["workflow.tracking.read", "workflow.all.read", "admin.manage"],
+      },
+      {
         href: "/dashboard/reports/sla",
         label: "گزارش SLA",
         icon: Timer,

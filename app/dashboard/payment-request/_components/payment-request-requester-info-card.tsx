@@ -3,7 +3,8 @@
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import type { PaymentRequestResponse } from '../_types/payment-request.types';
 import { PaymentRequestType } from '../_types/payment-request.types';
-import { formatDepositAccountLines, formatPaymentAccountLines } from '../_utils/payment-request-display.utils';
+import { formatDepositAccountLines } from '../_utils/payment-request-display.utils';
+import { RequesterDestinationAccountCard } from './requester-destination-account-card';
 
 type Props = {
   record: PaymentRequestResponse;
@@ -17,9 +18,11 @@ export function PaymentRequestRequesterInfoCard({ record }: Props) {
     'نامشخص';
 
   const isPaymentOrder = record.type === PaymentRequestType.PAYMENT_ORDER;
-  const receiverLines = isPaymentOrder
-    ? formatDepositAccountLines(record.receiver, record.receiverAccountDetail)
-    : formatPaymentAccountLines(record.receiver, record.receiverAccountDetail);
+  const isRequesterDestination =
+    record.type === PaymentRequestType.LOAN ||
+    record.type === PaymentRequestType.ADVANCE ||
+    record.type === PaymentRequestType.CASH;
+  const receiverLines = formatDepositAccountLines(record.receiver, record.receiverAccountDetail);
   const partyName =
     record.counterparty?.name?.trim() ||
     (isPaymentOrder &&
@@ -44,14 +47,24 @@ export function PaymentRequestRequesterInfoCard({ record }: Props) {
             <p className="text-muted-foreground">{partyName}</p>
           </div>
         ) : null}
-        <div className="rounded-md border bg-background/80 p-2">
-          <p className="mb-1 font-medium">حساب واریز (مقصد)</p>
-          {receiverLines.map((line) => (
-            <p key={line} className="text-muted-foreground">
-              {line}
-            </p>
-          ))}
-        </div>
+        {isRequesterDestination ? (
+          <RequesterDestinationAccountCard
+            receiver={record.receiver}
+            receiverAccountDetail={record.receiverAccountDetail}
+            requesterInfo={record.requesterInfo}
+            requesterName={record.requesterName}
+            compact
+          />
+        ) : (
+          <div className="rounded-md border bg-background/80 p-2">
+            <p className="mb-1 font-medium">حساب واریز (مقصد)</p>
+            {receiverLines.map((line) => (
+              <p key={line} className="text-muted-foreground">
+                {line}
+              </p>
+            ))}
+          </div>
+        )}
         {record.requesterId ? (
           <p className="text-xs text-muted-foreground">شناسه کاربر: {record.requesterId}</p>
         ) : null}

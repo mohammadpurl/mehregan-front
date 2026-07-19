@@ -12,6 +12,7 @@ import {
   MissionRequestCreateSchema,
   type MissionRequestCreateValues,
 } from '../_types/mission-request.schema';
+import { RequestTitleField } from '@/app/components/forms/request-title-field';
 
 type Props = {
   formId?: string;
@@ -28,7 +29,7 @@ export function MissionRequestNewForm({
 
   const form = useForm<MissionRequestCreateValues>({
     resolver: zodResolver(MissionRequestCreateSchema),
-    defaultValues: { destination: '', reason: '', vehicle: '' },
+    defaultValues: { title: '', destination: '', reason: '', vehicle: '' },
   });
 
   useEffect(() => {
@@ -51,6 +52,13 @@ export function MissionRequestNewForm({
   return (
     <Form {...form}>
       <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <RequestTitleField refType="mission_request" field={field} disabled={isPending} />
+          )}
+        />
         <FormField
           control={form.control}
           name="destination"

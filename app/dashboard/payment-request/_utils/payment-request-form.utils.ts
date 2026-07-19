@@ -46,6 +46,7 @@ export function employeeFormToCreatePayload(
     ok: true,
     data: {
       type: values.type,
+      title: values.title?.trim() || undefined,
       payer: { name: PAYMENT_PAYER_PENDING_NAME, accountNumber: PAYMENT_PAYER_PENDING_ACCOUNT },
       receiver: receiverResult.receiver,
       paymentDate: values.paymentDate,

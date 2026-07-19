@@ -28,12 +28,11 @@ function pickProformaForApproval(proformas: PurchaseProforma[]): PurchaseProform
 }
 
 export function WorkflowPurchaseRequestReview({ record, refType = 'request' }: Props) {
-  const isProformaWorkflow = refType === 'procurement_proforma';
+  void refType;
   const [proformas, setProformas] = useState<PurchaseProforma[]>([]);
-  const [loadingProforma, setLoadingProforma] = useState(isProformaWorkflow);
+  const [loadingProforma, setLoadingProforma] = useState(true);
 
   useEffect(() => {
-    if (!isProformaWorkflow) return;
     let cancelled = false;
     (async () => {
       setLoadingProforma(true);
@@ -46,9 +45,9 @@ export function WorkflowPurchaseRequestReview({ record, refType = 'request' }: P
     return () => {
       cancelled = true;
     };
-  }, [isProformaWorkflow, record.id]);
+  }, [record.id]);
 
-  const activeProforma = isProformaWorkflow ? pickProformaForApproval(proformas) : null;
+  const activeProforma = pickProformaForApproval(proformas);
   const attachmentId = activeProforma?.downloadUrl
     ? extractAttachmentId(activeProforma.downloadUrl)
     : null;
@@ -66,16 +65,35 @@ export function WorkflowPurchaseRequestReview({ record, refType = 'request' }: P
           <strong>توضیح:</strong> {record.reason}
         </p>
       ) : null}
-      <div>
+      <div className="space-y-2">
         <strong>اقلام درخواست خرید:</strong>
-        <ul className="list-disc pr-5 mt-1">
-          {record.items.map((li) => (
-            <li key={li.id ?? li.itemName}>
-              {li.itemName} — {li.quantity} عدد
-              {li.description ? ` (${li.description})` : ''}
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full min-w-[24rem] text-sm">
+            <thead className="bg-muted/40 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-right font-medium">نام کالا</th>
+                <th className="px-3 py-2 text-right font-medium">تعداد</th>
+                <th className="px-3 py-2 text-right font-medium">موجودی انبار</th>
+              </tr>
+            </thead>
+            <tbody>
+              {record.items.map((li) => (
+                <tr key={li.id ?? li.itemName} className="border-t">
+                  <td className="px-3 py-2">
+                    {li.itemName}
+                    {li.description ? (
+                      <span className="block text-xs text-muted-foreground">{li.description}</span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 tabular-nums">{li.quantity}</td>
+                  <td className="px-3 py-2 tabular-nums">
+                    {li.stockOnHand != null ? li.stockOnHand : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {record.attachments && record.attachments.length > 0 ? (
@@ -104,10 +122,24 @@ export function WorkflowPurchaseRequestReview({ record, refType = 'request' }: P
             }))}
           />
           {record.approvedPaymentMethod ? (
-            <p className="text-xs">
-              <strong>روش پرداخت تأییدشده:</strong> {record.approvedPaymentMethod}
-              {record.approvedPaymentComment ? ` — ${record.approvedPaymentComment}` : ''}
-            </p>
+            <div className="space-y-1 text-xs">
+              <p>
+                <strong>روش پرداخت تأییدشده:</strong> {record.approvedPaymentMethod}
+                {record.approvedPaymentComment ? ` — ${record.approvedPaymentComment}` : ''}
+              </p>
+              {record.approvedPaymentLocation ? (
+                <p>
+                  <strong>محل پرداخت:</strong> {record.approvedPaymentLocation}
+                </p>
+              ) : null}
+              {record.approvedCheckNumber ? (
+                <p>
+                  <strong>شماره چک:</strong> {record.approvedCheckNumber}
+                  {record.approvedCheckBank ? ` — ${record.approvedCheckBank}` : ''}
+                  {record.approvedCheckDueDate ? ` — سررسید ${record.approvedCheckDueDate}` : ''}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </section>
       ) : refType === 'purchase_request' &&
@@ -118,19 +150,34 @@ export function WorkflowPurchaseRequestReview({ record, refType = 'request' }: P
         </p>
       ) : null}
 
-      {isProformaWorkflow ? (
+      {(record.bolAttachments?.length ?? 0) > 0 ? (
+        <RequestAttachmentsPanel
+          title="بارنامه"
+          attachments={(record.bolAttachments ?? []).map((a) => ({
+            id: a.id,
+            fileName: a.fileName ?? 'بارنامه.pdf',
+            fileUrl:
+              a.downloadUrl?.trim() ||
+              a.fileUrl?.trim() ||
+              (a.id ? attachmentProxyDownloadPath(a.id) : ''),
+          }))}
+        />
+      ) : null}
+
+      {activeProforma || loadingProforma ? (
         <section className="space-y-3 rounded-lg border border-sky-200/80 bg-sky-50/40 p-4 dark:border-sky-900/40">
-          <h4 className="font-semibold text-primary">پیش‌فاکتور برای تأیید</h4>
+          <h4 className="font-semibold text-primary">پیش‌فاکتور</h4>
           {loadingProforma ? (
             <p className="text-muted-foreground">در حال بارگذاری پیش‌فاکتور…</p>
           ) : activeProforma ? (
             <>
               <div className="grid gap-2 sm:grid-cols-2">
                 <p>
-                  <strong>تأمین‌کننده:</strong> {activeProforma.supplierName ?? `#${activeProforma.supplierId}`}
+                  <strong>تأمین‌کننده:</strong>{' '}
+                  {activeProforma.supplierName ?? `#${activeProforma.supplierId}`}
                 </p>
                 <p>
-                  <strong>مبلغ پیشنهادی:</strong> {formatAmount(activeProforma.amount)} ریال
+                  <strong>مبلغ کل پیش‌فاکتور:</strong> {formatAmount(activeProforma.amount)} ریال
                 </p>
                 <p>
                   <strong>وضعیت:</strong> {activeProforma.status}
@@ -158,26 +205,14 @@ export function WorkflowPurchaseRequestReview({ record, refType = 'request' }: P
                   ]}
                 />
               ) : (
-                <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 text-xs">
+                <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
                   فایل پیوست پیش‌فاکتور در سیستم ثبت نشده است.
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                لطفاً فایل پیش‌فاکتور را مشاهده کنید؛ سپس در صورت تأیید، دکمه «تأیید» را بزنید.
-              </p>
             </>
-          ) : (
-            <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 text-xs">
-              فایل پیش‌فاکتور یافت نشد. از مسئول خرید بخواهید پیش‌فاکتور را در صفحه درخواست‌های خرید
-              ثبت و «ارسال برای تأیید» کند.
-            </p>
-          )}
+          ) : null}
         </section>
-      ) : (
-        <p className="text-muted-foreground">
-          پس از تأیید نهایی درخواست، مسئول خرید می‌تواند پیش‌فاکتور را در صفحه درخواست‌های خرید ثبت کند.
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }

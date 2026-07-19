@@ -229,6 +229,7 @@ export type LoanAdvanceRequestBody = {
   amount: number;
   payment_date: string | null;
   reason: string | null;
+  title?: string | null;
   /** کاربر درخواست‌دهنده — برای workflow و submitter_manager */
   requester_id?: number;
 };
@@ -245,6 +246,7 @@ export type PaymentOrderRequestBody = {
   amount: number;
   payment_date: string | null;
   reason: string | null;
+  title?: string | null;
 };
 
 export function paymentOrderValuesToBody(values: {
@@ -258,6 +260,7 @@ export function paymentOrderValuesToBody(values: {
   amount: number;
   paymentDate: string;
   reason: string;
+  title?: string;
 }): PaymentOrderRequestBody {
   const kind = values.paymentOrderKind || 'individual';
   const isCollective = kind === 'collective';
@@ -267,6 +270,7 @@ export function paymentOrderValuesToBody(values: {
     amount: isCollective ? 0 : values.amount,
     payment_date: isCollective ? null : values.paymentDate?.trim() ? values.paymentDate.trim() : null,
     reason: values.reason?.trim() ? values.reason.trim() : null,
+    title: values.title?.trim() ? values.title.trim() : null,
   };
   if (kind === 'individual') {
     const receiverName = values.receiverName?.trim();
@@ -287,13 +291,14 @@ export function paymentOrderValuesToBody(values: {
 }
 
 export function employeeValuesToLoanAdvanceBody(
-  values: Pick<PaymentRequestEmployeeCreateValues, 'amount' | 'paymentDate' | 'reason'>,
+  values: Pick<PaymentRequestEmployeeCreateValues, 'amount' | 'paymentDate' | 'reason' | 'title'>,
   requesterId?: number,
 ): LoanAdvanceRequestBody {
   const body: LoanAdvanceRequestBody = {
     amount: values.amount,
     payment_date: values.paymentDate?.trim() ? values.paymentDate.trim() : null,
     reason: values.reason?.trim() ? values.reason.trim() : null,
+    title: values.title?.trim() ? values.title.trim() : null,
   };
   if (requesterId != null && Number.isFinite(requesterId) && requesterId > 0) {
     body.requester_id = requesterId;
@@ -572,6 +577,7 @@ export function normalizePaymentRequestFromApi(raw: unknown): PaymentRequestResp
 
   return {
     id,
+    title: coerceString(r.title) || null,
     paymentMethod,
     paymentOrderKind,
     paymentMarkedAt,

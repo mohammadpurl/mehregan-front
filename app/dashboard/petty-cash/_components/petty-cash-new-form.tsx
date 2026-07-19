@@ -8,9 +8,13 @@ import { FormattedNumberInput } from '@/app/components/ui/formatted-number-input
 import { Textarea } from '@/app/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import { createPettyCashAction, getPettyCashEligibilityAction } from '@/app/_actions/petty-cash-actions';
+import { getProfileAction } from '@/app/_actions/profile-actions';
 import { useFormAction } from '@/app/hooks/use-form-action';
 import { PettyCashCreateSchema, type PettyCashCreateValues } from '../_types/petty-cash.schema';
 import type { PettyCashEligibility } from '../_types/petty-cash.types';
+import { profileToReceiverAccount } from '@/app/dashboard/payment-request/_utils/payment-request-form.utils';
+import { RequesterDestinationAccountCard } from '@/app/dashboard/payment-request/_components/requester-destination-account-card';
+import { RequestTitleField } from '@/app/components/forms/request-title-field';
 import Link from 'next/link';
 
 type Props = {
@@ -23,16 +27,40 @@ export function PettyCashNewForm({ formId = 'petty-cash-new-form', onSuccess, on
   const { isPending, startTransition, notifyError, notifySuccess } = useFormAction();
   const [eligibility, setEligibility] = useState<PettyCashEligibility | null>(null);
   const [eligibilityLoading, setEligibilityLoading] = useState(true);
+  const [destinationPreview, setDestinationPreview] = useState<
+    | { ok: true; name: string; accountNumber: string }
+    | { ok: false; error: string }
+    | null
+  >(null);
 
   const form = useForm<PettyCashCreateValues>({
     resolver: zodResolver(PettyCashCreateSchema),
-    defaultValues: { amount: 0, reason: '', description: '' },
+    defaultValues: { title: '', amount: 0, reason: '', description: '' },
   });
 
   useEffect(() => {
     void getPettyCashEligibilityAction().then((r) => {
       if (r.success && r.data) setEligibility(r.data);
       setEligibilityLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    void getProfileAction().then((r) => {
+      if (!r.success || !r.data) {
+        setDestinationPreview({ ok: false, error: 'پروفایل بارگذاری نشد' });
+        return;
+      }
+      const receiver = profileToReceiverAccount(r.data);
+      if (!receiver.ok) {
+        setDestinationPreview({ ok: false, error: receiver.error });
+        return;
+      }
+      setDestinationPreview({
+        ok: true,
+        name: receiver.receiver.name,
+        accountNumber: receiver.receiver.accountNumber,
+      });
     });
   }, []);
 
@@ -49,6 +77,7 @@ export function PettyCashNewForm({ formId = 'petty-cash-new-form', onSuccess, on
     }
     startTransition(async () => {
       const result = await createPettyCashAction({
+        title: values.title,
         amount: values.amount,
         reason: values.reason,
         description: values.description,
@@ -85,8 +114,43 @@ export function PettyCashNewForm({ formId = 'petty-cash-new-form', onSuccess, on
         </Alert>
       )}
 
+      {destinationPreview?.ok === false ? (
+        <Alert variant="destructive">
+          <AlertTitle>حساب مقصد در پروفایل تکمیل نیست</AlertTitle>
+          <AlertDescription className="space-y-2 text-sm">
+            <p>{destinationPreview.error}</p>
+            <p>حساب مقصد تنخواه همان حساب خود شماست و باید در پروفایل ثبت شود.</p>
+            <Link href="/dashboard/profile" className="font-medium underline">
+              رفتن به پروفایل من
+            </Link>
+          </AlertDescription>
+        </Alert>
+      ) : destinationPreview?.ok ? (
+        <RequesterDestinationAccountCard
+          requesterName={destinationPreview.name}
+          requesterInfo={{
+            displayName: destinationPreview.name,
+            shebaNumber: destinationPreview.accountNumber.toUpperCase().startsWith('IR')
+              ? destinationPreview.accountNumber
+              : undefined,
+            cardNumber: destinationPreview.accountNumber.toUpperCase().startsWith('IR')
+              ? undefined
+              : destinationPreview.accountNumber,
+          }}
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground">در حال بارگذاری حساب مقصد از پروفایل…</p>
+      )}
+
       <Form {...form}>
         <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <RequestTitleField refType="petty_cash" field={field} disabled={blocked || isPending} />
+            )}
+          />
           <FormField
             control={form.control}
             name="amount"

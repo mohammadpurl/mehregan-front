@@ -8,8 +8,10 @@ import type { WorkflowBusinessRefType } from '@/app/_types/workflow-runtime.type
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { formatAmount } from '@/app/utils/number-format';
 import {
+  REQUESTER_DESTINATION_ACCOUNT_TITLE,
   formatDepositAccountLines,
   formatPaymentAccountLines,
+  formatRequesterDestinationAccountLines,
   formatRequesterSummary,
 } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
 import { PaymentRequestType } from '@/app/dashboard/payment-request/_types/payment-request.types';
@@ -51,9 +53,20 @@ export function buildPaymentRequestResolved(
   data: PaymentRequestResponse,
 ): ResolvedWorkflowForm {
   const isOrder = data.type === PaymentRequestType.PAYMENT_ORDER || refType === 'payment_order';
+  const isRequesterDestination =
+    data.type === PaymentRequestType.LOAN ||
+    data.type === PaymentRequestType.ADVANCE ||
+    data.type === PaymentRequestType.CASH;
   const depositLines = isOrder
     ? formatDepositAccountLines(data.receiver, data.receiverAccountDetail)
-    : formatPaymentAccountLines(data.receiver, data.receiverAccountDetail);
+    : isRequesterDestination
+      ? formatRequesterDestinationAccountLines({
+          receiver: data.receiver,
+          receiverAccountDetail: data.receiverAccountDetail,
+          requesterInfo: data.requesterInfo,
+          requesterName: data.requesterName,
+        })
+      : formatPaymentAccountLines(data.receiver, data.receiverAccountDetail);
   const partyLabel =
     data.counterparty?.name?.trim() ||
     (isOrder && data.receiver?.name && data.receiver.name !== data.receiver.accountNumber
@@ -74,7 +87,8 @@ export function buildPaymentRequestResolved(
     دلیل: data.reason || '—',
     وضعیت: PAYMENT_STATUS_LABEL[data.status] ?? data.status,
     'تاریخ پرداخت': formatJalaliDate(data.paymentDate),
-    'حساب واریز': depositLines.join(' — '),
+    [isRequesterDestination ? REQUESTER_DESTINATION_ACCOUNT_TITLE : 'حساب واریز']:
+      depositLines.join(' — '),
   };
   if (data.requesterInfo?.departmentName) {
     summary['واحد سازمانی'] = data.requesterInfo.departmentName;
@@ -93,7 +107,9 @@ export function buildPaymentRequestResolved(
   if (data.sepidarConfirmedAt) {
     summary['تأیید ثبت سپیدار (سرپرست)'] = formatJalaliDate(data.sepidarConfirmedAt);
   }
-  if (data.receiverAccountDetail && !isOrder) {
+  if (isRequesterDestination) {
+    summary[REQUESTER_DESTINATION_ACCOUNT_TITLE] = depositLines.join(' — ') || '—';
+  } else if (data.receiverAccountDetail && !isOrder) {
     const r = data.receiverAccountDetail;
     const recv =
       [r.label, r.bankName, r.accountNumber || r.shebaNumber || r.cardNumber].filter(Boolean).join(' — ') ||
@@ -133,6 +149,10 @@ export function buildPettyCashResolved(
   refId: number,
   data: PettyCashResponse,
 ): ResolvedWorkflowForm {
+  const destinationLines = formatRequesterDestinationAccountLines({
+    requesterInfo: data.requesterInfo,
+    requesterName: data.requesterName,
+  });
   return {
     refType,
     refId,
@@ -142,7 +162,8 @@ export function buildPettyCashResolved(
       شرح: data.reason || '—',
       وضعیت: pettyCashStatusLabel(data.status),
       تسویه: pettyCashSettlementLabel(data.settlementStatus),
-      'درخواست‌کننده': data.requesterName || '—',
+      'درخواست‌کننده': data.requesterName || data.requesterInfo?.displayName || '—',
+      [REQUESTER_DESTINATION_ACCOUNT_TITLE]: destinationLines.join(' — '),
       تاریخ: data.createdAt ? formatJalaliDate(data.createdAt) : '—',
       ...(data.sepidarRegisteredAt
         ? { 'ثبت در سپیدار (کارشناس)': formatJalaliDate(data.sepidarRegisteredAt) }

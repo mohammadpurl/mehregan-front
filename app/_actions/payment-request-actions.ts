@@ -101,6 +101,7 @@ export async function createPaymentRequestAction(data: PaymentRequestFormData) {
           amount: core.amount,
           paymentDate: core.paymentDate,
           reason: core.reason,
+          title: core.title,
         },
         requesterIdNum,
       );

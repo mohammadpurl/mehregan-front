@@ -18,6 +18,7 @@ import {
   normalizePettyCashFromApi,
   pettyCashCreateToBody,
 } from '@/app/dashboard/petty-cash/_utils/petty-cash-mapper';
+import { enrichPettyCashForApprover } from '@/app/dashboard/petty-cash/_utils/enrich-petty-cash-for-approver';
 
 export async function getPettyCashEligibilityAction() {
   try {
@@ -88,7 +89,8 @@ export async function getPettyCashByIdAction(id: string | number) {
     const response = await readDataWithAuth<unknown>(`/petty-cash/${id}`);
     const normalized = normalizePettyCashFromApi(response);
     if (!normalized) return { success: false as const, error: 'درخواست یافت نشد' };
-    return { success: true as const, data: normalized };
+    const enriched = await enrichPettyCashForApprover(normalized);
+    return { success: true as const, data: enriched };
   } catch (err: unknown) {
     return { success: false as const, error: extractActionErrorMessage(err, 'خطا در دریافت جزئیات تنخواه') };
   }
@@ -101,7 +103,8 @@ export async function getPettyCashByWorkflowInstanceAction(instanceId: number) {
     if (!normalized) {
       return { success: false as const, error: 'تنخواه برای این نمونه workflow یافت نشد' };
     }
-    return { success: true as const, data: normalized };
+    const enriched = await enrichPettyCashForApprover(normalized);
+    return { success: true as const, data: enriched };
   } catch (err: unknown) {
     return {
       success: false as const,

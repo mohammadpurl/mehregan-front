@@ -45,9 +45,44 @@ const STEP_ACTION_OPTIONS: { value: string; label: string; description: string }
     description: 'دکمه تأیید معمول در کارتابل',
   },
   {
+    value: 'fill_stock',
+    label: 'تکمیل موجودی انبار',
+    description: 'جدول اقلام + ویرایش ستون موجودی انبار (سرپرست مالی)',
+  },
+  {
+    value: 'upload_proforma',
+    label: 'ثبت پیش‌فاکتور',
+    description: 'ویرایش اقلام + مبلغ کل + آپلود فایل پیش‌فاکتور (مسئول خرید)',
+  },
+  {
+    value: 'approve_proforma',
+    label: 'تأیید پیش‌فاکتور',
+    description: 'محل پرداخت، روش پرداخت، جزئیات چک (مدیرعامل)',
+  },
+  {
+    value: 'upload_invoice',
+    label: 'آپلود فاکتور',
+    description: 'بارگذاری فاکتور خرید (مسئول خرید)',
+  },
+  {
     value: 'mark_payment',
-    label: 'ثبت در سپیدار (کارشناس مالی)',
-    description: 'پس از ثبت بیرونی در سپیدار، دکمه «ثبت در سپیدار انجام شد»',
+    label: 'ثبت در سپیدار / پرداخت',
+    description: 'ثبت سپیدار + پرداخت + آپلود فیش/چک (کارشناس مالی)',
+  },
+  {
+    value: 'upload_bol',
+    label: 'آپلود بارنامه',
+    description: 'بارگذاری بارنامه (مسئول خرید)',
+  },
+  {
+    value: 'confirm_receipt',
+    label: 'تأیید دریافت کالا',
+    description: 'تأیید دریافت توسط مدیر پروژه',
+  },
+  {
+    value: 'confirm_warehouse_sepidar',
+    label: 'ورود انبار + سپیدار',
+    description: 'انتخاب انبار مقصد + تیک ثبت در سپیدار (سرپرست مالی)',
   },
   {
     value: 'confirm_sepidar',

@@ -8,6 +8,7 @@ import {
 import { formatAmount } from '@/app/utils/number-format';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
+import { SepidarRegistrationStatus } from '@/app/dashboard/workflow/_components/sepidar-registration-status';
 
 type Props = {
   record: FinancialDocumentResponse;
@@ -66,7 +67,13 @@ export function FinancialDocumentDetailPanel({ record }: Props) {
           {record.description}
         </p>
       )}
+      <SepidarRegistrationStatus
+        registeredAt={record.sepidarRegisteredAt}
+        confirmedAt={record.sepidarConfirmedAt}
+      />
+
       <RequestAttachmentsPanel
+        title="تصاویر / پیوست‌های سند"
         documentsUrls={record.documentsUrls}
         attachments={record.attachments}
       />

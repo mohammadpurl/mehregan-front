@@ -61,7 +61,13 @@ export function attachmentsForStep(
       if (a.attachmentScope === 'invoice' && (step.order === 5 || step.order === 6)) {
         return true;
       }
-      if (a.attachmentScope === 'proforma' && step.order === 4) {
+      if (a.attachmentScope === 'proforma' && (step.order === 3 || step.order === 4)) {
+        return true;
+      }
+      if (
+        (a.attachmentScope === 'bol' || a.attachmentScope === 'bill_of_lading') &&
+        step.order === 7
+      ) {
         return true;
       }
       return false;

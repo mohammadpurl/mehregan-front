@@ -23,6 +23,8 @@ import {
 import { useFormAction } from '@/app/hooks/use-form-action';
 import { WorkflowSameAssigneeAlert } from '@/app/dashboard/workflow/_components/workflow-same-assignee-alert';
 import { useWorkflowAssigneesPreviewWarning } from '@/app/dashboard/workflow/_hooks/use-workflow-assignees-preview-warning';
+import { RequestTitleField } from '@/app/components/forms/request-title-field';
+import { Input } from '@/app/components/ui/input';
 
 type Props = {
   formId?: string;
@@ -32,12 +34,14 @@ type Props = {
 };
 
 const emptyDefaults: CreatePurchaseRequestValues = {
+  title: '',
   reason: '',
   lines: [],
 };
 
 function valuesFromRecord(record: PurchaseRequest): CreatePurchaseRequestValues {
   return {
+    title: record.title ?? '',
     reason: record.reason ?? '',
     lines: record.items.map((li) => ({
       itemId: li.itemId ?? undefined,
@@ -109,6 +113,7 @@ export function PurchaseRequestNewForm({
     }
 
     const payload = {
+      title: values.title?.trim() || undefined,
       reason: values.reason?.trim() || undefined,
       lines,
     };
@@ -146,6 +151,14 @@ export function PurchaseRequestNewForm({
     <Form {...form}>
       <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {!isEdit && <WorkflowSameAssigneeAlert show={sameAssigneeWarning} />}
+
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <RequestTitleField refType="purchase_request" field={field} disabled={isPending} />
+          )}
+        />
 
         <FormField
           control={form.control}

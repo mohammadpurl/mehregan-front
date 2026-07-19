@@ -32,6 +32,7 @@ import { CounterpartyBankAccountSelect } from '../bank-account/counterparty-bank
 import { bankAccountPayoutNumber } from '../../_utils/bank-account-display';
 import { todayGregorianIso } from '@/app/utils/jalali-date';
 import { PaymentMethod } from '../../_utils/payment-method';
+import { RequestTitleField } from '@/app/components/forms/request-title-field';
 
 type Props = {
   formId?: string;
@@ -43,6 +44,7 @@ const CP_NONE = '__none__';
 
 const defaultValues: PaymentOrderCreateValues = {
   paymentOrderKind: PaymentOrderKind.INDIVIDUAL,
+  title: '',
   counterpartyId: 0,
   counterpartyBankAccountId: 0,
   receiverName: '',
@@ -195,6 +197,14 @@ export function PaymentRequestPaymentOrderForm({
               </Select>
               <FormMessage />
             </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <RequestTitleField refType="payment_order" field={field} disabled={isPending} />
           )}
         />
 

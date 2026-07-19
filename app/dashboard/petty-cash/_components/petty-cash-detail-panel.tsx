@@ -8,6 +8,7 @@ import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
 import { PettyCashExpenseSettlement } from './petty-cash-expense-settlement';
 import { isPettyCashSettled } from '../_utils/petty-cash-mapper';
+import { RequesterDestinationAccountCard } from '@/app/dashboard/payment-request/_components/requester-destination-account-card';
 
 type Props = {
   record: PettyCashResponse;
@@ -17,6 +18,16 @@ type Props = {
 export function PettyCashDetailPanel({ record, onUpdated }: Props) {
   return (
     <div className="space-y-4">
+      <p className="text-sm">
+        <span className="text-muted-foreground">درخواست‌کننده: </span>
+        {record.requesterName || record.requesterInfo?.displayName || '—'}
+      </p>
+
+      <RequesterDestinationAccountCard
+        requesterInfo={record.requesterInfo}
+        requesterName={record.requesterName}
+      />
+
       <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm md:grid-cols-2">
         <p>
           <span className="text-muted-foreground">مبلغ: </span>

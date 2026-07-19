@@ -39,6 +39,7 @@ type CreateKind = 'loan' | 'advance' | 'payment_order';
 
 const employeeDefaults: PaymentRequestEmployeeCreateValues = {
   type: PaymentRequestType.LOAN,
+  title: '',
   paymentDate: todayGregorianIso(),
   reason: '',
   description: '',
@@ -158,7 +159,7 @@ export function PaymentRequestNewForm({ formId = 'payment-request-new-form', onS
             <p className="text-sm text-muted-foreground">در حال بارگذاری پروفایل…</p>
           ) : receiverPreview && !receiverPreview.ok ? (
             <Alert variant="destructive">
-              <AlertTitle>حساب واریز در پروفایل تکمیل نیست</AlertTitle>
+              <AlertTitle>حساب مقصد در پروفایل تکمیل نیست</AlertTitle>
               <AlertDescription className="space-y-2">
                 <p>{receiverPreview.error}</p>
                 <Link href="/dashboard/profile" className="text-sm font-medium underline">
@@ -174,10 +175,11 @@ export function PaymentRequestNewForm({ formId = 'payment-request-new-form', onS
               receiverBanner={
                 receiverPreview?.ok
                   ? {
-                      title: 'حساب واریز (از پروفایل شما)',
+                      title: 'حساب مقصد (حساب خود شما)',
                       lines: [
                         `صاحب حساب: ${receiverPreview.receiver.name}`,
                         `شماره واریز: ${receiverPreview.receiver.accountNumber}`,
+                        'این حساب در همه مراحل تأیید به تأییدکنندگان نمایش داده می‌شود.',
                       ],
                     }
                   : undefined

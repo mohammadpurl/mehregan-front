@@ -12,9 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
+import { Input } from '@/app/components/ui/input';
 import { AdvancedModal } from '@/app/components/Modal';
 import { AttachmentFileInput } from '@/app/components/attachments/attachment-file-input';
 import { RequiredFieldsHint, RequiredMark } from '@/app/components/ui/required-mark';
+import { JalaliDateInput } from '@/app/components/ui/jalali-date-input';
 
 export type WorkflowRejectTarget = 'previous' | 'requester';
 
@@ -28,10 +30,30 @@ type Props = {
   showPaymentMethod?: boolean;
   paymentMethod?: string;
   onPaymentMethodChange?: (value: string) => void;
+  /** مرحله approve_proforma — محل پرداخت و جزئیات چک */
+  showProformaPaymentFields?: boolean;
+  paymentLocation?: string;
+  onPaymentLocationChange?: (value: string) => void;
+  checkNumber?: string;
+  onCheckNumberChange?: (value: string) => void;
+  checkDueDate?: string;
+  onCheckDueDateChange?: (value: string) => void;
+  checkBank?: string;
+  onCheckBankChange?: (value: string) => void;
+  /** مرحله کارشناس مالی: تیک «ثبت شد» قبل از دکمه سپیدار */
+  showMarkRegistered?: boolean;
+  markRegistered?: boolean;
+  onMarkRegisteredChange?: (value: boolean) => void;
   /** مرحله سرپرست مالی: تأیید ثبت در سپیدار */
   showSepidarConfirm?: boolean;
   sepidarConfirmed?: boolean;
   onSepidarConfirmedChange?: (value: boolean) => void;
+  /** برچسب سفارشی برای تیک سپیدار */
+  sepidarConfirmLabel?: string;
+  /** مخفی کردن آپلود پیوست مرحله (مثلاً اسناد مالی فقط توسط ثبت‌کننده) */
+  hideStepAttachments?: boolean;
+  /** برچسب آپلود پیوست مرحله */
+  stepAttachmentLabel?: string;
 };
 
 export function WorkflowInboxDecisionFields({
@@ -44,18 +66,57 @@ export function WorkflowInboxDecisionFields({
   showPaymentMethod,
   paymentMethod = 'transfer',
   onPaymentMethodChange,
+  showProformaPaymentFields,
+  paymentLocation = '',
+  onPaymentLocationChange,
+  checkNumber = '',
+  onCheckNumberChange,
+  checkDueDate = '',
+  onCheckDueDateChange,
+  checkBank = '',
+  onCheckBankChange,
+  showMarkRegistered,
+  markRegistered = false,
+  onMarkRegisteredChange,
   showSepidarConfirm,
   sepidarConfirmed = false,
   onSepidarConfirmedChange,
+  sepidarConfirmLabel,
+  hideStepAttachments,
+  stepAttachmentLabel,
 }: Props) {
+  const isCheckPayment = paymentMethod === 'check';
   return (
     <div className="space-y-3 rounded-lg border bg-muted/10 p-3 text-right">
-      <p className="text-sm font-medium">یادداشت و پیوست مرحله</p>
-      {pendingStepOrder != null ? (
+      <p className="text-sm font-medium">
+        {hideStepAttachments ? 'یادداشت مرحله' : 'یادداشت و پیوست مرحله'}
+      </p>
+      {pendingStepOrder != null && !hideStepAttachments ? (
         <p className="text-xs text-muted-foreground">
           پیوست‌های این بخش مخصوص مرحله {pendingStepOrder} هستند و از پیوست‌های اصلی درخواست جدا
           ثبت می‌شوند.
         </p>
+      ) : null}
+      {showMarkRegistered ? (
+        <div className="flex items-start gap-3 rounded-lg border border-primary/25 bg-background p-3">
+          <Checkbox
+            id="wf-mark-registered"
+            checked={markRegistered}
+            onCheckedChange={(v) => onMarkRegisteredChange?.(v === true)}
+            disabled={disabled}
+            className="mt-0.5"
+          />
+          <div className="space-y-1">
+            <Label htmlFor="wf-mark-registered" className="cursor-pointer font-medium leading-relaxed">
+              ثبت شد
+              <RequiredMark />
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              پس از ثبت سند در نرم‌افزار سپیدار، این تیک را بزنید و سپس دکمه «در نرم‌افزار سپیدار ثبت
+              شد» را بزنید.
+            </p>
+          </div>
+        </div>
       ) : null}
       {showSepidarConfirm ? (
         <div className="flex items-start gap-3 rounded-lg border border-primary/25 bg-background p-3">
@@ -68,7 +129,7 @@ export function WorkflowInboxDecisionFields({
           />
           <div className="space-y-1">
             <Label htmlFor="wf-sepidar-confirm" className="cursor-pointer font-medium leading-relaxed">
-              در نرم‌افزار سپیدار ثبت شده است
+              {sepidarConfirmLabel ?? 'در نرم‌افزار سپیدار ثبت شده است'}
               <RequiredMark />
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -77,30 +138,88 @@ export function WorkflowInboxDecisionFields({
           </div>
         </div>
       ) : null}
-      {showPaymentMethod ? (
-        <div className="space-y-1">
-          <Label>
-            روش پرداخت
-            <RequiredMark />
-          </Label>
-          <Select
-            value={paymentMethod}
-            onValueChange={onPaymentMethodChange}
-            disabled={disabled}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="انتخاب روش پرداخت" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="transfer">حواله</SelectItem>
-              <SelectItem value="check">چک</SelectItem>
-            </SelectContent>
-          </Select>
+      {showPaymentMethod || showProformaPaymentFields ? (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>
+              روش پرداخت
+              <RequiredMark />
+            </Label>
+            <Select
+              value={paymentMethod}
+              onValueChange={onPaymentMethodChange}
+              disabled={disabled}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="انتخاب روش پرداخت" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="transfer">حواله</SelectItem>
+                <SelectItem value="check">چک</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {showProformaPaymentFields ? (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="wf-payment-location">
+                  محل پرداخت
+                  <RequiredMark />
+                </Label>
+                <Input
+                  id="wf-payment-location"
+                  value={paymentLocation}
+                  onChange={(e) => onPaymentLocationChange?.(e.target.value)}
+                  disabled={disabled}
+                  placeholder="مثلاً حساب شرکت / صندوق…"
+                />
+              </div>
+              {isCheckPayment ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="wf-check-number">
+                      شماره چک
+                      <RequiredMark />
+                    </Label>
+                    <Input
+                      id="wf-check-number"
+                      value={checkNumber}
+                      onChange={(e) => onCheckNumberChange?.(e.target.value)}
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="wf-check-bank">
+                      بانک
+                      <RequiredMark />
+                    </Label>
+                    <Input
+                      id="wf-check-bank"
+                      value={checkBank}
+                      onChange={(e) => onCheckBankChange?.(e.target.value)}
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label>
+                      تاریخ سررسید چک
+                      <RequiredMark />
+                    </Label>
+                    <JalaliDateInput
+                      value={checkDueDate}
+                      onChange={(v) => onCheckDueDateChange?.(v)}
+                      disabled={disabled}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </div>
       ) : null}
       <div className="space-y-1">
         <Label htmlFor="wf-approve-comment">
-          {showPaymentMethod ? (
+          {showPaymentMethod || showProformaPaymentFields ? (
             <>
               توضیح روش پرداخت
               <RequiredMark />
@@ -118,16 +237,18 @@ export function WorkflowInboxDecisionFields({
           placeholder="توضیح تأیید…"
         />
       </div>
-      <div className="space-y-1">
-        <Label>پیوست مرحله</Label>
-        <AttachmentFileInput
-          multiple
-          disabled={disabled}
-          files={attachmentFiles}
-          onFilesChange={onAttachmentFilesChange}
-          hint="تصویر، PDF، Word، Excel — حداکثر ۲۵ مگابایت برای هر فایل"
-        />
-      </div>
+      {!hideStepAttachments ? (
+        <div className="space-y-1">
+          <Label>{stepAttachmentLabel ?? 'پیوست مرحله'}</Label>
+          <AttachmentFileInput
+            multiple
+            disabled={disabled}
+            files={attachmentFiles}
+            onFilesChange={onAttachmentFilesChange}
+            hint="تصویر، PDF، Word، Excel — حداکثر ۲۵ مگابایت برای هر فایل"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

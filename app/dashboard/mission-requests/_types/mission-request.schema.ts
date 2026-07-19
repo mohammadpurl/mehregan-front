@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const MissionRequestCreateSchema = z.object({
+  title: z.string().trim().min(2, 'عنوان درخواست الزامی است').max(255),
   destination: z.string().min(1, 'محل ماموریت الزامی است').max(500),
   reason: z.string().min(1, 'دلیل ماموریت الزامی است').max(8000),
   vehicle: z.string().min(1, 'وسیله نقلیه الزامی است').max(255),

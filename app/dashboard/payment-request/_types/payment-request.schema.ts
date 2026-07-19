@@ -12,6 +12,7 @@ export const PaymentAccountSchema = z.object({
 /** فیلدهایی که فقط درخواست‌کننده (کارمند) پر می‌کند */
 const employeeRequestFields = {
   type: z.nativeEnum(PaymentRequestType, { message: 'نوع درخواست را انتخاب کنید' }),
+  title: trimStr.min(2, 'عنوان درخواست الزامی است').max(255),
   paymentDate: trimStr.min(1, 'تاریخ را وارد کنید'),
   reason: trimStr.min(5, 'شرح درخواست حداقل ۵ کاراکتر').max(1500),
   description: trimStr.max(2000).optional().or(z.literal('')),

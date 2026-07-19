@@ -46,6 +46,7 @@ export interface PaymentAttachment {
 export interface PaymentRequestFormData {
   id?: string;
   type: PaymentRequestType;
+  title?: string;
   payer: PaymentAccount;
   receiver: PaymentAccount;
   payerCompanyAccountId?: number | null;
@@ -74,6 +75,7 @@ export type PaymentOrderKindType = 'individual' | 'collective';
 
 export interface PaymentRequestResponse {
   id: string;
+  title?: string | null;
   paymentMethod?: PaymentMethodType | null;
   paymentOrderKind?: PaymentOrderKindType | null;
   paymentMarkedAt?: string | null;

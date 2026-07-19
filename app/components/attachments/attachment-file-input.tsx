@@ -11,6 +11,32 @@ import {
 } from '@/app/utils/validate-attachment';
 import { formatBytesFa } from '@/app/utils/format-bytes-fa';
 import { notifyFormWarning } from '@/app/utils/form-notify';
+import { isLikelyImageFile } from '@/app/components/attachments/attachment-image-thumb';
+
+function LocalFilePreview({ file }: { file: File }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const isImage = isLikelyImageFile(file);
+
+  useEffect(() => {
+    if (!isImage) return;
+    const url = URL.createObjectURL(file);
+    setSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file, isImage]);
+
+  if (!isImage || !src) {
+    return <FileText className="h-10 w-10 shrink-0 text-primary" aria-hidden />;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={file.name}
+      className="h-16 w-16 shrink-0 rounded-md border object-cover"
+    />
+  );
+}
 
 type Props = {
   id?: string;
@@ -110,7 +136,7 @@ export function AttachmentFileInput({
                 key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
                 className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5"
               >
-                <FileText className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                <LocalFilePreview file={file} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm" title={file.name}>
                     {file.name}

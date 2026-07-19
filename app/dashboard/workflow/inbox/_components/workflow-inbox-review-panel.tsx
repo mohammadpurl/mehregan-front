@@ -40,9 +40,24 @@ type Props = {
   showPaymentMethod?: boolean;
   paymentMethod?: string;
   onPaymentMethodChange?: (value: string) => void;
+  showProformaPaymentFields?: boolean;
+  paymentLocation?: string;
+  onPaymentLocationChange?: (value: string) => void;
+  checkNumber?: string;
+  onCheckNumberChange?: (value: string) => void;
+  checkDueDate?: string;
+  onCheckDueDateChange?: (value: string) => void;
+  checkBank?: string;
+  onCheckBankChange?: (value: string) => void;
+  showMarkRegistered?: boolean;
+  markRegistered?: boolean;
+  onMarkRegisteredChange?: (value: boolean) => void;
   showSepidarConfirm?: boolean;
   sepidarConfirmed?: boolean;
   onSepidarConfirmedChange?: (value: boolean) => void;
+  sepidarConfirmLabel?: string;
+  hideStepAttachments?: boolean;
+  stepAttachmentLabel?: string;
   operationalNotice?: string | null;
 };
 
@@ -71,9 +86,24 @@ export function WorkflowInboxReviewPanel({
   showPaymentMethod,
   paymentMethod,
   onPaymentMethodChange,
+  showProformaPaymentFields,
+  paymentLocation,
+  onPaymentLocationChange,
+  checkNumber,
+  onCheckNumberChange,
+  checkDueDate,
+  onCheckDueDateChange,
+  checkBank,
+  onCheckBankChange,
+  showMarkRegistered,
+  markRegistered,
+  onMarkRegisteredChange,
   showSepidarConfirm,
   sepidarConfirmed,
   onSepidarConfirmedChange,
+  sepidarConfirmLabel,
+  hideStepAttachments,
+  stepAttachmentLabel,
   operationalNotice,
 }: Props) {
   return (
@@ -153,9 +183,24 @@ export function WorkflowInboxReviewPanel({
             showPaymentMethod={showPaymentMethod}
             paymentMethod={paymentMethod}
             onPaymentMethodChange={onPaymentMethodChange}
+            showProformaPaymentFields={showProformaPaymentFields}
+            paymentLocation={paymentLocation}
+            onPaymentLocationChange={onPaymentLocationChange}
+            checkNumber={checkNumber}
+            onCheckNumberChange={onCheckNumberChange}
+            checkDueDate={checkDueDate}
+            onCheckDueDateChange={onCheckDueDateChange}
+            checkBank={checkBank}
+            onCheckBankChange={onCheckBankChange}
+            showMarkRegistered={showMarkRegistered}
+            markRegistered={markRegistered}
+            onMarkRegisteredChange={onMarkRegisteredChange}
             showSepidarConfirm={showSepidarConfirm}
             sepidarConfirmed={sepidarConfirmed}
             onSepidarConfirmedChange={onSepidarConfirmedChange}
+            sepidarConfirmLabel={sepidarConfirmLabel}
+            hideStepAttachments={hideStepAttachments}
+            stepAttachmentLabel={stepAttachmentLabel}
           />
         </section>
       ) : null}

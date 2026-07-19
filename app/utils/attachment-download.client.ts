@@ -17,7 +17,7 @@ function resolveFetchTarget(
   return resolveAttachmentDownloadUrl(fileUrl);
 }
 
-async function fetchAttachmentBlob(
+export async function fetchAttachmentBlob(
   fileUrl: string,
   attachmentId?: string | number | null,
   accessToken?: string | null,

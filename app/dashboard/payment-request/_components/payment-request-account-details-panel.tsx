@@ -11,14 +11,26 @@ import {
 } from '../_utils/payment-request-display.utils';
 import { isPaymentRequestPayerUnset } from '../_utils/payment-request-mapper';
 import { paymentMethodLabel } from '../_utils/payment-method';
+import { RequesterDestinationAccountCard } from './requester-destination-account-card';
 
 type Props = {
   record: PaymentRequestResponse;
   hidePayerSection?: boolean;
+  /** وقتی کارت مقصد در بلوک درخواست‌کننده نمایش داده شده */
+  hideDestinationWhenRequesterOwned?: boolean;
 };
 
-export function PaymentRequestAccountDetailsPanel({ record, hidePayerSection = false }: Props) {
+export function PaymentRequestAccountDetailsPanel({
+  record,
+  hidePayerSection = false,
+  hideDestinationWhenRequesterOwned = false,
+}: Props) {
   const isPaymentOrder = record.type === PaymentRequestType.PAYMENT_ORDER;
+  const isRequesterDestination =
+    record.type === PaymentRequestType.LOAN ||
+    record.type === PaymentRequestType.ADVANCE ||
+    record.type === PaymentRequestType.CASH;
+  const showDestination = !(hideDestinationWhenRequesterOwned && isRequesterDestination);
   const receiverLines = isPaymentOrder
     ? formatDepositAccountLines(record.receiver, record.receiverAccountDetail)
     : formatPaymentAccountLines(record.receiver, record.receiverAccountDetail);
@@ -50,24 +62,35 @@ export function PaymentRequestAccountDetailsPanel({ record, hidePayerSection = f
         </div>
       ) : null}
 
-      <div className="rounded-lg border bg-muted/20 p-3">
-        <p className="mb-2 text-sm font-medium">حساب واریز (مقصد)</p>
-        {record.receiverAccountDetail ? (
-          <BankAccountDetailAlert
-            title=""
-            account={record.receiverAccountDetail}
-            depositOnly={isPaymentOrder}
+      {showDestination ? (
+        isRequesterDestination ? (
+          <RequesterDestinationAccountCard
+            receiver={record.receiver}
+            receiverAccountDetail={record.receiverAccountDetail}
+            requesterInfo={record.requesterInfo}
+            requesterName={record.requesterName}
           />
-        ) : !isPlaceholderPaymentAccount(record.receiver) ? (
-          <div className="space-y-1 text-sm text-muted-foreground">
-            {receiverLines.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
         ) : (
-          <p className="text-sm text-muted-foreground">—</p>
-        )}
-      </div>
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <p className="mb-2 text-sm font-medium">حساب واریز (مقصد)</p>
+            {record.receiverAccountDetail ? (
+              <BankAccountDetailAlert
+                title=""
+                account={record.receiverAccountDetail}
+                depositOnly={isPaymentOrder}
+              />
+            ) : !isPlaceholderPaymentAccount(record.receiver) ? (
+              <div className="space-y-1 text-sm text-muted-foreground">
+                {receiverLines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">—</p>
+            )}
+          </div>
+        )
+      ) : null}
 
       {!hidePayerSection ? (
         <div className="rounded-lg border bg-muted/20 p-3">

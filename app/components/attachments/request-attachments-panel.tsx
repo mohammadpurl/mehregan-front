@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Eye, FileText, Paperclip } from 'lucide-react';
+import { Download, Eye, Paperclip } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { useSessionStore } from '@/app/_store/auth-store';
 import {
@@ -13,6 +13,7 @@ import {
   openAttachmentFile,
   reportAttachmentActionError,
 } from '@/app/utils/attachment-download.client';
+import { AttachmentImageThumb } from '@/app/components/attachments/attachment-image-thumb';
 
 type Props = {
   title?: string;
@@ -86,8 +87,13 @@ export function RequestAttachmentsPanel({
               key={String(key)}
               className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background px-3 py-2"
             >
-              <div className="flex min-w-0 items-center gap-2">
-                <FileText className="h-4 w-4 shrink-0 text-primary" />
+              <div className="flex min-w-0 items-center gap-3">
+                <AttachmentImageThumb
+                  fileUrl={item.fileUrl}
+                  fileName={item.fileName}
+                  attachmentId={item.id}
+                  onOpen={() => void runDownload(item, 'view')}
+                />
                 <span className="truncate text-sm" title={item.fileName}>
                   {item.fileName}
                 </span>

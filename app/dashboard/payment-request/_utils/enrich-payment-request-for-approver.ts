@@ -44,7 +44,7 @@ function receiverFromRequesterInfo(
   return { name, accountNumber: num };
 }
 
-/** تکمیل نام و حساب واریز از پروفایل کاربر وقتی API درخواست مالی فیلدها را خالی برگرداند */
+/** تکمیل نام و حساب مقصد از پروفایل درخواست‌کننده (وام / مساعده) برای همه مراحل تأیید */
 export async function enrichPaymentRequestForApprover(
   record: PaymentRequestResponse,
 ): Promise<PaymentRequestResponse> {
@@ -53,12 +53,24 @@ export async function enrichPaymentRequestForApprover(
     return record;
   }
 
+  const isRequesterDestination =
+    record.type === PaymentRequestType.LOAN ||
+    record.type === PaymentRequestType.ADVANCE ||
+    record.type === PaymentRequestType.CASH;
+
   const needsName = !record.requesterName?.trim() || record.requesterName === '—';
   // دستور پرداخت مقصدش طرف‌حساب است؛ حساب ثبت‌کننده را جایگزین نکن
   const needsReceiver =
-    record.type !== PaymentRequestType.PAYMENT_ORDER &&
-    isPlaceholderPaymentAccount(record.receiver);
-  const needsInfo = !record.requesterInfo;
+    isRequesterDestination &&
+    (isPlaceholderPaymentAccount(record.receiver) ||
+      (!record.receiverAccountDetail?.shebaNumber &&
+        !record.receiverAccountDetail?.cardNumber &&
+        !record.receiverAccountDetail?.accountNumber));
+  const needsInfo =
+    !record.requesterInfo ||
+    (isRequesterDestination &&
+      !record.requesterInfo.shebaNumber &&
+      !record.requesterInfo.cardNumber);
 
   if (!needsName && !needsReceiver && !needsInfo) {
     return record;
@@ -70,18 +82,32 @@ export async function enrichPaymentRequestForApprover(
   }
 
   const user = usersRes.data.items[0];
-  const requesterInfo = userToRequesterInfo(user);
+  const fromUser = userToRequesterInfo(user);
+  const requesterInfo: PaymentRequestRequesterInfo = record.requesterInfo
+    ? {
+        ...record.requesterInfo,
+        ...fromUser,
+        shebaNumber: record.requesterInfo.shebaNumber || fromUser.shebaNumber,
+        cardNumber: record.requesterInfo.cardNumber || fromUser.cardNumber,
+      }
+    : fromUser;
   const requesterName = needsName ? requesterInfo.displayName : record.requesterName;
-  const receiver = needsReceiver ? receiverFromRequesterInfo(requesterInfo, record.receiver) : record.receiver;
+  const receiver = needsReceiver
+    ? receiverFromRequesterInfo(requesterInfo, record.receiver)
+    : record.receiver;
 
   let receiverAccountDetail = record.receiverAccountDetail;
-  if (needsReceiver && (requesterInfo.shebaNumber || requesterInfo.cardNumber)) {
+  if (
+    isRequesterDestination &&
+    (needsReceiver || !receiverAccountDetail) &&
+    (requesterInfo.shebaNumber || requesterInfo.cardNumber)
+  ) {
     receiverAccountDetail = {
       label: requesterInfo.displayName,
-      bankName: null,
-      accountNumber: null,
-      shebaNumber: requesterInfo.shebaNumber ?? null,
-      cardNumber: requesterInfo.cardNumber ?? null,
+      bankName: receiverAccountDetail?.bankName ?? null,
+      accountNumber: receiverAccountDetail?.accountNumber ?? null,
+      shebaNumber: requesterInfo.shebaNumber ?? receiverAccountDetail?.shebaNumber ?? null,
+      cardNumber: requesterInfo.cardNumber ?? receiverAccountDetail?.cardNumber ?? null,
     };
   }
 

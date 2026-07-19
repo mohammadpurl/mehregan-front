@@ -14,6 +14,7 @@ import { WorkflowFinancialApproverFields } from '@/app/dashboard/workflow/inbox/
 import { FinancialApproverAmountDateSchema } from '@/app/dashboard/payment-request/_types/payment-request.schema';
 import type { WorkflowApprovePayload } from '@/app/_actions/workflow-runtime-actions';
 import { SepidarRegistrationStatus } from '@/app/dashboard/workflow/_components/sepidar-registration-status';
+import { RequesterDestinationAccountCard } from '@/app/dashboard/payment-request/_components/requester-destination-account-card';
 
 export type WorkflowPettyCashReviewHandle = {
   buildApprovePayload: () => { ok: true; payload: WorkflowApprovePayload } | { ok: false; error: string };
@@ -65,12 +66,17 @@ export const WorkflowPettyCashReview = forwardRef<WorkflowPettyCashReviewHandle,
         <Alert className="border-primary/30 bg-primary/5">
           <AlertTitle>درخواست تنخواه</AlertTitle>
           <AlertDescription className="space-y-1 text-sm">
-            <p>درخواست‌کننده: {record.requesterName || '—'}</p>
+            <p>درخواست‌کننده: {record.requesterName || record.requesterInfo?.displayName || '—'}</p>
             <p>مبلغ درخواستی: {formatAmount(record.amount, { unit: 'ریال' })}</p>
             <p>شرح: {record.reason}</p>
             {record.description && <p>توضیحات: {record.description}</p>}
           </AlertDescription>
         </Alert>
+
+        <RequesterDestinationAccountCard
+          requesterInfo={record.requesterInfo}
+          requesterName={record.requesterName}
+        />
 
         <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm md:grid-cols-2">
           <p>

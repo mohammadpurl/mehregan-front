@@ -1,5 +1,8 @@
 import type { BankAccountDetail } from '../_types/bank-account.types';
-import type { PaymentAccount, PaymentRequestRequesterInfo } from '../_types/payment-request.types';
+import type {
+  PaymentAccount,
+  PaymentRequestRequesterInfo,
+} from '../_types/payment-request.types';
 import { bankAccountDepositLines, bankAccountDetailLines } from './bank-account-display';
 import {
   PAYMENT_PAYER_PENDING_ACCOUNT,
@@ -62,3 +65,64 @@ export function formatRequesterSummary(info: PaymentRequestRequesterInfo | null 
   if (info.departmentName) parts.push(`— ${info.departmentName}`);
   return parts.join(' ');
 }
+
+/**
+ * حساب مقصد واریز برای وام / مساعده / تنخواه = حساب خود درخواست‌کننده.
+ * اولویت: جزئیات حساب درخواست → receiver → شبا/کارت پروفایل (requesterInfo).
+ */
+export function formatRequesterDestinationAccountLines(input: {
+  receiver?: PaymentAccount | null;
+  receiverAccountDetail?: BankAccountDetail | null;
+  requesterInfo?: PaymentRequestRequesterInfo | null;
+  requesterName?: string | null;
+}): string[] {
+  const detail = input.receiverAccountDetail;
+  const receiver = input.receiver ?? { name: '', accountNumber: '' };
+  const info = input.requesterInfo;
+
+  const lines: string[] = [];
+  const owner =
+    detail?.label?.trim() ||
+    info?.displayName?.trim() ||
+    (input.requesterName && input.requesterName !== '—' ? input.requesterName.trim() : '') ||
+    (receiver.name &&
+    !isPlaceholderPaymentAccount(receiver) &&
+    receiver.name !== receiver.accountNumber
+      ? receiver.name.trim()
+      : '');
+
+  if (owner) lines.push(`صاحب حساب: ${owner}`);
+
+  const sheba =
+    detail?.shebaNumber?.trim() ||
+    info?.shebaNumber?.trim() ||
+    (receiver.accountNumber?.toUpperCase().startsWith('IR')
+      ? receiver.accountNumber.trim()
+      : '');
+  const card =
+    detail?.cardNumber?.trim() ||
+    info?.cardNumber?.trim() ||
+    (!sheba && receiver.accountNumber && !isPlaceholderPaymentAccount(receiver)
+      ? receiver.accountNumber.trim()
+      : '');
+  const accountNo = detail?.accountNumber?.trim() || '';
+
+  if (sheba) lines.push(`شبا: ${sheba}`);
+  if (card) lines.push(`کارت: ${card}`);
+  if (accountNo && accountNo !== sheba && accountNo !== card) {
+    lines.push(`شماره حساب: ${accountNo}`);
+  }
+
+  if (lines.length > (owner ? 1 : 0)) return lines;
+
+  const fallback = formatPaymentAccountLines(receiver, detail);
+  if (fallback.length && fallback[0] !== 'در پروفایل کاربر یا درخواست ثبت نشده') {
+    return owner ? [`صاحب حساب: ${owner}`, ...fallback] : fallback;
+  }
+
+  return ['حساب مقصد در پروفایل درخواست‌کننده ثبت نشده است'];
+}
+
+/** عنوان ثابت برای نمایش در همه مراحل تأیید */
+export const REQUESTER_DESTINATION_ACCOUNT_TITLE =
+  'حساب مقصد (حساب خود درخواست‌کننده)';

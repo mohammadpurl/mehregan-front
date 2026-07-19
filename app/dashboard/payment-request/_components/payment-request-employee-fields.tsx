@@ -15,6 +15,7 @@ import { formatJalaliDate } from '@/app/utils/jalali-date';
 import type { PaymentRequestEmployeeCreateValues } from '../_types/payment-request.schema';
 import { PaymentRequestType } from '../_types/payment-request.types';
 import { PaymentRequestExtendedFields } from './payment-request-extended-fields';
+import { RequestTitleField } from '@/app/components/forms/request-title-field';
 
 const TYPE_LABELS: Record<PaymentRequestType, string> = {
   [PaymentRequestType.LOAN]: 'وام',
@@ -70,6 +71,31 @@ export function PaymentRequestEmployeeFields({
             ))}
           </AlertDescription>
         </Alert>
+      )}
+
+      {!readOnly ? (
+        <FormField
+          control={control}
+          name="title"
+          render={({ field }) => (
+            <RequestTitleField
+              refType="payment_request"
+              field={field}
+              disabled={readOnly}
+            />
+          )}
+        />
+      ) : (
+        <FormField
+          control={control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>عنوان درخواست</FormLabel>
+              <p className="text-sm font-medium">{field.value || '—'}</p>
+            </FormItem>
+          )}
+        />
       )}
 
       {fixedType ? (

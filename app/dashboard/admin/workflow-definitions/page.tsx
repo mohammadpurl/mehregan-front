@@ -87,6 +87,34 @@ const FINANCIAL_DEFAULT_STEPS: WorkflowStepConfig[] = [
   },
 ];
 
+/** اسناد مالی: کارشناس (آپلود در ثبت) → سرپرست سپیدار → رویت و تأیید مدیر مالی */
+const FINANCIAL_DOCUMENT_DEFAULT_STEPS: WorkflowStepConfig[] = [
+  {
+    order: 1,
+    role_aliases: ['finance_officer', 'کارشناس مالی', 'مسئول پرداخت'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'ثبت در سپیدار — کارشناس مالی',
+    step_action: 'mark_payment',
+  },
+  {
+    order: 2,
+    role_aliases: ['finance_supervisor', 'سرپرست مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید ثبت سپیدار — سرپرست مالی',
+    step_action: 'confirm_sepidar',
+  },
+  {
+    order: 3,
+    role_aliases: ['finance_manager', 'accountant', 'مدیر مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'رویت و تأیید مدیر مالی',
+    step_action: 'approval',
+  },
+];
+
 const SIMPLE_DEFAULT_STEPS: WorkflowStepConfig[] = [
   {
     order: 1,
@@ -138,8 +166,87 @@ const FINANCIAL_REF_TYPES = new Set<WorkflowBusinessRefType>([
   'payment_request',
   'payment_order',
   'petty_cash',
-  'financial_document',
 ]);
+
+/**
+ * درخواست خرید (۹ مرحله):
+ * سرپرست مالی → مدیر مالی → مسئول خرید → مدیرعامل → مسئول خرید
+ * → کارشناس مالی → مسئول خرید → مدیر پروژه → سرپرست مالی
+ */
+const PURCHASE_REQUEST_DEFAULT_STEPS: WorkflowStepConfig[] = [
+  {
+    order: 1,
+    role_aliases: ['finance_supervisor', 'سرپرست مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تکمیل موجودی انبار — سرپرست مالی',
+    step_action: 'fill_stock',
+  },
+  {
+    order: 2,
+    role_aliases: ['finance_manager', 'accountant', 'مدیر مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید مدیر مالی',
+    step_action: 'approval',
+  },
+  {
+    order: 3,
+    role_aliases: ['purchase_manager', 'purchase_officer', 'مسئول خرید'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'ثبت پیش‌فاکتور — مسئول خرید',
+    step_action: 'upload_proforma',
+  },
+  {
+    order: 4,
+    role_aliases: ['ceo', 'managing_director', 'مدیرعامل'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید پیش‌فاکتور — مدیرعامل',
+    step_action: 'approve_proforma',
+  },
+  {
+    order: 5,
+    role_aliases: ['purchase_manager', 'purchase_officer', 'مسئول خرید'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'آپلود فاکتور — مسئول خرید',
+    step_action: 'upload_invoice',
+  },
+  {
+    order: 6,
+    role_aliases: ['finance_officer', 'کارشناس مالی', 'مسئول پرداخت'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'ثبت سپیدار و پرداخت — کارشناس مالی',
+    step_action: 'mark_payment',
+  },
+  {
+    order: 7,
+    role_aliases: ['purchase_manager', 'purchase_officer', 'مسئول خرید'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'آپلود بارنامه — مسئول خرید',
+    step_action: 'upload_bol',
+  },
+  {
+    order: 8,
+    role_aliases: ['project_manager', 'مدیر پروژه'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'تأیید دریافت کالا — مدیر پروژه',
+    step_action: 'confirm_receipt',
+  },
+  {
+    order: 9,
+    role_aliases: ['finance_supervisor', 'سرپرست مالی'],
+    assignee_strategy: 'role_pool',
+    assignee_user_id: null,
+    label: 'ورود انبار و ثبت سپیدار — سرپرست مالی',
+    step_action: 'confirm_warehouse_sepidar',
+  },
+];
 
 /** تأیید گزارش ماموریت: مدیر مستقیم → مدیرعامل */
 const MISSION_REPORT_DEFAULT_STEPS: WorkflowStepConfig[] = [
@@ -162,6 +269,12 @@ const MISSION_REPORT_DEFAULT_STEPS: WorkflowStepConfig[] = [
 ];
 
 function defaultStepsForRefType(ref: WorkflowBusinessRefType): WorkflowStepConfig[] {
+  if (ref === 'financial_document') {
+    return FINANCIAL_DOCUMENT_DEFAULT_STEPS.map((s, i) => ({ ...s, order: i + 1 }));
+  }
+  if (ref === 'purchase_request' || ref === 'request') {
+    return PURCHASE_REQUEST_DEFAULT_STEPS.map((s, i) => ({ ...s, order: i + 1 }));
+  }
   if (ref === 'petty_cash_settlement') {
     return SETTLEMENT_DEFAULT_STEPS.map((s, i) => ({ ...s, order: i + 1 }));
   }

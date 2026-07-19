@@ -29,6 +29,12 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
         itemName: String(li.item_name ?? li.itemName ?? ''),
         quantity: Number(li.quantity ?? 0),
         description: (li.description as string | null) ?? null,
+        stockOnHand:
+          li.stock_on_hand != null || li.stockOnHand != null
+            ? Number(li.stock_on_hand ?? li.stockOnHand)
+            : li.warehouse_stock != null || li.warehouseStock != null
+              ? Number(li.warehouse_stock ?? li.warehouseStock)
+              : null,
       }))
     : [];
   return {
@@ -37,6 +43,7 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
     status: String(r.status ?? ''),
     requesterId: Number(r.requester_id ?? r.requesterId ?? 0),
     requesterName: (r.requester_name ?? r.requesterName) as string | null | undefined,
+    title: (r.title as string | null) ?? null,
     reason: (r.reason as string | null) ?? null,
     items,
     workflowInstanceId: (r.workflow_instance_id ?? r.workflowInstanceId) as number | null | undefined,
@@ -58,6 +65,13 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
       downloadUrl:
         typeof a.id === 'number' ? attachmentProxyDownloadPath(a.id) : a.fileUrl,
     })),
+    bolAttachments: parseAttachmentsFromApi(r.bol_attachments ?? r.bolAttachments).map((a) => ({
+      id: typeof a.id === 'number' ? a.id : undefined,
+      fileName: a.fileName,
+      fileUrl: a.fileUrl,
+      downloadUrl:
+        typeof a.id === 'number' ? attachmentProxyDownloadPath(a.id) : a.fileUrl,
+    })),
     approvedPaymentMethod: (r.approved_payment_method ?? r.approvedPaymentMethod) as
       | string
       | null
@@ -66,7 +80,28 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
       | string
       | null
       | undefined,
+    approvedPaymentLocation: (r.approved_payment_location ?? r.approvedPaymentLocation) as
+      | string
+      | null
+      | undefined,
+    approvedCheckNumber: (r.approved_check_number ?? r.approvedCheckNumber) as
+      | string
+      | null
+      | undefined,
+    approvedCheckDueDate: (r.approved_check_due_date ?? r.approvedCheckDueDate) as
+      | string
+      | null
+      | undefined,
+    approvedCheckBank: (r.approved_check_bank ?? r.approvedCheckBank) as string | null | undefined,
     invoicePaidAt: (r.invoice_paid_at ?? r.invoicePaidAt) as string | null | undefined,
+    destinationWarehouseId: (r.destination_warehouse_id ?? r.destinationWarehouseId) as
+      | number
+      | null
+      | undefined,
+    destinationWarehouseName: (r.destination_warehouse_name ?? r.destinationWarehouseName) as
+      | string
+      | null
+      | undefined,
   };
 }
 
@@ -202,6 +237,7 @@ export async function getPurchaseWarehouseCatalogAction(params?: {
 export async function createPurchaseRequestAction(payload: CreatePurchaseRequestPayload) {
   try {
     const body = {
+      title: payload.title?.trim() || undefined,
       reason: payload.reason,
       lines: payload.lines.map((l) => ({
         item_id: l.itemId,
@@ -278,6 +314,7 @@ export async function updatePurchaseRequestAction(
 ) {
   try {
     const body = {
+      title: payload.title?.trim() || undefined,
       reason: payload.reason,
       lines: payload.lines.map((l) => ({
         item_id: l.itemId,

@@ -24,6 +24,8 @@ export type WorkflowFinancialDocumentReviewHandle = {
 
 type Props = {
   record: FinancialDocumentResponse;
+  /** فقط در مرحله تأیید مدیر مالی — نه در مراحل سپیدار */
+  showApproverFields?: boolean;
 };
 
 function defaultPaymentDate(record: FinancialDocumentResponse): string {
@@ -35,7 +37,7 @@ function defaultPaymentDate(record: FinancialDocumentResponse): string {
 export const WorkflowFinancialDocumentReview = forwardRef<
   WorkflowFinancialDocumentReviewHandle,
   Props
->(function WorkflowFinancialDocumentReview({ record }, ref) {
+>(function WorkflowFinancialDocumentReview({ record, showApproverFields = true }, ref) {
   const defaults = useMemo(
     () => ({
       amount: record.amount != null && record.amount > 0 ? record.amount : 0,
@@ -108,23 +110,26 @@ export const WorkflowFinancialDocumentReview = forwardRef<
       />
 
       <RequestAttachmentsPanel
+        title="تصاویر / پیوست‌های سند"
         documentsUrls={record.documentsUrls}
         attachments={record.attachments}
       />
 
-      <Form {...form}>
-        <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
-          <p className="text-sm font-medium">تأیید سند مالی</p>
-          <RequiredFieldsHint />
-          <p className="text-xs text-muted-foreground">
-            مبلغ و تاریخ پرداخت/سررسید را در صورت نیاز اصلاح کنید.
-          </p>
-          <WorkflowFinancialApproverFields
-            control={form.control}
-            dateLabel="تاریخ سند / پرداخت"
-          />
-        </div>
-      </Form>
+      {showApproverFields ? (
+        <Form {...form}>
+          <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm font-medium">رویت و تأیید مدیر مالی</p>
+            <RequiredFieldsHint />
+            <p className="text-xs text-muted-foreground">
+              تصاویر سند را رویت کنید؛ در صورت نیاز مبلغ و تاریخ را اصلاح و تأیید کنید.
+            </p>
+            <WorkflowFinancialApproverFields
+              control={form.control}
+              dateLabel="تاریخ سند / پرداخت"
+            />
+          </div>
+        </Form>
+      ) : null}
     </div>
   );
 });

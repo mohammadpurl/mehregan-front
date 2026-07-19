@@ -3,6 +3,7 @@ import { z } from 'zod';
 const trimStr = z.string().trim();
 
 export const PettyCashCreateSchema = z.object({
+  title: trimStr.min(2, 'عنوان درخواست الزامی است').max(255),
   amount: z.number({ error: 'مبلغ نامعتبر است' }).min(1, 'مبلغ باید بیشتر از ۰ باشد'),
   reason: trimStr.min(5, 'شرح درخواست حداقل ۵ کاراکتر').max(1500),
   description: trimStr.max(2000).optional().or(z.literal('')),

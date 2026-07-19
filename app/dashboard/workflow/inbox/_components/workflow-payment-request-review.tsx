@@ -14,7 +14,11 @@ import { CompanyBankAccountSelect } from '@/app/dashboard/payment-request/_compo
 import { PaymentRequestAccountDetailsPanel } from '@/app/dashboard/payment-request/_components/payment-request-account-details-panel';
 import { PaymentRequestRequesterInfoCard } from '@/app/dashboard/payment-request/_components/payment-request-requester-info-card';
 import { WorkflowFinancialApproverFields } from '@/app/dashboard/workflow/inbox/_components/workflow-financial-approver-fields';
-import { formatDepositAccountLines, formatPaymentAccountLines } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
+import {
+  REQUESTER_DESTINATION_ACCOUNT_TITLE,
+  formatDepositAccountLines,
+  formatRequesterDestinationAccountLines,
+} from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
 import { RequestAttachmentsPanel } from '@/app/components/attachments/request-attachments-panel';
 import { RequiredFieldsHint } from '@/app/components/ui/required-mark';
 import { SepidarRegistrationStatus } from '@/app/dashboard/workflow/_components/sepidar-registration-status';
@@ -188,7 +192,11 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
           documentsUrls={record.documentsUrls}
           attachments={record.attachments}
         />
-        <PaymentRequestAccountDetailsPanel record={record} hidePayerSection={showPayerSelect} />
+        <PaymentRequestAccountDetailsPanel
+          record={record}
+          hidePayerSection={showPayerSelect}
+          hideDestinationWhenRequesterOwned
+        />
 
         <div className="rounded-lg border bg-muted/20 p-4">
           <p className="mb-3 text-sm font-medium">جزئیات درخواست (ثبت‌شده)</p>
@@ -199,10 +207,17 @@ export const WorkflowPaymentRequestReview = forwardRef<WorkflowPaymentRequestRev
               fixedType={record.type}
               loanAdvanceOnly={isLoan || isAdvance}
               receiverBanner={{
-                title: 'حساب واریز',
+                title: isLoan || isAdvance
+                  ? REQUESTER_DESTINATION_ACCOUNT_TITLE
+                  : 'حساب واریز',
                 lines: isPaymentOrder
                   ? formatDepositAccountLines(record.receiver, record.receiverAccountDetail)
-                  : formatPaymentAccountLines(record.receiver, record.receiverAccountDetail),
+                  : formatRequesterDestinationAccountLines({
+                      receiver: record.receiver,
+                      receiverAccountDetail: record.receiverAccountDetail,
+                      requesterInfo: record.requesterInfo,
+                      requesterName: record.requesterName,
+                    }),
               }}
               attachmentLinks={[]}
             />

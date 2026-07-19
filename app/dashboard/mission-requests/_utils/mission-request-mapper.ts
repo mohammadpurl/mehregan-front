@@ -13,6 +13,7 @@ export function normalizeMissionRequestFromApi(raw: unknown): MissionRequestResp
     id,
     requesterId: Number(r.requester_id ?? r.requesterId ?? 0),
     requesterName: (r.requester_name ?? r.requesterName) as string | null | undefined,
+    title: (r.title as string | null) ?? null,
     destination: String(r.destination ?? ''),
     reason: String(r.reason ?? ''),
     vehicle: String(r.vehicle ?? ''),
@@ -28,6 +29,7 @@ export function normalizeMissionRequestFromApi(raw: unknown): MissionRequestResp
 
 export function missionRequestCreateToBody(input: MissionRequestCreateInput) {
   return {
+    title: input.title?.trim() || undefined,
     destination: input.destination,
     reason: input.reason,
     vehicle: input.vehicle,

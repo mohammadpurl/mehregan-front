@@ -26,6 +26,15 @@ export type WorkflowApprovePayload = {
   payment_method?: string;
   payment_executed?: boolean;
   sepidar_confirmed?: boolean;
+  /** مرحله fill_stock — موجودی انبار هر قلم */
+  line_stocks?: { line_id?: number; item_id?: number | null; stock_on_hand: number }[];
+  /** مرحله approve_proforma */
+  payment_location?: string;
+  check_number?: string;
+  check_due_date?: string;
+  check_bank?: string;
+  /** مرحله confirm_warehouse_sepidar */
+  warehouse_id?: number;
 };
 
 export async function getWorkflowInstanceAction(instanceId: number) {

@@ -31,6 +31,7 @@ import {
   isLoanTermsUnset,
   isPaymentRequestPayerUnset,
 } from '@/app/dashboard/payment-request/_utils/payment-request-mapper';
+import { REQUESTER_DESTINATION_ACCOUNT_TITLE } from '@/app/dashboard/payment-request/_utils/payment-request-display.utils';
 import {
   isFinanceRole,
   isFinanceWorkflowStepRole,
@@ -50,6 +51,10 @@ import {
 } from './_components/workflow-financial-document-review';
 import type { FinancialDocumentResponse } from '@/app/dashboard/financial-documents/_types/financial-document.types';
 import { WorkflowPurchaseRequestReview } from './_components/workflow-purchase-request-review';
+import {
+  WorkflowPurchaseFillStock,
+  type WorkflowPurchaseFillStockHandle,
+} from './_components/workflow-purchase-fill-stock';
 import type { PurchaseRequest } from '@/app/_types/purchase-request.types';
 import type { PettyCashResponse } from '@/app/dashboard/petty-cash/_types/petty-cash.types';
 import type { MissionRequestResponse } from '@/app/dashboard/mission-requests/_types/mission-request.types';
@@ -90,6 +95,8 @@ function inboxRefTypeLabel(refType: string | undefined): string {
   if (refType === 'financial_document') return 'سند مالی';
   if (refType === 'mission_request') return 'درخواست ماموریت';
   if (refType === 'mission_report') return 'تأیید گزارش ماموریت';
+  if (refType === 'purchase_request' || refType === 'request') return 'درخواست خرید';
+  if (refType === 'procurement_proforma') return 'تأیید پیش‌فاکتور';
   return refType ?? '—';
 }
 
@@ -108,6 +115,12 @@ export default function WorkflowInboxPage() {
   const [approveComment, setApproveComment] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('transfer');
   const [sepidarConfirmed, setSepidarConfirmed] = useState(false);
+  const [markRegistered, setMarkRegistered] = useState(false);
+  const [paymentLocation, setPaymentLocation] = useState('');
+  const [checkNumber, setCheckNumber] = useState('');
+  const [checkDueDate, setCheckDueDate] = useState('');
+  const [checkBank, setCheckBank] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
   const [stepAttachmentFiles, setStepAttachmentFiles] = useState<File[]>([]);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
@@ -125,6 +138,7 @@ export default function WorkflowInboxPage() {
   const paymentReviewRef = useRef<WorkflowPaymentRequestReviewHandle>(null);
   const pettyCashReviewRef = useRef<WorkflowPettyCashReviewHandle>(null);
   const financialDocumentReviewRef = useRef<WorkflowFinancialDocumentReviewHandle>(null);
+  const purchaseFillStockRef = useRef<WorkflowPurchaseFillStockHandle>(null);
   const deepLinkHandled = useRef(false);
 
   const loadInbox = useCallback(async () => {
@@ -200,6 +214,12 @@ export default function WorkflowInboxPage() {
     setApproveComment('');
     setPaymentMethod('transfer');
     setSepidarConfirmed(false);
+    setMarkRegistered(false);
+    setPaymentLocation('');
+    setCheckNumber('');
+    setCheckDueDate('');
+    setCheckBank('');
+    setWarehouseId('');
     setStepAttachmentFiles([]);
   }, []);
 
@@ -214,6 +234,12 @@ export default function WorkflowInboxPage() {
       setApproveComment('');
       setPaymentMethod('transfer');
       setSepidarConfirmed(false);
+      setMarkRegistered(false);
+      setPaymentLocation('');
+      setCheckNumber('');
+      setCheckDueDate('');
+      setCheckBank('');
+      setWarehouseId('');
       setStepAttachmentFiles([]);
       void markInboxReadAction(row.id).then(() => void refreshBadgeCounts());
       await loadInstanceDetails(row.ref_id);
@@ -336,18 +362,32 @@ export default function WorkflowInboxPage() {
         isLoanTermsUnset(paymentRecord) ||
         isAdvanceTermsUnset(paymentRecord)));
 
-  const isProformaApproval =
-    resolvedForm?.refType === 'procurement_proforma' ||
-    (resolvedForm?.refType === 'purchase_request' &&
-      purchaseRecord?.status === 'proforma_review');
   const pendingStepAction = pendingPlanStep?.stepAction ?? null;
+  const isFillStockStep = pendingStepAction === 'fill_stock';
+  const isApproveProformaStep =
+    pendingStepAction === 'approve_proforma' ||
+    resolvedForm?.refType === 'procurement_proforma' ||
+    (purchaseRecord?.status === 'proforma_review' &&
+      (pendingStepAction == null ||
+        pendingStepAction === 'approval' ||
+        pendingStepAction === 'approve_proforma'));
+  const isProformaApproval = isApproveProformaStep;
   const isMarkPaymentStep = pendingStepAction === 'mark_payment';
   const isConfirmSepidarStep =
     pendingStepAction === 'confirm_sepidar' ||
     pendingStepAction === 'final_payment_approval';
+  const isConfirmWarehouseSepidarStep = pendingStepAction === 'confirm_warehouse_sepidar';
+  const isConfirmReceiptStep = pendingStepAction === 'confirm_receipt';
+  const isUploadBolStep = pendingStepAction === 'upload_bol';
   const isOperationalInboxStep =
     pendingStepAction === 'upload_proforma' || pendingStepAction === 'upload_invoice';
-  const detailsReady = Boolean(resolvedForm || paymentRecord || pettyCashRecord || financialDocumentRecord);
+  const detailsReady = Boolean(
+    resolvedForm ||
+      paymentRecord ||
+      pettyCashRecord ||
+      financialDocumentRecord ||
+      purchaseRecord,
+  );
   const canActOnStep = detailsReady && !planLoading && !isOperationalInboxStep;
   /** نمایش فیلدهای اقدام (کامنت/چک‌باکس) — برای کارشناس و سرپرست هم فعال */
   const canDecide = canActOnStep;
@@ -367,6 +407,34 @@ export default function WorkflowInboxPage() {
     summaryFields.push({ label: 'نوع', value: paymentRecord.type });
     if (paymentRecord.amount != null) {
       summaryFields.push({ label: 'مبلغ', value: String(paymentRecord.amount) });
+    }
+    if (
+      paymentRecord.type === PaymentRequestType.LOAN ||
+      paymentRecord.type === PaymentRequestType.ADVANCE ||
+      paymentRecord.type === PaymentRequestType.CASH
+    ) {
+      const dest =
+        typeof resolvedForm?.summary[REQUESTER_DESTINATION_ACCOUNT_TITLE] === 'string'
+          ? resolvedForm.summary[REQUESTER_DESTINATION_ACCOUNT_TITLE]
+          : null;
+      if (dest) {
+        summaryFields.push({
+          label: REQUESTER_DESTINATION_ACCOUNT_TITLE,
+          value: dest,
+        });
+      }
+    }
+  }
+  if (pettyCashRecord) {
+    const dest =
+      typeof resolvedForm?.summary[REQUESTER_DESTINATION_ACCOUNT_TITLE] === 'string'
+        ? resolvedForm.summary[REQUESTER_DESTINATION_ACCOUNT_TITLE]
+        : null;
+    if (dest) {
+      summaryFields.push({
+        label: REQUESTER_DESTINATION_ACCOUNT_TITLE,
+        value: dest,
+      });
     }
   }
 
@@ -421,13 +489,35 @@ export default function WorkflowInboxPage() {
         {pettyCashRecord && <WorkflowPettyCashReview ref={pettyCashReviewRef} record={pettyCashRecord} />}
         {missionRecord && <MissionRequestDetailPanel data={missionRecord} />}
         {financialDocumentRecord && (
-          <WorkflowFinancialDocumentReview ref={financialDocumentReviewRef} record={financialDocumentRecord} />
+          <WorkflowFinancialDocumentReview
+            ref={financialDocumentReviewRef}
+            record={financialDocumentRecord}
+            showApproverFields={!isMarkPaymentStep && !isConfirmSepidarStep}
+          />
         )}
         {purchaseRecord && (
-          <WorkflowPurchaseRequestReview
-            record={purchaseRecord}
-            refType={resolvedForm?.refType}
-          />
+          <>
+            <WorkflowPurchaseRequestReview
+              record={purchaseRecord}
+              refType={resolvedForm?.refType}
+            />
+            {isFillStockStep ? (
+              <WorkflowPurchaseFillStock
+                ref={purchaseFillStockRef}
+                record={purchaseRecord}
+                mode="fill_stock"
+              />
+            ) : null}
+            {isConfirmWarehouseSepidarStep ? (
+              <WorkflowPurchaseFillStock
+                ref={purchaseFillStockRef}
+                record={purchaseRecord}
+                mode="confirm_warehouse_sepidar"
+                warehouseId={warehouseId}
+                onWarehouseIdChange={setWarehouseId}
+              />
+            ) : null}
+          </>
         )}
         {resolvedForm &&
           !paymentRecord &&
@@ -467,6 +557,23 @@ export default function WorkflowInboxPage() {
         });
         return;
       }
+      if (!paymentLocation.trim()) {
+        toast({
+          title: 'محل پرداخت الزامی است',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (paymentMethod === 'check') {
+        if (!checkNumber.trim() || !checkBank.trim() || !checkDueDate.trim()) {
+          toast({
+            title: 'جزئیات چک الزامی است',
+            description: 'شماره چک، بانک و تاریخ سررسید را تکمیل کنید.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
       if (!commentTrimmed) {
         toast({
           title: 'توضیح روش پرداخت الزامی است',
@@ -477,10 +584,34 @@ export default function WorkflowInboxPage() {
       }
     }
 
+    if (isUploadBolStep && stepAttachmentFiles.length === 0) {
+      toast({
+        title: 'آپلود بارنامه الزامی است',
+        description: 'فایل بارنامه را به‌عنوان پیوست مرحله بارگذاری کنید.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (isMarkPaymentStep && purchaseRecord && stepAttachmentFiles.length === 0) {
+      toast({
+        title: 'آپلود فیش یا چک الزامی است',
+        description: 'تصویر فیش/چک را به‌عنوان پیوست مرحله بارگذاری کنید.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     let approvePayload: Parameters<typeof approveWorkflowAction>[1] | undefined;
 
     const needsApproverFinancialFields =
-      !isMarkPaymentStep && !isConfirmSepidarStep;
+      !isMarkPaymentStep &&
+      !isConfirmSepidarStep &&
+      !isConfirmWarehouseSepidarStep &&
+      !isFillStockStep &&
+      !isApproveProformaStep &&
+      !isConfirmReceiptStep &&
+      !isUploadBolStep;
 
     if (paymentRecord && needsApproverFinancialFields) {
       const built = paymentReviewRef.current?.buildApprovePayload();
@@ -515,6 +646,41 @@ export default function WorkflowInboxPage() {
         return;
       }
       approvePayload = built.payload;
+    } else if (
+      purchaseRecord &&
+      (isFillStockStep || isConfirmWarehouseSepidarStep)
+    ) {
+      const built = purchaseFillStockRef.current?.buildApprovePayload();
+      if (!built?.ok) {
+        toast({
+          title: 'تکمیل اطلاعات الزامی است',
+          description: built?.error ?? 'اطلاعات مرحله را تکمیل کنید.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      approvePayload = built.payload;
+    }
+
+    if (isMarkPaymentStep) {
+      if (!markRegistered) {
+        toast({
+          title: 'تأیید ثبت الزامی است',
+          description: 'تیک «ثبت شد» را بزنید و سپس دکمه ثبت در سپیدار را بزنید.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    if (isConfirmSepidarStep || isConfirmWarehouseSepidarStep) {
+      if (!sepidarConfirmed) {
+        toast({
+          title: 'تأیید ثبت سپیدار الزامی است',
+          description: 'تیک «در نرم‌افزار سپیدار ثبت شده است» را بزنید.',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     setActionPending(true);
@@ -524,20 +690,23 @@ export default function WorkflowInboxPage() {
       approvePayload = { ...approvePayload, comment: commentTrimmed };
     }
     if (isProformaApproval) {
-      approvePayload = { ...approvePayload, payment_method: paymentMethod };
+      approvePayload = {
+        ...approvePayload,
+        payment_method: paymentMethod,
+        payment_location: paymentLocation.trim(),
+        ...(paymentMethod === 'check'
+          ? {
+              check_number: checkNumber.trim(),
+              check_bank: checkBank.trim(),
+              check_due_date: checkDueDate.trim(),
+            }
+          : {}),
+      };
     }
     if (isMarkPaymentStep) {
       approvePayload = { ...approvePayload, payment_executed: true };
     }
-    if (isConfirmSepidarStep) {
-      if (!sepidarConfirmed) {
-        toast({
-          title: 'تأیید ثبت سپیدار الزامی است',
-          description: 'تیک «در نرم‌افزار سپیدار ثبت شده است» را بزنید.',
-          variant: 'destructive',
-        });
-        return;
-      }
+    if (isConfirmSepidarStep || isConfirmWarehouseSepidarStep) {
       approvePayload = { ...approvePayload, sepidar_confirmed: true };
     }
     runAction(
@@ -671,11 +840,11 @@ export default function WorkflowInboxPage() {
             {isMarkPaymentStep ? (
               <Button
                 type="button"
-                disabled={actionPending || !canActOnStep}
+                disabled={actionPending || !canActOnStep || !markRegistered}
                 onClick={() => void handleApprove()}
               >
                 <Check className="ml-1 h-4 w-4" />
-                ثبت در سپیدار انجام شد
+                در نرم‌افزار سپیدار ثبت شد
               </Button>
             ) : (
               <Button
@@ -683,12 +852,18 @@ export default function WorkflowInboxPage() {
                 disabled={
                   actionPending ||
                   !canActOnStep ||
-                  (isConfirmSepidarStep && !sepidarConfirmed)
+                  ((isConfirmSepidarStep || isConfirmWarehouseSepidarStep) &&
+                    !sepidarConfirmed) ||
+                  (isUploadBolStep && stepAttachmentFiles.length === 0)
                 }
                 onClick={() => void handleApprove()}
               >
                 <Check className="ml-1 h-4 w-4" />
-                تأیید
+                {isConfirmReceiptStep
+                  ? 'تأیید دریافت کالا'
+                  : isConfirmWarehouseSepidarStep
+                    ? 'تأیید ورود انبار'
+                    : 'تأیید'}
               </Button>
             )}
           </div>
@@ -730,19 +905,65 @@ export default function WorkflowInboxPage() {
             showPaymentMethod={isProformaApproval}
             paymentMethod={paymentMethod}
             onPaymentMethodChange={setPaymentMethod}
-            showSepidarConfirm={isConfirmSepidarStep}
+            showProformaPaymentFields={isProformaApproval}
+            paymentLocation={paymentLocation}
+            onPaymentLocationChange={setPaymentLocation}
+            checkNumber={checkNumber}
+            onCheckNumberChange={setCheckNumber}
+            checkDueDate={checkDueDate}
+            onCheckDueDateChange={setCheckDueDate}
+            checkBank={checkBank}
+            onCheckBankChange={setCheckBank}
+            showMarkRegistered={isMarkPaymentStep}
+            markRegistered={markRegistered}
+            onMarkRegisteredChange={setMarkRegistered}
+            showSepidarConfirm={isConfirmSepidarStep || isConfirmWarehouseSepidarStep}
             sepidarConfirmed={sepidarConfirmed}
             onSepidarConfirmedChange={setSepidarConfirmed}
+            sepidarConfirmLabel={
+              isConfirmWarehouseSepidarStep
+                ? 'در نرم‌افزار سپیدار ثبت شده است'
+                : undefined
+            }
+            hideStepAttachments={
+              Boolean(financialDocumentRecord) ||
+              isFillStockStep ||
+              isConfirmReceiptStep ||
+              isConfirmWarehouseSepidarStep
+            }
+            stepAttachmentLabel={
+              isUploadBolStep
+                ? 'فایل بارنامه *'
+                : isMarkPaymentStep && purchaseRecord
+                  ? 'فیش / چک پرداخت *'
+                  : undefined
+            }
             operationalNotice={
-              isMarkPaymentStep
-                ? 'کار را در نرم‌افزار سپیدار (جدا از این سامانه) ثبت کنید؛ سپس دکمه «ثبت در سپیدار انجام شد» را بزنید.'
-                : isConfirmSepidarStep
-                  ? 'ثبت در سپیدار را در نرم‌افزار سپیدار بررسی کنید؛ سپس تیک «در نرم‌افزار سپیدار ثبت شده است» را بزنید و تأیید کنید.'
-                  : isOperationalInboxStep
-                    ? pendingStepAction === 'upload_proforma'
-                      ? 'این مرحله «ثبت پیش‌فاکتور» است و از کارتابل تأیید نمی‌شود. به صفحه درخواست‌های خرید بروید، پیش‌فاکتور را بارگذاری و دکمه «ارسال برای تأیید» را بزنید تا گردش‌کار یک مرحله جلو برود.'
-                      : 'این مرحله «بارگذاری فاکتور» است. از صفحه درخواست‌های خرید فاکتور را آپلود کنید.'
-                    : null
+              isFillStockStep
+                ? 'موجودی انبار هر قلم را در جدول تکمیل کنید و سپس تأیید کنید.'
+                : isMarkPaymentStep
+                  ? financialDocumentRecord
+                    ? 'تصاویر سند را در جزئیات بالا بررسی کنید. پس از ثبت در نرم‌افزار سپیدار، تیک «ثبت شد» را بزنید و دکمه «در نرم‌افزار سپیدار ثبت شد» را بزنید.'
+                    : purchaseRecord
+                      ? 'پس از ثبت در سپیدار و انجام پرداخت، تیک «ثبت شد» را بزنید، فیش/چک را آپلود کنید و دکمه «در نرم‌افزار سپیدار ثبت شد» را بزنید.'
+                      : 'کار را در نرم‌افزار سپیدار (جدا از این سامانه) ثبت کنید؛ سپس تیک «ثبت شد» را بزنید و دکمه «در نرم‌افزار سپیدار ثبت شد» را بزنید.'
+                  : isConfirmWarehouseSepidarStep
+                    ? 'انبار مقصد را انتخاب کنید؛ سپس تیک «در نرم‌افزار سپیدار ثبت شده است» را بزنید و تأیید کنید.'
+                    : isConfirmSepidarStep
+                      ? 'ثبت در سپیدار را در نرم‌افزار سپیدار بررسی کنید؛ سپس تیک «در نرم‌افزار سپیدار ثبت شده است» را بزنید و تأیید کنید.'
+                      : isConfirmReceiptStep
+                        ? 'پس از اطمینان از دریافت کالا، دکمه «تأیید دریافت کالا» را بزنید.'
+                        : isUploadBolStep
+                          ? 'فایل بارنامه را به‌عنوان پیوست مرحله بارگذاری کنید و تأیید کنید.'
+                          : isApproveProformaStep
+                            ? 'محل پرداخت، روش پرداخت و در صورت چک بودن جزئیات چک را تکمیل کنید؛ سپس تأیید کنید.'
+                            : isOperationalInboxStep
+                              ? pendingStepAction === 'upload_proforma'
+                                ? 'این مرحله «ثبت پیش‌فاکتور» است. به صفحه درخواست‌های خرید بروید، اقلام/مبلغ کل پیش‌فاکتور را تکمیل، فایل را آپلود و «ارسال برای تأیید» را بزنید.'
+                                : 'این مرحله «بارگذاری فاکتور» است. از صفحه درخواست‌های خرید فاکتور را آپلود کنید.'
+                              : financialDocumentRecord
+                                ? 'تصاویر سند فقط برای رویت است. در صورت تأیید، دکمه تأیید را بزنید.'
+                                : null
             }
           />
         )}
