@@ -5,6 +5,8 @@ export interface InboxItem {
   /** شناسه نمونه workflow یا کار پیش‌بینی‌نشده */
   ref_id: number;
   title?: string;
+  /** عنوان اصلی درخواست (بدون پیشوند تأیید/مرحله) */
+  request_title?: string;
   message?: string;
   is_read?: boolean;
   read?: boolean;

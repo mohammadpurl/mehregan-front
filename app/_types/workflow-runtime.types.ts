@@ -35,4 +35,9 @@ export interface WorkflowStep {
 
 export interface WorkflowInstanceDetail extends WorkflowInstance {
   steps?: WorkflowStep[];
+  /** عنوان کسب‌وکار (مثلاً عنوان درخواست خرید) */
+  title?: string | null;
+  request_title?: string | null;
+  requester_name?: string | null;
+  ref_label?: string | null;
 }

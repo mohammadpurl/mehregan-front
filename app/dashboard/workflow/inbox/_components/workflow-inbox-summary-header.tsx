@@ -15,6 +15,8 @@ type Props = {
   subtitle?: string | null;
   statusLabel?: string;
   statusTone?: 'pending' | 'approved' | 'rejected' | 'neutral';
+  /** نوع اقدام مورد نیاز (مثلاً ثبت پیش‌فاکتور) */
+  actionLabel?: string | null;
   requesterName?: string | null;
   createdAt?: string | null;
   fields?: WorkflowSummaryField[];
@@ -33,6 +35,7 @@ export function WorkflowInboxSummaryHeader({
   subtitle,
   statusLabel,
   statusTone = 'neutral',
+  actionLabel,
   requesterName,
   createdAt,
   fields = [],
@@ -45,16 +48,23 @@ export function WorkflowInboxSummaryHeader({
           <h3 className="text-base font-bold text-foreground">{title}</h3>
           {subtitle ? <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p> : null}
         </div>
-        {statusLabel ? (
-          <span
-            className={cn(
-              'shrink-0 rounded-full border px-3 py-1 text-xs font-medium',
-              statusStyles[statusTone],
-            )}
-          >
-            {statusLabel}
-          </span>
-        ) : null}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {actionLabel ? (
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              {actionLabel}
+            </span>
+          ) : null}
+          {statusLabel ? (
+            <span
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-medium',
+                statusStyles[statusTone],
+              )}
+            >
+              {statusLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

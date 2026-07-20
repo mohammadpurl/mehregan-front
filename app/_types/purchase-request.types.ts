@@ -55,9 +55,12 @@ export interface PurchaseRequest {
   createdAt?: string | null;
   attachments?: { id?: number; fileName?: string; fileUrl?: string }[];
   invoices?: { id?: number; fileName?: string; fileUrl?: string; downloadUrl?: string }[];
+  paymentSlips?: { id?: number; fileName?: string; fileUrl?: string; downloadUrl?: string }[];
   approvedPaymentMethod?: string | null;
   approvedPaymentComment?: string | null;
   approvedPaymentLocation?: string | null;
+  checkPlan?: { amount: number; dueDate: string }[] | null;
+  payerCompanyAccountId?: number | null;
   approvedCheckNumber?: string | null;
   approvedCheckDueDate?: string | null;
   approvedCheckBank?: string | null;
@@ -80,7 +83,7 @@ export interface PurchaseRequest {
 export interface PurchaseProforma {
   id: number;
   requestId: number;
-  supplierId: number;
+  supplierId?: number | null;
   supplierName?: string | null;
   amount: number;
   /** معادل amount — از API ممکن است totalAmount برگردد */
@@ -91,6 +94,9 @@ export interface PurchaseProforma {
   createdAt?: string | null;
   fileName?: string | null;
   downloadUrl?: string | null;
+  previewUrl?: string | null;
+  attachmentId?: number | null;
+  contentType?: string | null;
 }
 
 export interface CreatePurchaseRequestPayload {

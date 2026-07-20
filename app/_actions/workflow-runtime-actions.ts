@@ -30,9 +30,7 @@ export type WorkflowApprovePayload = {
   line_stocks?: { line_id?: number; item_id?: number | null; stock_on_hand: number }[];
   /** مرحله approve_proforma */
   payment_location?: string;
-  check_number?: string;
-  check_due_date?: string;
-  check_bank?: string;
+  check_plan?: { amount: number; dueDate: string }[];
   /** مرحله confirm_warehouse_sepidar */
   warehouse_id?: number;
 };

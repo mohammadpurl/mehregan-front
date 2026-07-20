@@ -30,6 +30,7 @@ import {
   getWorkflowInstanceStatusLabel,
 } from '@/app/constants/workflow-instance-status-labels';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
+import { workflowRowDetailHref } from '@/app/dashboard/workflow/_utils/workflow-ref-links';
 
 const SCOPE_LABELS: Record<WorkflowInstanceListScope, string> = {
   mine: 'مرتبط با من',
@@ -42,23 +43,6 @@ const SCOPE_LABELS: Record<WorkflowInstanceListScope, string> = {
 const STATUS_FILTER_OPTIONS = Object.entries(WORKFLOW_INSTANCE_STATUS_LABELS).filter(
   ([value], index, arr) => arr.findIndex(([v]) => v === value) === index,
 );
-
-function refDetailHref(row: WorkflowInstanceRow): string {
-  const rt = row.ref_type;
-  const id = row.ref_id;
-  if (rt === 'payment_request') return `/dashboard/payment-request?paymentId=${id}`;
-  if (rt === 'petty_cash' || rt === 'petty_cash_settlement') {
-    return `/dashboard/petty-cash/settlement?pettyCashId=${id}`;
-  }
-  if (rt === 'mission_request' || rt === 'mission_report') {
-    return `/dashboard/mission-requests?missionRequestId=${id}`;
-  }
-  if (rt === 'financial_document') return `/dashboard/financial-documents?financialDocumentId=${id}`;
-  if (rt === 'request' || rt === 'procurement' || rt === 'product_request') {
-    return `/dashboard/procurement/requests?requestId=${id}`;
-  }
-  return `/dashboard/workflow/inbox?instanceId=${row.id}`;
-}
 
 export default function WorkflowTrackingPage() {
   const searchParams = useSearchParams();
@@ -153,7 +137,7 @@ export default function WorkflowTrackingPage() {
       accessorKey: 'title',
       header: 'عنوان',
       cell: ({ row }) => (
-        <Link href={refDetailHref(row.original)} className="text-primary hover:underline">
+        <Link href={workflowRowDetailHref(row.original)} className="text-primary hover:underline">
           {row.original.title?.trim() || '—'}
         </Link>
       ),
@@ -216,7 +200,12 @@ export default function WorkflowTrackingPage() {
     <DashboardPageShell>
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>پیگیری گردش‌کار سازمانی</CardTitle>
+          <div className="space-y-1">
+            <CardTitle>پیگیری گردش‌کار سازمانی</CardTitle>
+            <p className="text-sm font-normal text-muted-foreground">
+              اینجا همه گردش‌کارها با همان عنوان اصلی درخواست دیده می‌شوند (حتی بعد از خروج از کارتابل).
+            </p>
+          </div>
           {availableScopes.length > 1 ? (
             <Tabs
               value={listScope}
@@ -354,7 +343,7 @@ export default function WorkflowTrackingPage() {
               <Link href={`/dashboard/workflow/instances/${selected.id}`}>تایم‌لاین تأیید</Link>
             </Button>
             <Button asChild>
-              <Link href={refDetailHref(selected)}>مشاهده درخواست مرتبط</Link>
+              <Link href={workflowRowDetailHref(selected)}>مشاهده درخواست مرتبط</Link>
             </Button>
           </div>
         )}

@@ -60,6 +60,10 @@ export default function WorkflowInstanceDetailPage() {
       }
     : null;
 
+  const displayTitle =
+    (instance?.title || instance?.request_title || '').trim() ||
+    (instance ? `گردش‌کار #${instance.id}` : null);
+
   return (
     <DashboardPageShell>
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -76,7 +80,7 @@ export default function WorkflowInstanceDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle>
-            {instance ? `گردش‌کار #${instance.id}` : loading ? 'در حال بارگذاری…' : 'جزئیات گردش‌کار'}
+            {displayTitle ?? (loading ? 'در حال بارگذاری…' : 'جزئیات گردش‌کار')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -87,20 +91,38 @@ export default function WorkflowInstanceDetailPage() {
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
                 <div>
                   <span className="text-muted-foreground">نوع:</span>{' '}
-                  {getRequestRefTypeLabel(instance.ref_type)}
+                  {instance.ref_label || getRequestRefTypeLabel(instance.ref_type)}
                 </div>
                 <div>
                   <span className="text-muted-foreground">وضعیت:</span>{' '}
                   {getWorkflowInstanceStatusLabel(instance.status)}
                 </div>
                 <div>
+                  <span className="text-muted-foreground">شناسه گردش‌کار:</span> #{instance.id}
+                </div>
+                <div>
                   <span className="text-muted-foreground">مرجع:</span> #{instance.ref_id}
                 </div>
+                {instance.requester_name ? (
+                  <div>
+                    <span className="text-muted-foreground">درخواست‌کننده:</span>{' '}
+                    {instance.requester_name}
+                  </div>
+                ) : null}
               </div>
               {rowLike ? (
-                <Button asChild>
-                  <Link href={refDetailHref(rowLike as WorkflowInstanceRow)}>مشاهده درخواست مرتبط</Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild>
+                    <Link href={refDetailHref(rowLike as WorkflowInstanceRow)}>
+                      مشاهده درخواست مرتبط
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link href={`/dashboard/workflow/tracking?instanceId=${instance.id}`}>
+                      پیگیری گردش‌کار
+                    </Link>
+                  </Button>
+                </div>
               ) : null}
               <RelatedRequestsPanel instanceId={instanceId} />
               <WorkflowApprovalPlanTimeline

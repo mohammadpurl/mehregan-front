@@ -58,7 +58,13 @@ export function attachmentsForStep(
       ) {
         return true;
       }
-      if (a.attachmentScope === 'invoice' && (step.order === 5 || step.order === 6)) {
+      if (a.attachmentScope === 'invoice' && step.order === 5) {
+        return true;
+      }
+      if (
+        (a.attachmentScope === 'payment_slip' || a.attachmentScope === 'payment-slip') &&
+        step.order === 6
+      ) {
         return true;
       }
       if (a.attachmentScope === 'proforma' && (step.order === 3 || step.order === 4)) {

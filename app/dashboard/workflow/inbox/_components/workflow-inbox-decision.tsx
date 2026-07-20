@@ -12,11 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import { Input } from '@/app/components/ui/input';
 import { AdvancedModal } from '@/app/components/Modal';
 import { AttachmentFileInput } from '@/app/components/attachments/attachment-file-input';
 import { RequiredFieldsHint, RequiredMark } from '@/app/components/ui/required-mark';
-import { JalaliDateInput } from '@/app/components/ui/jalali-date-input';
+import { CompanyBankAccountSelect } from '@/app/dashboard/payment-request/_components/bank-account/company-bank-account-select';
+import {
+  WorkflowProformaCheckPlan,
+  type ProformaCheckPlanRow,
+} from './workflow-proforma-check-plan';
 
 export type WorkflowRejectTarget = 'previous' | 'requester';
 
@@ -30,16 +33,15 @@ type Props = {
   showPaymentMethod?: boolean;
   paymentMethod?: string;
   onPaymentMethodChange?: (value: string) => void;
-  /** مرحله approve_proforma — محل پرداخت و جزئیات چک */
+  /** مرحله approve_proforma — محل پرداخت، حساب بانکی، برنامه چک */
   showProformaPaymentFields?: boolean;
   paymentLocation?: string;
   onPaymentLocationChange?: (value: string) => void;
-  checkNumber?: string;
-  onCheckNumberChange?: (value: string) => void;
-  checkDueDate?: string;
-  onCheckDueDateChange?: (value: string) => void;
-  checkBank?: string;
-  onCheckBankChange?: (value: string) => void;
+  payerCompanyAccountId?: number;
+  onPayerCompanyAccountIdChange?: (value: number) => void;
+  checkPlanRows?: ProformaCheckPlanRow[];
+  onCheckPlanRowsChange?: (rows: ProformaCheckPlanRow[]) => void;
+  proformaExpectedTotal?: number | null;
   /** مرحله کارشناس مالی: تیک «ثبت شد» قبل از دکمه سپیدار */
   showMarkRegistered?: boolean;
   markRegistered?: boolean;
@@ -64,17 +66,16 @@ export function WorkflowInboxDecisionFields({
   onAttachmentFilesChange,
   disabled,
   showPaymentMethod,
-  paymentMethod = 'transfer',
+  paymentMethod = 'cash',
   onPaymentMethodChange,
   showProformaPaymentFields,
   paymentLocation = '',
   onPaymentLocationChange,
-  checkNumber = '',
-  onCheckNumberChange,
-  checkDueDate = '',
-  onCheckDueDateChange,
-  checkBank = '',
-  onCheckBankChange,
+  payerCompanyAccountId = 0,
+  onPayerCompanyAccountIdChange,
+  checkPlanRows = [],
+  onCheckPlanRowsChange,
+  proformaExpectedTotal,
   showMarkRegistered,
   markRegistered = false,
   onMarkRegisteredChange,
@@ -86,6 +87,7 @@ export function WorkflowInboxDecisionFields({
   stepAttachmentLabel,
 }: Props) {
   const isCheckPayment = paymentMethod === 'check';
+  const isBankLocation = paymentLocation === 'bank';
   return (
     <div className="space-y-3 rounded-lg border bg-muted/10 p-3 text-right">
       <p className="text-sm font-medium">
@@ -138,8 +140,41 @@ export function WorkflowInboxDecisionFields({
           </div>
         </div>
       ) : null}
-      {showPaymentMethod || showProformaPaymentFields ? (
+      {showProformaPaymentFields ? (
         <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>
+              محل پرداخت
+              <RequiredMark />
+            </Label>
+            <Select
+              value={paymentLocation || undefined}
+              onValueChange={onPaymentLocationChange}
+              disabled={disabled}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="بانک یا تنخواه" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bank">بانک</SelectItem>
+                <SelectItem value="petty_cash">تنخواه</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {isBankLocation ? (
+            <div className="space-y-1">
+              <Label>
+                حساب بانکی شرکت
+                <RequiredMark />
+              </Label>
+              <CompanyBankAccountSelect
+                value={payerCompanyAccountId}
+                onChange={(id) => onPayerCompanyAccountIdChange?.(id)}
+                disabled={disabled}
+                placeholder="انتخاب حساب بانکی شرکت"
+              />
+            </div>
+          ) : null}
           <div className="space-y-1">
             <Label>
               روش پرداخت
@@ -154,67 +189,39 @@ export function WorkflowInboxDecisionFields({
                 <SelectValue placeholder="انتخاب روش پرداخت" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="transfer">حواله</SelectItem>
+                <SelectItem value="cash">نقدی</SelectItem>
                 <SelectItem value="check">چک</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {showProformaPaymentFields ? (
-            <>
-              <div className="space-y-1">
-                <Label htmlFor="wf-payment-location">
-                  محل پرداخت
-                  <RequiredMark />
-                </Label>
-                <Input
-                  id="wf-payment-location"
-                  value={paymentLocation}
-                  onChange={(e) => onPaymentLocationChange?.(e.target.value)}
-                  disabled={disabled}
-                  placeholder="مثلاً حساب شرکت / صندوق…"
-                />
-              </div>
-              {isCheckPayment ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="wf-check-number">
-                      شماره چک
-                      <RequiredMark />
-                    </Label>
-                    <Input
-                      id="wf-check-number"
-                      value={checkNumber}
-                      onChange={(e) => onCheckNumberChange?.(e.target.value)}
-                      disabled={disabled}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="wf-check-bank">
-                      بانک
-                      <RequiredMark />
-                    </Label>
-                    <Input
-                      id="wf-check-bank"
-                      value={checkBank}
-                      onChange={(e) => onCheckBankChange?.(e.target.value)}
-                      disabled={disabled}
-                    />
-                  </div>
-                  <div className="space-y-1 sm:col-span-2">
-                    <Label>
-                      تاریخ سررسید چک
-                      <RequiredMark />
-                    </Label>
-                    <JalaliDateInput
-                      value={checkDueDate}
-                      onChange={(v) => onCheckDueDateChange?.(v)}
-                      disabled={disabled}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </>
+          {isCheckPayment ? (
+            <WorkflowProformaCheckPlan
+              rows={checkPlanRows}
+              onChange={(rows) => onCheckPlanRowsChange?.(rows)}
+              expectedTotal={proformaExpectedTotal}
+              disabled={disabled}
+            />
           ) : null}
+        </div>
+      ) : showPaymentMethod ? (
+        <div className="space-y-1">
+          <Label>
+            روش پرداخت
+            <RequiredMark />
+          </Label>
+          <Select
+            value={paymentMethod}
+            onValueChange={onPaymentMethodChange}
+            disabled={disabled}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="انتخاب روش پرداخت" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="transfer">حواله</SelectItem>
+              <SelectItem value="check">چک</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       ) : null}
       <div className="space-y-1">
@@ -271,18 +278,13 @@ export function WorkflowRejectModal({
   onConfirm,
 }: RejectModalProps) {
   const [comment, setComment] = useState('');
-  const [returnTo, setReturnTo] = useState<WorkflowRejectTarget>(
-    canReturnToPrevious ? 'previous' : 'requester',
-  );
 
   const handleConfirm = () => {
     const trimmed = comment.trim();
     if (!trimmed) return;
-    // اگر مرحله قبل هست همیشه previous؛ مرحله ۱ فقط به درخواست‌کننده
     const resolvedReturnTo: WorkflowRejectTarget = canReturnToPrevious ? 'previous' : 'requester';
     onConfirm({ comment: trimmed, returnTo: resolvedReturnTo });
     setComment('');
-    setReturnTo(canReturnToPrevious ? 'previous' : 'requester');
   };
 
   return (
@@ -312,28 +314,15 @@ export function WorkflowRejectModal({
         {pendingStepOrder != null ? (
           <p className="text-muted-foreground">مرحله جاری: {pendingStepOrder}</p>
         ) : null}
-        <div className="space-y-1">
-          <Label>بازگشت به</Label>
-          <Select
-            value={canReturnToPrevious ? 'previous' : 'requester'}
-            onValueChange={(v) => setReturnTo(v as WorkflowRejectTarget)}
-            disabled={loading || canReturnToPrevious}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {canReturnToPrevious ? (
-                <SelectItem value="previous">مرحله تأیید قبلی</SelectItem>
-              ) : (
-                <SelectItem value="requester">درخواست‌کننده (اصلاح و ارسال مجدد)</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground">بعد از رد، درخواست برمی‌گردد به</p>
+          <p className="mt-1 font-medium">
             {canReturnToPrevious
-              ? 'با رد، درخواست به مرحله تأیید قبلی برمی‌گردد.'
-              : 'این اولین مرحله است؛ با رد، درخواست به درخواست‌کننده برمی‌گردد.'}
+              ? 'مرحله تأیید قبلی'
+              : 'درخواست‌کننده (برای اصلاح و ارسال مجدد)'}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            این مقصد به‌صورت خودکار تعیین می‌شود و قابل تغییر نیست.
           </p>
         </div>
         <div className="space-y-1">

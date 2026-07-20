@@ -67,6 +67,13 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
       downloadUrl:
         typeof a.id === 'number' ? attachmentProxyDownloadPath(a.id) : a.fileUrl,
     })),
+    paymentSlips: parseAttachmentsFromApi(r.payment_slips ?? r.paymentSlips).map((a) => ({
+      id: typeof a.id === 'number' ? a.id : undefined,
+      fileName: a.fileName,
+      fileUrl: a.fileUrl,
+      downloadUrl:
+        typeof a.id === 'number' ? attachmentProxyDownloadPath(a.id) : a.fileUrl,
+    })),
     bolAttachments: parseAttachmentsFromApi(r.bol_attachments ?? r.bolAttachments).map((a) => ({
       id: typeof a.id === 'number' ? a.id : undefined,
       fileName: a.fileName,
@@ -82,8 +89,16 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
       | string
       | null
       | undefined,
-    approvedPaymentLocation: (r.approved_payment_location ?? r.approvedPaymentLocation) as
-      | string
+    approvedPaymentLocation: (r.payment_location ??
+      r.paymentLocation ??
+      r.approved_payment_location ??
+      r.approvedPaymentLocation) as string | null | undefined,
+    checkPlan: (r.check_plan ?? r.checkPlan) as
+      | { amount: number; dueDate: string }[]
+      | null
+      | undefined,
+    payerCompanyAccountId: (r.payer_company_account_id ?? r.payerCompanyAccountId) as
+      | number
       | null
       | undefined,
     approvedCheckNumber: (r.approved_check_number ?? r.approvedCheckNumber) as
@@ -179,10 +194,16 @@ function mapProformaDownloadUrl(raw: Record<string, unknown>): string | undefine
 
 function mapProforma(raw: Record<string, unknown>): PurchaseProforma {
   const amount = Number(raw.amount ?? raw.total_amount ?? raw.totalAmount ?? 0);
+  const downloadUrl = mapProformaDownloadUrl(raw);
+  const previewRaw = String(raw.preview_url ?? raw.previewUrl ?? '').trim();
+  const attachmentIdRaw = raw.attachment_id ?? raw.attachmentId;
   return {
     id: Number(raw.id),
     requestId: Number(raw.request_id ?? raw.requestId),
-    supplierId: Number(raw.supplier_id ?? raw.supplierId),
+    supplierId:
+      raw.supplier_id != null || raw.supplierId != null
+        ? Number(raw.supplier_id ?? raw.supplierId)
+        : null,
     supplierName: (raw.supplier_name ?? raw.supplierName) as string | null | undefined,
     amount,
     totalAmount: amount,
@@ -191,7 +212,15 @@ function mapProforma(raw: Record<string, unknown>): PurchaseProforma {
     uploadedBy: Number(raw.uploaded_by ?? raw.uploadedBy ?? 0),
     createdAt: (raw.created_at ?? raw.createdAt) as string | null | undefined,
     fileName: (raw.file_name ?? raw.fileName) as string | null | undefined,
-    downloadUrl: mapProformaDownloadUrl(raw),
+    downloadUrl,
+    previewUrl: previewRaw || downloadUrl,
+    attachmentId:
+      attachmentIdRaw != null && Number.isFinite(Number(attachmentIdRaw))
+        ? Number(attachmentIdRaw)
+        : extractAttachmentId(downloadUrl ?? '') != null
+          ? Number(extractAttachmentId(downloadUrl ?? ''))
+          : null,
+    contentType: (raw.content_type ?? raw.contentType) as string | null | undefined,
   };
 }
 
@@ -432,13 +461,15 @@ export async function getPurchaseProformasAction(requestId: string | number) {
 
 export async function uploadPurchaseProformaAction(
   requestId: number,
-  input: { supplierId: number; amount: number; notes?: string; file: File },
+  input: { amount: number; notes?: string; file: File; supplierId?: number },
 ) {
   try {
     const formData = new FormData();
-    formData.set('supplierId', String(input.supplierId));
     formData.set('amount', String(input.amount));
     formData.set('totalAmount', String(input.amount));
+    if (input.supplierId != null && input.supplierId > 0) {
+      formData.set('supplierId', String(input.supplierId));
+    }
     if (input.notes) formData.set('notes', input.notes);
     formData.set('file', input.file);
     const data = await uploadDataWithAuth<Record<string, unknown>>(
@@ -531,6 +562,40 @@ export async function uploadPurchaseInvoiceAction(requestId: number, file: File)
     return {
       success: false as const,
       error: extractActionErrorMessage(err, 'خطا در آپلود فاکتور'),
+    };
+  }
+}
+
+export async function uploadPurchasePaymentSlipAction(requestId: number, file: File) {
+  try {
+    const formData = new FormData();
+    formData.set('file', file);
+    const data = await uploadDataWithAuth<Record<string, unknown>>(
+      `/requests/purchase/${requestId}/payment-slips`,
+      formData,
+    );
+    return { success: true as const, data };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'خطا در آپلود فیش/چک'),
+    };
+  }
+}
+
+export async function uploadPurchaseBolAction(requestId: number, file: File) {
+  try {
+    const formData = new FormData();
+    formData.set('file', file);
+    const data = await uploadDataWithAuth<Record<string, unknown>>(
+      `/requests/purchase/${requestId}/bill-of-lading`,
+      formData,
+    );
+    return { success: true as const, data };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'خطا در آپلود بارنامه'),
     };
   }
 }
