@@ -43,10 +43,23 @@ export function normalizeNotificationItem(raw: RawNotification): NotificationCen
 
   const requestCreatedAt = raw.request_created_at ?? raw.requestCreatedAt;
   const requestTypeLabel = raw.request_type_label ?? raw.requestTypeLabel;
+  const meta =
+    raw.meta && typeof raw.meta === 'object'
+      ? (raw.meta as Record<string, unknown>)
+      : null;
+  const requestTitleRaw =
+    raw.request_title ??
+    raw.requestTitle ??
+    meta?.request_title ??
+    meta?.requestTitle;
+  const serverTitle = String(raw.title ?? '').trim();
+  const requestTitle =
+    requestTitleRaw != null ? String(requestTitleRaw).trim() : '';
 
   const item: NotificationCenterItem = {
     id: String(raw.id ?? ''),
-    title: String(raw.title ?? ''),
+    // عنوان/پیام از سرور — ساخت دستی در فرانت انجام نمی‌شود
+    title: serverTitle || requestTitle,
     message: String(raw.message ?? ''),
     level,
     eventType,
@@ -64,6 +77,7 @@ export function normalizeNotificationItem(raw: RawNotification): NotificationCen
         : raw.requesterName != null
           ? String(raw.requesterName)
           : null,
+    request_title: requestTitle || null,
     business_ref_id: coerceRefId(raw.business_ref_id ?? raw.businessRefId),
     href: typeof raw.href === 'string' ? raw.href : null,
   };

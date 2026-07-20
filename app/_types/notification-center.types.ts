@@ -39,6 +39,8 @@ export interface NotificationCenterItem {
   request_created_at?: string | null;
   request_type_label?: string | null;
   requester_name?: string | null;
+  /** عنوان کسب‌وکار درخواست (از meta بک‌اند) */
+  request_title?: string | null;
   business_ref_id?: string | number | null;
 }
 

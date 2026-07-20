@@ -38,14 +38,23 @@ export function inboxItemToNotificationCenterItem(inbox: InboxItem): Notificatio
     requestTypeLabel?: string;
     requester_name?: string;
     requesterName?: string;
+    request_title?: string;
+    requestTitle?: string;
     business_ref_id?: number;
     businessRefId?: number;
+    meta?: { requestTitle?: string; request_title?: string };
   };
   const entity = inboxEntity(inbox.ref_type);
   const isAdHoc = entity === 'ad_hoc_task';
+  const requestTitle =
+    extended.request_title?.trim() ||
+    extended.requestTitle?.trim() ||
+    extended.meta?.requestTitle?.trim() ||
+    extended.meta?.request_title?.trim() ||
+    '';
   return {
     id: `inbox-${inbox.id}`,
-    title: inbox.title?.trim() || 'کار در کارتابل',
+    title: inbox.title?.trim() || requestTitle || 'کار در کارتابل',
     message: inbox.message?.trim() || 'درخواستی منتظر بررسی و تأیید شماست.',
     level: 'info',
     eventType: isAdHoc ? 'ad_hoc_task.assigned' : 'workflow.next_step',
@@ -58,6 +67,7 @@ export function inboxItemToNotificationCenterItem(inbox: InboxItem): Notificatio
     request_type_label:
       extended.request_type_label ?? extended.requestTypeLabel ?? null,
     requester_name: extended.requester_name ?? extended.requesterName ?? null,
+    request_title: requestTitle || null,
     business_ref_id: extended.business_ref_id ?? extended.businessRefId ?? null,
     href: isAdHoc
       ? `/dashboard/ad-hoc-tasks/${encodeURIComponent(String(inbox.ref_id))}`

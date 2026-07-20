@@ -20,6 +20,7 @@ import type { WarehouseFormData } from '@/app/_types/warehouse.types';
 import { Package, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { DashboardPageShell } from '@/app/components/layout/DashboardPageShell';
+import { RequestTitleField } from '@/app/components/forms/request-title-field';
 import * as v from 'valibot';
 
 type WarehouseFormValues = v.InferInput<typeof WarehouseFormSchema>;
@@ -32,6 +33,7 @@ export default function NewWarehousePage() {
   const form = useForm<WarehouseFormValues>({
     resolver: valibotResolver(WarehouseFormSchema),
     defaultValues: {
+      title: '',
       type: WarehouseFormType.ENTRY,
       source: {
         id: '',
@@ -114,6 +116,18 @@ export default function NewWarehousePage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <RequestTitleField
+                    refType="warehouse_form"
+                    field={field}
+                    disabled={isPending}
+                  />
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="type"

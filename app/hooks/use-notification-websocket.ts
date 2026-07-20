@@ -12,6 +12,9 @@ type WorkflowWsPayload = {
   message?: string;
   instance_id?: number;
   instanceId?: number;
+  requestTitle?: string;
+  request_title?: string;
+  meta?: { requestTitle?: string; request_title?: string };
 };
 
 const RECONNECT_MS = 5000;
@@ -44,10 +47,18 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(String(event.data)) as WorkflowWsPayload;
+          const resolveTitle = (fallback: string) =>
+            data.title?.trim() ||
+            data.requestTitle?.trim() ||
+            data.request_title?.trim() ||
+            data.meta?.requestTitle?.trim() ||
+            data.meta?.request_title?.trim() ||
+            fallback;
+
           if (data.type === 'workflow.next_step' || data.type === 'workflow') {
             void refreshBadgeCounts();
             void fetchLatest(6, true);
-            const title = data.title || 'کار جدید در کارتابل';
+            const title = resolveTitle('کار جدید در کارتابل');
             const body = data.message || 'یک درخواست منتظر بررسی شماست.';
             useNotificationStore.getState().showNotification({
               type: 'info',
@@ -63,7 +74,7 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
             const isReject = data.type === 'workflow.rejected';
             useNotificationStore.getState().showNotification({
               type: isReject ? 'error' : 'success',
-              message: `${data.title || (isReject ? 'درخواست رد شد' : 'تأیید مرحله')}\n${
+              message: `${resolveTitle(isReject ? 'درخواست رد شد' : 'تأیید مرحله')}\n${
                 data.message ||
                 (isReject
                   ? 'درخواست شما توسط تأییدکننده رد شد.'
@@ -75,7 +86,7 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
             void fetchLatest(6, true);
             useNotificationStore.getState().showNotification({
               type: 'warning',
-              message: `${data.title || 'تأخیر SLA'}\n${data.message || 'اقدام فوری لازم است.'}`,
+              message: `${resolveTitle('تأخیر SLA')}\n${data.message || 'اقدام فوری لازم است.'}`,
             });
           }
         } catch {

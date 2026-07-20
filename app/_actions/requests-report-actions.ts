@@ -22,6 +22,9 @@ function mapItem(raw: Record<string, unknown>): RequestReportItem {
     requesterName: (raw.requester_name ?? raw.requesterName) as string | null | undefined,
     status: (raw.status as string | null | undefined) ?? null,
     statusLabel: (raw.status_label ?? raw.statusLabel) as string | null | undefined,
+    workflowStatus: (raw.workflow_status ?? raw.workflowStatus) as string | null | undefined,
+    workflowStatusLabel: (raw.workflow_status_label ??
+      raw.workflowStatusLabel) as string | null | undefined,
     amount:
       raw.amount != null && Number.isFinite(Number(raw.amount)) ? Number(raw.amount) : null,
     createdAt: (raw.created_at ?? raw.createdAt) as string | null | undefined,

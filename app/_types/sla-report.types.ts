@@ -1,4 +1,10 @@
-export type SlaItemStatus = 'on_time' | 'late' | 'overdue' | 'in_progress' | 'unknown';
+export type SlaItemStatus =
+  | 'on_time'
+  | 'late'
+  | 'overdue'
+  | 'in_progress'
+  | 'without_deadline'
+  | 'unknown';
 
 export type SlaReportItem = {
   kind: 'workflow' | 'ad_hoc';
@@ -47,6 +53,8 @@ export type SlaReport = {
     late: number;
     overduePending: number;
     inProgress: number;
+    withoutDeadline: number;
+    unknown: number;
     complianceRatePercent: number;
     byAssignee: SlaReportAssigneeSummary[];
   };

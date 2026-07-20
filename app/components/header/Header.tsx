@@ -147,7 +147,9 @@ function NotificationBell() {
                     <div className="flex items-start gap-2">
                       {!n.is_read && <div className="mt-1.5 w-2 h-2 rounded-full bg-accent shrink-0" />}
                       <div className="min-w-0">
-                        <p className="text-sm text-foreground truncate">{n.title || n.message}</p>
+                        <p className="text-sm text-foreground truncate">
+                          {n.title || n.request_title || n.message}
+                        </p>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.message}</p>
                         <p className="text-[11px] text-muted-foreground mt-1">{formatRelativeDate(n.created_at)}</p>
                       </div>

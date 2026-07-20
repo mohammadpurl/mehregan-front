@@ -58,6 +58,15 @@ export function PaymentRequestEmployeeFields({
     displayType === PaymentRequestType.LOAN ||
     displayType === PaymentRequestType.ADVANCE;
 
+  const titleRefType =
+    displayType === PaymentRequestType.LOAN
+      ? 'loan'
+      : displayType === PaymentRequestType.ADVANCE
+        ? 'advance'
+        : displayType === PaymentRequestType.PAYMENT_ORDER
+          ? 'payment_order'
+          : 'payment_request';
+
   return (
     <div className="space-y-4">
       {receiverBanner && (
@@ -79,7 +88,7 @@ export function PaymentRequestEmployeeFields({
           name="title"
           render={({ field }) => (
             <RequestTitleField
-              refType="payment_request"
+              refType={titleRefType}
               field={field}
               disabled={readOnly}
             />

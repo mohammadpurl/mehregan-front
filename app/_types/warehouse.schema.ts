@@ -68,7 +68,15 @@ export const WarehouseItemSchema = object({
   description: optional(pipe(string(), trim(), maxLength(500))),
 });
 
+const TitleSchema = pipe(
+  string(),
+  trim(),
+  minLength(2, 'عنوان درخواست الزامی است'),
+  maxLength(255, 'عنوان نباید بیشتر از ۲۵۵ کاراکتر باشد'),
+);
+
 export const WarehouseFormSchema = object({
+  title: TitleSchema,
   type: enum_(WarehouseFormType, 'نوع فرم انبار را انتخاب کنید'),
   source: WarehouseLocationSchema,
   destination: WarehouseLocationSchema,

@@ -113,6 +113,7 @@ export default function WarehouseListPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>عنوان</TableHead>
                     <TableHead>نوع</TableHead>
                     <TableHead>مبدأ</TableHead>
                     <TableHead>مقصد</TableHead>
@@ -126,6 +127,9 @@ export default function WarehouseListPage() {
                 <TableBody>
                   {warehouses.map((warehouse) => (
                     <TableRow key={warehouse.id}>
+                      <TableCell className="font-medium">
+                        {warehouse.title?.trim() || `فرم #${warehouse.id}`}
+                      </TableCell>
                       <TableCell>{typeLabels[warehouse.type] ?? warehouse.type}</TableCell>
                       <TableCell>{warehouse.source?.name ?? '—'}</TableCell>
                       <TableCell>{warehouse.destination?.name ?? '—'}</TableCell>

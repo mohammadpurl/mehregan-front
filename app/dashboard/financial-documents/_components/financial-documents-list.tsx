@@ -104,7 +104,11 @@ export function FinancialDocumentsList() {
 
   const columns = useMemo<ColumnDef<FinancialDocumentResponse>[]>(
     () => [
-      { accessorKey: 'id', header: 'شناسه' },
+      {
+        accessorKey: 'title',
+        header: 'عنوان',
+        cell: ({ row }) => row.original.title?.trim() || `سند #${row.original.id}`,
+      },
       {
         accessorKey: 'documentType',
         header: 'نوع',

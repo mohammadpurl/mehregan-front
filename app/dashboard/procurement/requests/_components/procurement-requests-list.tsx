@@ -147,7 +147,11 @@ export function ProcurementRequestsList() {
 
   const columns = useMemo<ColumnDef<PurchaseRequest>[]>(
     () => [
-      { accessorKey: 'id', header: 'شناسه' },
+      {
+        accessorKey: 'title',
+        header: 'عنوان',
+        cell: ({ row }) => row.original.title?.trim() || `درخواست #${row.original.id}`,
+      },
       {
         accessorKey: 'requesterName',
         header: 'درخواست‌کننده',

@@ -16,6 +16,7 @@ export interface WarehouseLocation {
 
 export interface WarehouseFormData {
   id?: string;
+  title?: string;
   type: WarehouseFormType;
   source: WarehouseLocation; // مبداء
   destination: WarehouseLocation; // مقصد
@@ -40,6 +41,7 @@ export interface WarehouseItem {
 
 export interface WarehouseResponse {
   id: string;
+  title?: string | null;
   type: WarehouseFormType;
   source: WarehouseLocation;
   destination: WarehouseLocation;

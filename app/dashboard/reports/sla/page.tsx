@@ -32,6 +32,7 @@ const REF_TYPE_OPTIONS = [
   { value: 'workflow_form', label: 'درخواست اداری' },
   { value: 'warehouse_form', label: 'فرم انبار' },
   { value: 'mission_request', label: 'درخواست ماموریت' },
+  { value: 'ad_hoc_task', label: 'کار ارجاعی / پیش‌بینی‌نشده' },
 ];
 
 function statusBadgeClass(status: SlaReportItem['status']) {
@@ -44,6 +45,10 @@ function statusBadgeClass(status: SlaReportItem['status']) {
       return 'bg-rose-50 text-rose-800 ring-rose-100';
     case 'in_progress':
       return 'bg-sky-50 text-sky-800 ring-sky-100';
+    case 'without_deadline':
+      return 'bg-violet-50 text-violet-800 ring-violet-100';
+    case 'unknown':
+      return 'bg-slate-50 text-slate-700 ring-slate-200';
     default:
       return 'bg-muted text-muted-foreground ring-border';
   }
@@ -179,7 +184,7 @@ export default function SlaReportPage() {
         </div>
 
         {summary ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">کل موارد</CardTitle>
@@ -204,6 +209,22 @@ export default function SlaReportPage() {
               </CardHeader>
               <CardContent className="text-2xl font-bold tabular-nums text-rose-700">
                 {summary.overduePending}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-violet-700">بدون مهلت</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-bold tabular-nums text-violet-700">
+                {summary.withoutDeadline}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-slate-600">نامشخص</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-bold tabular-nums text-slate-700">
+                {summary.unknown}
               </CardContent>
             </Card>
             <Card>

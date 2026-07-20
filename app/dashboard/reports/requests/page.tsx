@@ -201,8 +201,14 @@ export default function RequestsReportPage() {
       },
       {
         accessorKey: 'statusLabel',
-        header: 'وضعیت',
+        header: 'وضعیت درخواست',
         cell: ({ row }) => row.original.statusLabel || row.original.status || '—',
+      },
+      {
+        id: 'workflowStatus',
+        header: 'وضعیت گردش‌کار',
+        cell: ({ row }) =>
+          row.original.workflowStatusLabel || row.original.workflowStatus || '—',
       },
       {
         accessorKey: 'createdAt',
@@ -211,6 +217,22 @@ export default function RequestsReportPage() {
           row.original.createdAt
             ? formatJalaliDate(row.original.createdAt, { withTime: true })
             : '—',
+      },
+      {
+        id: 'workflowLink',
+        header: 'پیگیری',
+        cell: ({ row }) => {
+          const id = row.original.workflowInstanceId;
+          if (!id) return '—';
+          return (
+            <Link
+              href={`/dashboard/workflow/tracking?instanceId=${id}`}
+              className="text-primary hover:underline"
+            >
+              #{id}
+            </Link>
+          );
+        },
       },
     ],
     [],

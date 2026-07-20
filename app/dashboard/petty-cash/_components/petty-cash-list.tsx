@@ -106,7 +106,11 @@ export function PettyCashList() {
 
   const columns = useMemo<ColumnDef<PettyCashResponse>[]>(
     () => [
-      { accessorKey: 'id', header: 'شناسه' },
+      {
+        accessorKey: 'title',
+        header: 'عنوان',
+        cell: ({ row }) => row.original.title?.trim() || `تنخواه #${row.original.id}`,
+      },
       {
         accessorKey: 'amount',
         header: 'مبلغ',
@@ -295,7 +299,11 @@ export function PettyCashList() {
           setDetailOpen(open);
           if (!open) setSelected(null);
         }}
-        title={selected ? `تنخواه #${selected.id}` : 'جزئیات تنخواه'}
+        title={
+          selected
+            ? selected.title?.trim() || `تنخواه #${selected.id}`
+            : 'جزئیات تنخواه'
+        }
         size="lg"
         footer={
           selected && canSettlePettyCash(selected) ? (

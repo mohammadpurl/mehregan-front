@@ -66,6 +66,10 @@ function mapReport(raw: Record<string, unknown>): SlaReport {
       late: Number(summaryRaw.late ?? 0),
       overduePending: Number(summaryRaw.overdue_pending ?? summaryRaw.overduePending ?? 0),
       inProgress: Number(summaryRaw.in_progress ?? summaryRaw.inProgress ?? 0),
+      withoutDeadline: Number(
+        summaryRaw.without_deadline ?? summaryRaw.withoutDeadline ?? 0,
+      ),
+      unknown: Number(summaryRaw.unknown ?? 0),
       complianceRatePercent: Number(summaryRaw.compliance_rate_percent ?? summaryRaw.complianceRatePercent ?? 0),
       byAssignee: Array.isArray(byAssigneeRaw)
         ? byAssigneeRaw.map((a) => mapAssignee(a as Record<string, unknown>))

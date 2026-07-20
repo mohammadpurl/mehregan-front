@@ -28,6 +28,8 @@ export interface RequestReportItem {
   requesterName?: string | null;
   status?: string | null;
   statusLabel?: string | null;
+  workflowStatus?: string | null;
+  workflowStatusLabel?: string | null;
   amount?: number | null;
   createdAt?: string | null;
   workflowInstanceId?: number | null;

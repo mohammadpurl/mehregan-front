@@ -95,6 +95,11 @@ export function MissionRequestList() {
 
   const columns = useMemo<ColumnDef<MissionRequestResponse>[]>(
     () => [
+      {
+        accessorKey: 'title',
+        header: 'عنوان',
+        cell: ({ row }) => row.original.title?.trim() || `ماموریت #${row.original.id}`,
+      },
       { accessorKey: 'destination', header: 'محل ماموریت' },
       { accessorKey: 'vehicle', header: 'وسیله نقلیه' },
       {

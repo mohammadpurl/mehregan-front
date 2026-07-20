@@ -71,9 +71,9 @@ export function getPaymentRequestsTableColumns({
 }: Handlers): ColumnDef<PaymentRequestResponse>[] {
   return [
     {
-      accessorKey: 'id',
-      header: 'شناسه',
-      cell: ({ row }) => row.original.id,
+      accessorKey: 'title',
+      header: 'عنوان',
+      cell: ({ row }) => row.original.title?.trim() || `درخواست #${row.original.id}`,
     },
     {
       id: 'requester',
