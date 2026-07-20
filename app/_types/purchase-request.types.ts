@@ -62,9 +62,19 @@ export interface PurchaseRequest {
   approvedCheckDueDate?: string | null;
   approvedCheckBank?: string | null;
   invoicePaidAt?: string | null;
+  /** انبار انتخاب‌شده هنگام ثبت درخواست */
+  warehouseId?: number | null;
+  warehouseName?: string | null;
   destinationWarehouseId?: number | null;
   destinationWarehouseName?: string | null;
   bolAttachments?: { id?: number; fileName?: string; fileUrl?: string; downloadUrl?: string }[];
+  /** فلگ‌های مرحله از جزئیات API */
+  canEditItems?: boolean;
+  canEditStock?: boolean;
+  canUploadProforma?: boolean;
+  canSubmitProforma?: boolean;
+  currentStepAction?: string | null;
+  proformas?: PurchaseProforma[];
 }
 
 export interface PurchaseProforma {
@@ -73,6 +83,8 @@ export interface PurchaseProforma {
   supplierId: number;
   supplierName?: string | null;
   amount: number;
+  /** معادل amount — از API ممکن است totalAmount برگردد */
+  totalAmount?: number | null;
   notes?: string | null;
   status: string;
   uploadedBy: number;
@@ -82,6 +94,13 @@ export interface PurchaseProforma {
 }
 
 export interface CreatePurchaseRequestPayload {
+  warehouseId: number;
+  title?: string;
+  reason?: string;
+  lines: { itemId?: number; itemName: string; quantity: number; description?: string }[];
+}
+
+export interface UpdatePurchaseRequestPayload {
   title?: string;
   reason?: string;
   lines: { itemId?: number; itemName: string; quantity: number; description?: string }[];

@@ -21,18 +21,14 @@ import type { SlaReport, SlaReportItem } from '@/app/_types/sla-report.types';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { cn } from '@/lib/utils';
 import { Timer, TrendingUp } from 'lucide-react';
+import {
+  REQUEST_REPORT_REF_TYPE_OPTIONS,
+  toRequestRefTypeOption,
+} from '@/app/constants/request-ref-type-labels';
 
 const REF_TYPE_OPTIONS = [
   { value: '', label: 'همه انواع' },
-  { value: 'payment_request', label: 'درخواست مالی' },
-  { value: 'payment_order', label: 'دستور پرداخت' },
-  { value: 'financial_document', label: 'سند مالی' },
-  { value: 'petty_cash', label: 'تنخواه' },
-  { value: 'purchase_request', label: 'درخواست خرید' },
-  { value: 'workflow_form', label: 'درخواست اداری' },
-  { value: 'warehouse_form', label: 'فرم انبار' },
-  { value: 'mission_request', label: 'درخواست ماموریت' },
-  { value: 'ad_hoc_task', label: 'کار ارجاعی / پیش‌بینی‌نشده' },
+  ...REQUEST_REPORT_REF_TYPE_OPTIONS.map(toRequestRefTypeOption),
 ];
 
 function statusBadgeClass(status: SlaReportItem['status']) {

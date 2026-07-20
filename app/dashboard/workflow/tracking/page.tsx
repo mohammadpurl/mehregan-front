@@ -8,6 +8,13 @@ import { DashboardPageShell } from '@/app/components/layout/DashboardPageShell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { AdvancedDataGrid } from '@/app/components/Table/Table';
@@ -18,6 +25,10 @@ import {
   getWorkflowInstancesQueryAction,
 } from '@/app/_actions/workflow-actions';
 import type { WorkflowInstanceListScope, WorkflowInstanceRow } from '@/app/_types/workflow.types';
+import {
+  WORKFLOW_INSTANCE_STATUS_LABELS,
+  getWorkflowInstanceStatusLabel,
+} from '@/app/constants/workflow-instance-status-labels';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 
 const SCOPE_LABELS: Record<WorkflowInstanceListScope, string> = {
@@ -27,6 +38,10 @@ const SCOPE_LABELS: Record<WorkflowInstanceListScope, string> = {
   approver: 'نیاز به تأیید من',
   participated: 'شرکت‌کرده در تأیید',
 };
+
+const STATUS_FILTER_OPTIONS = Object.entries(WORKFLOW_INSTANCE_STATUS_LABELS).filter(
+  ([value], index, arr) => arr.findIndex(([v]) => v === value) === index,
+);
 
 function refDetailHref(row: WorkflowInstanceRow): string {
   const rt = row.ref_type;
@@ -139,13 +154,17 @@ export default function WorkflowTrackingPage() {
       header: 'عنوان',
       cell: ({ row }) => (
         <Link href={refDetailHref(row.original)} className="text-primary hover:underline">
-          {row.original.title}
+          {row.original.title?.trim() || '—'}
         </Link>
       ),
     },
     { accessorKey: 'requester_name', header: 'درخواست‌کننده' },
     { accessorKey: 'current_assignee_name', header: 'تأییدکننده فعلی' },
-    { accessorKey: 'status', header: 'وضعیت' },
+    {
+      accessorKey: 'status',
+      header: 'وضعیت',
+      cell: ({ row }) => getWorkflowInstanceStatusLabel(row.original.status),
+    },
     {
       accessorKey: 'updated_at',
       header: 'آخرین تغییر',
@@ -243,17 +262,27 @@ export default function WorkflowTrackingPage() {
                     value={advancedFilterId}
                     onChange={(e) => setAdvancedFilterId(e.target.value)}
                   />
-                  <Input
-                    placeholder="وضعیت (pending / approved / rejected)"
-                    value={String(columnFilters.find((f) => f.id === 'status')?.value ?? '')}
-                    onChange={(e) => {
-                      const v = e.target.value;
+                  <Select
+                    value={String(columnFilters.find((f) => f.id === 'status')?.value ?? '') || '__all__'}
+                    onValueChange={(v) => {
                       setColumnFilters((prev) => {
                         const rest = prev.filter((f) => f.id !== 'status');
-                        return v.trim() ? [...rest, { id: 'status', value: v.trim() }] : rest;
+                        return v && v !== '__all__' ? [...rest, { id: 'status', value: v }] : rest;
                       });
                     }}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="وضعیت" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">همه وضعیت‌ها</SelectItem>
+                      {STATUS_FILTER_OPTIONS.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex gap-2">
                   <Button type="button" onClick={applyAdvancedFilters}>
@@ -306,7 +335,8 @@ export default function WorkflowTrackingPage() {
                 <span className="text-muted-foreground">شناسه:</span> {selected.id}
               </div>
               <div>
-                <span className="text-muted-foreground">وضعیت:</span> {selected.status}
+                <span className="text-muted-foreground">وضعیت:</span>{' '}
+                {getWorkflowInstanceStatusLabel(selected.status)}
               </div>
               <div className="md:col-span-2">
                 <span className="text-muted-foreground">عنوان:</span> {selected.title}

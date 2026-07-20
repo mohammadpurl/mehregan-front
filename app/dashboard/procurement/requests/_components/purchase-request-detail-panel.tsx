@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
+import { RequiredMark } from '@/app/components/ui/required-mark';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Badge } from '@/app/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
@@ -43,6 +44,17 @@ type Props = {
 
 const PURCHASE_MANAGER_ROLES = ['purchase_manager', 'purchase_officer', 'مسئول خرید'];
 
+const PROFORMA_STATUS_LABELS: Record<string, string> = {
+  draft: 'پیش‌نویس',
+  submitted: 'ارسال‌شده برای تأیید',
+  approved: 'تأیید شده',
+  rejected: 'رد شده',
+};
+
+function proformaStatusLabel(status: string): string {
+  return PROFORMA_STATUS_LABELS[status] ?? status;
+}
+
 function isPurchaseManagerRole(roles: string[] | undefined): boolean {
   if (!roles?.length) return false;
   const lower = roles.map((r) => r.trim().toLowerCase());
@@ -74,6 +86,9 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
     ]);
     if (reqRes.success && reqRes.data) {
       setRequest(reqRes.data);
+      if (reqRes.data.proformas?.length) {
+        setProformas(reqRes.data.proformas);
+      }
       const activePhase = reqRes.data.workflowProgress?.find(
         (p) => p.instanceStatus === 'pending' || p.instanceStatus === 'in_progress',
       );
@@ -114,8 +129,8 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
     void reload();
   }, [reload]);
 
-  const canUploadProforma =
-    request?.status === 'awaiting_proforma' || request?.status === 'proforma_review';
+  const canUploadProforma = Boolean(request?.canUploadProforma);
+  const canSubmitProforma = Boolean(request?.canSubmitProforma);
 
   const canUploadInvoice =
     request?.status === 'awaiting_invoice' && isPurchaseManagerRole(session?.roles);
@@ -127,13 +142,26 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
 
   const onUpload = async () => {
     if (!file || !supplierId || !amount) {
-      toast({ title: 'خطا', description: 'تأمین‌کننده، مبلغ و فایل الزامی است', variant: 'destructive' });
+      toast({
+        title: 'خطا',
+        description: 'تأمین‌کننده، مبلغ کل پیش‌فاکتور و فایل الزامی است',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      toast({
+        title: 'خطا',
+        description: 'مبلغ کل پیش‌فاکتور باید بیشتر از صفر باشد',
+        variant: 'destructive',
+      });
       return;
     }
     setBusy(true);
     const res = await uploadPurchaseProformaAction(requestId, {
       supplierId: Number(supplierId),
-      amount: Number(amount),
+      amount: amountNum,
       notes: notes.trim() || undefined,
       file,
     });
@@ -275,9 +303,22 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
             </Link>
           </p>
         ) : null}
+        {request.warehouseName || request.warehouseId ? (
+          <p>
+            <strong>انبار:</strong>{' '}
+            {request.warehouseName ?? `انبار #${request.warehouseId}`}
+          </p>
+        ) : null}
         {request.reason ? (
           <p>
             <strong>توضیح:</strong> {request.reason}
+          </p>
+        ) : null}
+        {request.destinationWarehouseName || request.destinationWarehouseId ? (
+          <p className="text-xs text-muted-foreground">
+            <strong>انبار مقصد (گردش‌کار):</strong>{' '}
+            {request.destinationWarehouseName ??
+              `انبار #${request.destinationWarehouseId}`}
           </p>
         ) : null}
         {request.approvedPaymentMethod ? (
@@ -307,6 +348,69 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
         </ul>
       </section>
 
+      {canUploadProforma ? (
+        <section className="space-y-3 rounded-lg border border-sky-200/80 bg-sky-50/40 p-4 dark:border-sky-900/40">
+          <h4 className="font-medium text-primary">ثبت پیش‌فاکتور (مسئول خرید)</h4>
+          <p className="text-xs text-muted-foreground">
+            تأمین‌کننده، مبلغ کل پیش‌فاکتور و فایل را وارد کنید. پس از ذخیره، دکمه «ارسال برای
+            تأیید» روی پیش‌نویس را بزنید تا در کارتابل مدیرعامل برود.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>
+                تأمین‌کننده
+                <RequiredMark />
+              </Label>
+              <Select value={supplierId} onValueChange={setSupplierId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="انتخاب تأمین‌کننده" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>
+                مبلغ کل پیش‌فاکتور (ریال)
+                <RequiredMark />
+              </Label>
+              <Input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                type="number"
+                min={1}
+                placeholder="مبلغ کل"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>
+                فایل پیش‌فاکتور
+                <RequiredMark />
+              </Label>
+              <Input
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>یادداشت (اختیاری)</Label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={busy} onClick={() => void onUpload()}>
+              ذخیره پیش‌فاکتور
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
       <section>
         <h4 className="font-medium mb-2">پیش‌فاکتورها</h4>
         {proformas.length === 0 ? (
@@ -314,14 +418,13 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
             <p className="text-muted-foreground">هنوز پیش‌فاکتوری ثبت نشده است.</p>
             {request.status === 'pending' ? (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                فرم ثبت پیش‌فاکتور بعد از اتمام تأییدهای مرحله ۱ (مدیر مالی، مدیرعامل) در همین
-                بخش ظاهر می‌شود. اگر همه را در کارتابل تأیید کرده‌اید ولی وضعیت هنوز «در انتظار
-                تأیید» است، صفحه را رفرش کنید یا به پشتیبان اطلاع دهید.
+                فرم ثبت پیش‌فاکتور بعد از اتمام تأییدهای مرحلهٔ موجودی و مدیر مالی در همین بخش ظاهر
+                می‌شود.
               </p>
             ) : null}
-            {request.status === 'awaiting_proforma' ? (
+            {canUploadProforma ? (
               <p className="text-xs text-primary">
-                اکنون مسئول خرید می‌تواند پیش‌فاکتور را در فرم زیر ثبت کند.
+                اکنون می‌توانید پیش‌فاکتور را در فرم زیر ثبت کنید (تأمین‌کننده، مبلغ کل و فایل).
               </p>
             ) : null}
           </div>
@@ -330,8 +433,9 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
             {proformas.map((p) => (
               <li key={p.id} className="rounded border p-2 flex flex-wrap justify-between gap-2">
                 <span>
-                  {p.supplierName ?? `تأمین‌کننده #${p.supplierId}`} — {formatAmount(p.amount)} —{' '}
-                  {p.status}
+                  {p.supplierName ?? `تأمین‌کننده #${p.supplierId}`} —{' '}
+                  {formatAmount(p.totalAmount ?? p.amount, { unit: 'ریال' })} —{' '}
+                  {proformaStatusLabel(p.status)}
                 </span>
                 <span className="flex gap-2">
                   {p.downloadUrl ? (
@@ -339,7 +443,7 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
                       دانلود
                     </Link>
                   ) : null}
-                  {p.status === 'draft' && request.status === 'awaiting_proforma' ? (
+                  {p.status === 'draft' && canSubmitProforma ? (
                     <Button size="sm" disabled={busy} onClick={() => void onSubmitProforma(p.id)}>
                       ارسال برای تأیید
                     </Button>
@@ -399,48 +503,6 @@ export function PurchaseRequestDetailPanel({ requestId, onUpdated }: Props) {
           </p>
           <Button disabled={busy} onClick={() => void onMarkInvoicePaid()}>
             تأیید پرداخت فاکتور
-          </Button>
-        </section>
-      ) : null}
-
-      {canUploadProforma ? (
-        <section className="space-y-3 rounded-lg border border-sky-200/80 bg-sky-50/40 p-4 dark:border-sky-900/40">
-          <h4 className="font-medium text-primary">ثبت پیش‌فاکتور (مسئول خرید)</h4>
-          <p className="text-xs text-muted-foreground">
-            فایل پیش‌فاکتور از تأمین‌کننده + مبلغ پیشنهادی. پس از ذخیره، دکمه «ارسال برای تأیید» را
-            بزنید تا در کارتابل مدیرعامل برود.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label>تأمین‌کننده</Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="انتخاب" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>مبلغ پیشنهادی (ریال)</Label>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min={1} />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>فایل پیش‌فاکتور</Label>
-              <Input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>یادداشت (اختیاری)</Label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
-          </div>
-          <Button disabled={busy} onClick={() => void onUpload()}>
-            ذخیره پیش‌فاکتور
           </Button>
         </section>
       ) : null}

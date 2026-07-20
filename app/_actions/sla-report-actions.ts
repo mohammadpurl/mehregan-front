@@ -3,12 +3,14 @@
 import { readDataWithAuth } from '@/app/core/http-service/http-service';
 import { extractActionErrorMessage } from '@/app/_actions/extract-action-error';
 import type { SlaReport, SlaReportAssigneeSummary, SlaReportItem } from '@/app/_types/sla-report.types';
+import { getRequestRefTypeLabel } from '@/app/constants/request-ref-type-labels';
 
 function mapItem(raw: Record<string, unknown>): SlaReportItem {
+  const refType = String(raw.ref_type ?? raw.refType ?? '');
   return {
     kind: (raw.kind as SlaReportItem['kind']) ?? 'workflow',
-    refType: String(raw.ref_type ?? raw.refType ?? ''),
-    refLabel: String(raw.ref_label ?? raw.refLabel ?? ''),
+    refType,
+    refLabel: getRequestRefTypeLabel(refType),
     instanceId: (raw.instance_id ?? raw.instanceId) as number | undefined,
     taskId: (raw.task_id ?? raw.taskId) as number | undefined,
     businessRefId: (raw.business_ref_id ?? raw.businessRefId) as number | undefined,

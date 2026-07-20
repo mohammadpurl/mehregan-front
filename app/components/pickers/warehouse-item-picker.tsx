@@ -10,13 +10,6 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { Badge } from '@/app/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { getPurchaseWarehouseCatalogAction } from '@/app/_actions/purchase-request-actions';
 import type {
@@ -36,6 +29,9 @@ type GridRow = WarehouseCatalogItem & {
 type Props = {
   value: WarehouseItemSelectionMap;
   onChange: (value: WarehouseItemSelectionMap) => void;
+  /** انبار الزامی برای فیلتر کاتالوگ و ثبت درخواست */
+  warehouseId: number | null;
+  warehouseName?: string | null;
   disabled?: boolean;
 };
 
@@ -57,10 +53,14 @@ function selectionsFromDraft(draft: WarehouseItemSelectionMap): WarehouseItemSel
   return out;
 }
 
-export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
+export function WarehouseItemPicker({
+  value,
+  onChange,
+  warehouseId,
+  warehouseName,
+  disabled,
+}: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [warehouses, setWarehouses] = useState<{ id: number; name: string }[]>([]);
-  const [warehouseId, setWarehouseId] = useState<string>('_all');
   const [search, setSearch] = useState('');
   const [catalogItems, setCatalogItems] = useState<WarehouseCatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,13 +73,17 @@ export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
 
   const selectedList = useMemo(() => Object.values(value), [value]);
   const selectedCount = selectedList.length;
+  const canPick = warehouseId != null && Number.isFinite(warehouseId) && warehouseId > 0;
 
   const loadCatalog = useCallback(async () => {
+    if (!canPick || warehouseId == null) {
+      setCatalogItems([]);
+      return;
+    }
     setLoading(true);
     setError(null);
-    const whId = warehouseId !== '_all' ? Number(warehouseId) : undefined;
     const res = await getPurchaseWarehouseCatalogAction({
-      warehouseId: Number.isFinite(whId) ? whId : undefined,
+      warehouseId,
       search: search.trim() || undefined,
     });
     setLoading(false);
@@ -88,9 +92,8 @@ export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
       setError(res.error ?? 'بارگذاری لیست کالاها ناموفق بود');
       return;
     }
-    setWarehouses(res.data.warehouses);
     setCatalogItems(res.data.items);
-  }, [warehouseId, search]);
+  }, [canPick, warehouseId, search]);
 
   useEffect(() => {
     if (!pickerOpen) return;
@@ -99,6 +102,7 @@ export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
   }, [pickerOpen, loadCatalog]);
 
   const openPicker = () => {
+    if (!canPick) return;
     setDraft(mapToDraft(value));
     setPickerOpen(true);
   };
@@ -143,79 +147,79 @@ export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
   );
 
   const columns: ColumnDef<GridRow>[] = [
-      {
-        id: 'select',
-        header: 'انتخاب',
-        size: 72,
-        cell: ({ row }) => (
-          <div className="flex justify-center">
-            <Checkbox
-              checked={row.original.selected}
-              onCheckedChange={(v) => toggleRow(row.original, v === true)}
-              aria-label={`انتخاب ${row.original.itemName}`}
-            />
-          </div>
+    {
+      id: 'select',
+      header: 'انتخاب',
+      size: 72,
+      cell: ({ row }) => (
+        <div className="flex justify-center">
+          <Checkbox
+            checked={row.original.selected}
+            onCheckedChange={(v) => toggleRow(row.original, v === true)}
+            aria-label={`انتخاب ${row.original.itemName}`}
+          />
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'itemName',
+      header: 'نام کالا',
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium">{row.original.itemName}</p>
+          {row.original.sku ? (
+            <p className="text-xs text-muted-foreground">کد: {row.original.sku}</p>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      id: 'onHand',
+      header: 'موجودی انبار',
+      cell: ({ row }) => (
+        <span className="tabular-nums">
+          {row.original.onHand}
+          {row.original.unit ? ` ${row.original.unit}` : ''}
+        </span>
+      ),
+    },
+    {
+      id: 'quantity',
+      header: 'تعداد درخواست',
+      size: 120,
+      cell: ({ row }) =>
+        row.original.selected ? (
+          <Input
+            type="number"
+            min={1}
+            className="h-8 w-24"
+            value={row.original.quantity}
+            onChange={(e) =>
+              patchDraft(row.original.itemId, {
+                quantity: Math.max(1, Number(e.target.value) || 1),
+              })
+            }
+          />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
         ),
-      },
-      {
-        accessorKey: 'itemName',
-        header: 'نام کالا',
-        cell: ({ row }) => (
-          <div>
-            <p className="font-medium">{row.original.itemName}</p>
-            {row.original.sku ? (
-              <p className="text-xs text-muted-foreground">کد: {row.original.sku}</p>
-            ) : null}
-          </div>
+    },
+    {
+      id: 'description',
+      header: 'توضیح / مدل',
+      cell: ({ row }) =>
+        row.original.selected ? (
+          <Input
+            className="h-8"
+            value={row.original.description}
+            onChange={(e) => patchDraft(row.original.itemId, { description: e.target.value })}
+            placeholder="اختیاری"
+          />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
         ),
-      },
-      {
-        id: 'onHand',
-        header: 'موجودی انبار',
-        cell: ({ row }) => (
-          <span className="tabular-nums">
-            {row.original.onHand}
-            {row.original.unit ? ` ${row.original.unit}` : ''}
-          </span>
-        ),
-      },
-      {
-        id: 'quantity',
-        header: 'تعداد درخواست',
-        size: 120,
-        cell: ({ row }) =>
-          row.original.selected ? (
-            <Input
-              type="number"
-              min={1}
-              className="h-8 w-24"
-              value={row.original.quantity}
-              onChange={(e) =>
-                patchDraft(row.original.itemId, {
-                  quantity: Math.max(1, Number(e.target.value) || 1),
-                })
-              }
-            />
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          ),
-      },
-      {
-        id: 'description',
-        header: 'توضیح / مدل',
-        cell: ({ row }) =>
-          row.original.selected ? (
-            <Input
-              className="h-8"
-              value={row.original.description}
-              onChange={(e) => patchDraft(row.original.itemId, { description: e.target.value })}
-              placeholder="اختیاری"
-            />
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          ),
-      },
-    ];
+    },
+  ];
 
   const draftCount = Object.keys(draft).length;
 
@@ -227,10 +231,18 @@ export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
             <div>
               <CardTitle className="text-base">اقلام درخواست</CardTitle>
               <CardDescription className="mt-1">
-                لیست از جدول کالاها (master) با موجودی جدول انبار (stocks)
+                {canPick
+                  ? `پیشنهاد اقلام بر اساس انبار${warehouseName ? ` «${warehouseName}»` : ''}`
+                  : 'ابتدا انبار را انتخاب کنید، سپس کالاها را از همان انبار برگزینید'}
               </CardDescription>
             </div>
-            <Button type="button" variant="default" size="sm" disabled={disabled} onClick={openPicker}>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled={disabled || !canPick}
+              onClick={openPicker}
+            >
               <PackagePlus className="ml-2 h-4 w-4" />
               {selectedCount > 0 ? 'ویرایش انتخاب کالا' : 'انتخاب کالا از انبار'}
             </Button>
@@ -259,7 +271,11 @@ export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         title="انتخاب کالا از انبار"
-        description="کالاها را تیک بزنید؛ تعداد و توضیح هر قلم را در همان ردیف جدول مشخص کنید."
+        description={
+          warehouseName
+            ? `کالاهای انبار «${warehouseName}» — تعداد و توضیح هر قلم را در ردیف مشخص کنید.`
+            : 'کالاها را تیک بزنید؛ تعداد و توضیح هر قلم را در همان ردیف جدول مشخص کنید.'
+        }
         size="xl"
         footer={
           <div className="flex flex-wrap gap-2">
@@ -279,36 +295,16 @@ export function WarehouseItemPicker({ value, onChange, disabled }: Props) {
         }
       >
         <div className="space-y-4">
-          <div className="grid gap-3 rounded-lg border border-border/80 bg-muted/30 p-3 sm:grid-cols-2">
-            {warehouses.length > 1 ? (
-              <div className="space-y-1">
-                <Label>انبار</Label>
-                <Select value={warehouseId} onValueChange={setWarehouseId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="همه انبارها" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_all">همه انبارها</SelectItem>
-                    {warehouses.map((w) => (
-                      <SelectItem key={w.id} value={String(w.id)}>
-                        {w.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-            <div className="space-y-1">
-              <Label>جستجو</Label>
-              <div className="relative">
-                <Search className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pr-8"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="نام یا کد کالا"
-                />
-              </div>
+          <div className="space-y-1">
+            <Label>جستجو</Label>
+            <div className="relative">
+              <Search className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pr-8"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="نام یا کد کالا"
+              />
             </div>
           </div>
 

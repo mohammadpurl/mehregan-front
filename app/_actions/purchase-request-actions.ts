@@ -12,19 +12,21 @@ import {
   patchDataWithAuth,
   readDataWithAuth,
   uploadDataWithAuth,
+  uploadPatchDataWithAuth,
 } from '@/app/core/http-service/http-service';
 import type {
   CreatePurchaseRequestPayload,
   PaginatedPurchaseRequests,
   PurchaseProforma,
   PurchaseRequest,
+  UpdatePurchaseRequestPayload,
 } from '@/app/_types/purchase-request.types';
 
 function mapPurchaseRequest(raw: unknown): PurchaseRequest {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const items = Array.isArray(r.items)
     ? (r.items as Record<string, unknown>[]).map((li) => ({
-        id: li.id as number | undefined,
+        id: li.id != null ? Number(li.id) : undefined,
         itemId: (li.item_id ?? li.itemId) as number | null | undefined,
         itemName: String(li.item_name ?? li.itemName ?? ''),
         quantity: Number(li.quantity ?? 0),
@@ -94,6 +96,11 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
       | undefined,
     approvedCheckBank: (r.approved_check_bank ?? r.approvedCheckBank) as string | null | undefined,
     invoicePaidAt: (r.invoice_paid_at ?? r.invoicePaidAt) as string | null | undefined,
+    warehouseId:
+      r.warehouse_id != null || r.warehouseId != null
+        ? Number(r.warehouse_id ?? r.warehouseId)
+        : null,
+    warehouseName: (r.warehouse_name ?? r.warehouseName) as string | null | undefined,
     destinationWarehouseId: (r.destination_warehouse_id ?? r.destinationWarehouseId) as
       | number
       | null
@@ -102,6 +109,14 @@ function mapPurchaseRequest(raw: unknown): PurchaseRequest {
       | string
       | null
       | undefined,
+    canEditItems: Boolean(r.can_edit_items ?? r.canEditItems),
+    canEditStock: Boolean(r.can_edit_stock ?? r.canEditStock),
+    canUploadProforma: Boolean(r.can_upload_proforma ?? r.canUploadProforma),
+    canSubmitProforma: Boolean(r.can_submit_proforma ?? r.canSubmitProforma),
+    currentStepAction: (r.current_step_action ?? r.currentStepAction) as string | null | undefined,
+    proformas: Array.isArray(r.proformas)
+      ? (r.proformas as Record<string, unknown>[]).map(mapProforma)
+      : undefined,
   };
 }
 
@@ -163,12 +178,14 @@ function mapProformaDownloadUrl(raw: Record<string, unknown>): string | undefine
 }
 
 function mapProforma(raw: Record<string, unknown>): PurchaseProforma {
+  const amount = Number(raw.amount ?? raw.total_amount ?? raw.totalAmount ?? 0);
   return {
     id: Number(raw.id),
     requestId: Number(raw.request_id ?? raw.requestId),
     supplierId: Number(raw.supplier_id ?? raw.supplierId),
     supplierName: (raw.supplier_name ?? raw.supplierName) as string | null | undefined,
-    amount: Number(raw.amount ?? 0),
+    amount,
+    totalAmount: amount,
     notes: (raw.notes as string | null) ?? null,
     status: String(raw.status ?? ''),
     uploadedBy: Number(raw.uploaded_by ?? raw.uploadedBy ?? 0),
@@ -237,6 +254,7 @@ export async function getPurchaseWarehouseCatalogAction(params?: {
 export async function createPurchaseRequestAction(payload: CreatePurchaseRequestPayload) {
   try {
     const body = {
+      warehouseId: payload.warehouseId,
       title: payload.title?.trim() || undefined,
       reason: payload.reason,
       lines: payload.lines.map((l) => ({
@@ -310,7 +328,7 @@ export async function getPurchaseRequestsAction(params?: {
 
 export async function updatePurchaseRequestAction(
   id: string | number,
-  payload: CreatePurchaseRequestPayload,
+  payload: UpdatePurchaseRequestPayload,
 ) {
   try {
     const body = {
@@ -332,6 +350,31 @@ export async function updatePurchaseRequestAction(
     return {
       success: false as const,
       error: extractActionErrorMessage(err, 'ویرایش درخواست خرید ناموفق بود'),
+    };
+  }
+}
+
+/** سرپرست مالی — ذخیره موجودی انبار قبل از تأیید مرحله fill_stock */
+export async function updatePurchaseStockLevelsAction(
+  requestId: string | number,
+  items: { id: number; warehouseStock: number }[],
+) {
+  try {
+    const body = {
+      items: items.map((row) => ({
+        id: row.id,
+        warehouseStock: row.warehouseStock,
+      })),
+    };
+    const data = await patchDataWithAuth<typeof body, Record<string, unknown>>(
+      `/requests/purchase/${requestId}/stock`,
+      body,
+    );
+    return { success: true as const, data: mapPurchaseRequest(data) };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'ثبت موجودی انبار ناموفق بود'),
     };
   }
 }
@@ -393,8 +436,9 @@ export async function uploadPurchaseProformaAction(
 ) {
   try {
     const formData = new FormData();
-    formData.set('supplier_id', String(input.supplierId));
+    formData.set('supplierId', String(input.supplierId));
     formData.set('amount', String(input.amount));
+    formData.set('totalAmount', String(input.amount));
     if (input.notes) formData.set('notes', input.notes);
     formData.set('file', input.file);
     const data = await uploadDataWithAuth<Record<string, unknown>>(
@@ -403,10 +447,41 @@ export async function uploadPurchaseProformaAction(
     );
     return { success: true as const, data: mapProforma(data) };
   } catch (err: unknown) {
-    const error = err as { message?: string; response?: { data?: { detail?: string } } };
     return {
       success: false as const,
-      error: error?.response?.data?.detail || error?.message || 'خطا در آپلود پیش‌فاکتور',
+      error: extractActionErrorMessage(err, 'خطا در آپلود پیش‌فاکتور'),
+    };
+  }
+}
+
+export async function updatePurchaseProformaAction(
+  requestId: number,
+  proformaId: number,
+  input: {
+    supplierId?: number;
+    amount?: number;
+    notes?: string;
+    file?: File | null;
+  },
+) {
+  try {
+    const formData = new FormData();
+    if (input.supplierId != null) formData.set('supplierId', String(input.supplierId));
+    if (input.amount != null) {
+      formData.set('amount', String(input.amount));
+      formData.set('totalAmount', String(input.amount));
+    }
+    if (input.notes != null) formData.set('notes', input.notes);
+    if (input.file) formData.set('file', input.file);
+    const data = await uploadPatchDataWithAuth<Record<string, unknown>>(
+      `/requests/purchase/${requestId}/proformas/${proformaId}`,
+      formData,
+    );
+    return { success: true as const, data: mapProforma(data) };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: extractActionErrorMessage(err, 'ویرایش پیش‌فاکتور ناموفق بود'),
     };
   }
 }
@@ -419,10 +494,9 @@ export async function submitPurchaseProformaAction(requestId: number, proformaId
     );
     return { success: true as const, data: mapProforma(data) };
   } catch (err: unknown) {
-    const error = err as { message?: string; response?: { data?: { detail?: string } } };
     return {
       success: false as const,
-      error: error?.response?.data?.detail || error?.message || 'خطا در ارسال پیش‌فاکتور',
+      error: extractActionErrorMessage(err, 'خطا در ارسال پیش‌فاکتور'),
     };
   }
 }

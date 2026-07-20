@@ -19,9 +19,19 @@ import { getGrnWarehousesAction } from '@/app/_actions/grn-actions';
 import type { PurchaseRequest } from '@/app/_types/purchase-request.types';
 import type { WorkflowApprovePayload } from '@/app/_actions/workflow-runtime-actions';
 
+export type PurchaseStockUpdateItem = {
+  id: number;
+  warehouseStock: number;
+};
+
 export type WorkflowPurchaseFillStockHandle = {
   buildApprovePayload: () =>
-    | { ok: true; payload: WorkflowApprovePayload }
+    | {
+        ok: true;
+        payload: WorkflowApprovePayload;
+        /** برای fill_stock — قبل از approve باید PATCH /stock شود */
+        stockUpdates?: PurchaseStockUpdateItem[];
+      }
     | { ok: false; error: string };
 };
 
@@ -66,7 +76,11 @@ export const WorkflowPurchaseFillStock = forwardRef<
     let cancelled = false;
     (async () => {
       setCatalogLoading(true);
-      const res = await getPurchaseWarehouseCatalogAction();
+      const res = await getPurchaseWarehouseCatalogAction(
+        record.warehouseId != null && record.warehouseId > 0
+          ? { warehouseId: record.warehouseId }
+          : undefined,
+      );
       if (cancelled) return;
       if (res.success && res.data?.items) {
         const map: Record<number, PurchaseWarehouseCatalogItem> = {};
@@ -91,7 +105,7 @@ export const WorkflowPurchaseFillStock = forwardRef<
     return () => {
       cancelled = true;
     };
-  }, [mode, record.items]);
+  }, [mode, record.items, record.warehouseId]);
 
   useEffect(() => {
     if (mode !== 'confirm_warehouse_sepidar') return;
@@ -105,43 +119,53 @@ export const WorkflowPurchaseFillStock = forwardRef<
     };
   }, [mode]);
 
-  useImperativeHandle(ref, () => ({
-    buildApprovePayload: () => {
-      if (mode === 'fill_stock') {
-        const line_stocks: NonNullable<WorkflowApprovePayload['line_stocks']> = [];
-        for (const li of record.items) {
-          const key = String(li.id ?? li.itemId ?? li.itemName);
-          const raw = stocks[key]?.trim() ?? '';
-          if (raw === '') {
-            return {
-              ok: false as const,
-              error: `موجودی انبار برای «${li.itemName}» را وارد کنید`,
-            };
+  useImperativeHandle(
+    ref,
+    () => ({
+      buildApprovePayload: () => {
+        if (mode === 'fill_stock') {
+          const stockUpdates: PurchaseStockUpdateItem[] = [];
+          for (const li of record.items) {
+            const key = String(li.id ?? li.itemId ?? li.itemName);
+            const raw = stocks[key]?.trim() ?? '';
+            if (raw === '') {
+              return {
+                ok: false as const,
+                error: `موجودی انبار برای «${li.itemName}» را وارد کنید`,
+              };
+            }
+            const warehouseStock = Number(raw);
+            if (!Number.isFinite(warehouseStock) || warehouseStock < 0) {
+              return {
+                ok: false as const,
+                error: `موجودی انبار «${li.itemName}» نامعتبر است`,
+              };
+            }
+            if (li.id == null || !Number.isFinite(Number(li.id))) {
+              return {
+                ok: false as const,
+                error: `شناسه قلم «${li.itemName}» یافت نشد؛ صفحه را تازه کنید`,
+              };
+            }
+            stockUpdates.push({ id: Number(li.id), warehouseStock });
           }
-          const stock_on_hand = Number(raw);
-          if (!Number.isFinite(stock_on_hand) || stock_on_hand < 0) {
-            return {
-              ok: false as const,
-              error: `موجودی انبار «${li.itemName}» نامعتبر است`,
-            };
+          if (stockUpdates.length === 0) {
+            return { ok: false as const, error: 'اقلام خرید یافت نشد' };
           }
-          line_stocks.push({
-            line_id: li.id,
-            item_id: li.itemId ?? null,
-            stock_on_hand,
-          });
+          // بک‌اند موجودی را از PATCH /stock می‌خواند، نه از body تأیید
+          return { ok: true as const, payload: {}, stockUpdates };
         }
-        return { ok: true as const, payload: { line_stocks } };
-      }
 
-      const warehouseId = props.mode === 'confirm_warehouse_sepidar' ? props.warehouseId : '';
-      const id = Number(warehouseId);
-      if (!Number.isFinite(id) || id <= 0) {
-        return { ok: false as const, error: 'انبار مقصد را انتخاب کنید' };
-      }
-      return { ok: true as const, payload: { warehouse_id: id } };
-    },
-  }));
+        const warehouseId = props.mode === 'confirm_warehouse_sepidar' ? props.warehouseId : '';
+        const id = Number(warehouseId);
+        if (!Number.isFinite(id) || id <= 0) {
+          return { ok: false as const, error: 'انبار مقصد را انتخاب کنید' };
+        }
+        return { ok: true as const, payload: { warehouse_id: id } };
+      },
+    }),
+    [mode, props, record.items, stocks],
+  );
 
   if (mode === 'confirm_warehouse_sepidar') {
     return (

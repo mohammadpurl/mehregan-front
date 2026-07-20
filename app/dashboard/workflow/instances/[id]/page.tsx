@@ -16,6 +16,8 @@ import { workflowRowDetailHref } from '@/app/dashboard/workflow/_utils/workflow-
 import type { WorkflowApprovalHistory } from '@/app/_types/workflow-approval-plan.types';
 import type { WorkflowInstanceDetail } from '@/app/_types/workflow-runtime.types';
 import type { WorkflowInstanceRow } from '@/app/_types/workflow.types';
+import { getWorkflowInstanceStatusLabel } from '@/app/constants/workflow-instance-status-labels';
+import { getRequestRefTypeLabel } from '@/app/constants/request-ref-type-labels';
 
 function refDetailHref(row: Pick<WorkflowInstanceRow, 'ref_type' | 'ref_id' | 'id'>): string {
   return workflowRowDetailHref(row);
@@ -84,10 +86,12 @@ export default function WorkflowInstanceDetailPage() {
             <>
               <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-2">
                 <div>
-                  <span className="text-muted-foreground">نوع:</span> {instance.ref_type}
+                  <span className="text-muted-foreground">نوع:</span>{' '}
+                  {getRequestRefTypeLabel(instance.ref_type)}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">وضعیت:</span> {instance.status}
+                  <span className="text-muted-foreground">وضعیت:</span>{' '}
+                  {getWorkflowInstanceStatusLabel(instance.status)}
                 </div>
                 <div>
                   <span className="text-muted-foreground">مرجع:</span> #{instance.ref_id}

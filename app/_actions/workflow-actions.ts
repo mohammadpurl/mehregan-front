@@ -140,10 +140,56 @@ export async function getWorkflowInstancesQueryAction(params?: {
   if (params?.scope) query.set('scope', params.scope);
 
   try {
-    const data = await readDataWithAuth<WorkflowInstanceListResponse>(
-      `/workflow/instances?${query.toString()}`,
-    );
-    return { success: true as const, data };
+    const data = await readDataWithAuth<{
+      items?: Record<string, unknown>[];
+      total?: number;
+      page?: number;
+      pageSize?: number;
+    }>(`/workflow/instances?${query.toString()}`);
+
+    const mappedItems: WorkflowInstanceRow[] = (data.items ?? []).map((raw) => {
+      const refType = String(raw.ref_type ?? raw.refType ?? '');
+      const refId = Number(raw.ref_id ?? raw.refId ?? 0);
+      const refLabel = String(raw.ref_label ?? raw.refLabel ?? refType);
+      const requestTitle = String(
+        raw.request_title ?? raw.requestTitle ?? raw.entity_title ?? raw.entityTitle ?? '',
+      ).trim();
+      const apiTitle = String(raw.title ?? '').trim();
+      const fallback = refLabel && refId ? `${refLabel} #${refId}` : '—';
+      // عنوان ثبت‌شده توسط کاربر اولویت دارد
+      const title = requestTitle || apiTitle || fallback;
+
+      return {
+        id: Number(raw.id ?? 0),
+        ref_type: refType,
+        ref_id: refId,
+        ref_label: refLabel,
+        status: String(raw.status ?? ''),
+        title,
+        requester_id:
+          raw.requester_id != null || raw.requesterId != null
+            ? Number(raw.requester_id ?? raw.requesterId)
+            : null,
+        requester_name: (raw.requester_name ?? raw.requesterName) as string | null | undefined,
+        current_step_order:
+          raw.current_step_order != null || raw.currentStepOrder != null
+            ? Number(raw.current_step_order ?? raw.currentStepOrder)
+            : null,
+        current_assignee_name: (raw.current_assignee_name ??
+          raw.currentAssigneeName) as string | null | undefined,
+        updated_at: (raw.updated_at ?? raw.updatedAt) as string | null | undefined,
+      };
+    });
+
+    return {
+      success: true as const,
+      data: {
+        items: mappedItems,
+        total: Number(data.total ?? mappedItems.length),
+        page: Number(data.page ?? page),
+        pageSize: Number(data.pageSize ?? pageSize),
+      } satisfies WorkflowInstanceListResponse,
+    };
   } catch (err: unknown) {
     return {
       success: false as const,

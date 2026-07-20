@@ -7,24 +7,33 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/app/components/ui/textarea';
 import { AttachmentFileInput } from '@/app/components/attachments/attachment-file-input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
+import { RequiredMark } from '@/app/components/ui/required-mark';
+import {
   WarehouseItemPicker,
   type WarehouseItemSelectionMap,
 } from '@/app/components/pickers/warehouse-item-picker';
 import {
   createPurchaseRequestAction,
+  getPurchaseWarehouseCatalogAction,
   updatePurchaseRequestAction,
   uploadPurchaseRequestAttachmentAction,
 } from '@/app/_actions/purchase-request-actions';
 import type { PurchaseRequest } from '@/app/_types/purchase-request.types';
 import {
   CreatePurchaseRequestSchema,
+  EditPurchaseRequestSchema,
   type CreatePurchaseRequestValues,
 } from '@/app/_types/purchase-request.schema';
 import { useFormAction } from '@/app/hooks/use-form-action';
 import { WorkflowSameAssigneeAlert } from '@/app/dashboard/workflow/_components/workflow-same-assignee-alert';
 import { useWorkflowAssigneesPreviewWarning } from '@/app/dashboard/workflow/_hooks/use-workflow-assignees-preview-warning';
 import { RequestTitleField } from '@/app/components/forms/request-title-field';
-import { Input } from '@/app/components/ui/input';
 
 type Props = {
   formId?: string;
@@ -34,6 +43,7 @@ type Props = {
 };
 
 const emptyDefaults: CreatePurchaseRequestValues = {
+  warehouseId: 0,
   title: '',
   reason: '',
   lines: [],
@@ -41,6 +51,9 @@ const emptyDefaults: CreatePurchaseRequestValues = {
 
 function valuesFromRecord(record: PurchaseRequest): CreatePurchaseRequestValues {
   return {
+    // برای عبور از اعتبارسنجی zod در ویرایش (warehouseId در PATCH ارسال نمی‌شود)
+    warehouseId:
+      record.warehouseId != null && record.warehouseId > 0 ? record.warehouseId : 1,
     title: record.title ?? '',
     reason: record.reason ?? '',
     lines: record.items.map((li) => ({
@@ -79,7 +92,7 @@ export function PurchaseRequestNewForm({
   const sameAssigneeWarning = useWorkflowAssigneesPreviewWarning('purchase_request', null);
 
   const form = useForm<CreatePurchaseRequestValues>({
-    resolver: zodResolver(CreatePurchaseRequestSchema),
+    resolver: zodResolver(isEdit ? EditPurchaseRequestSchema : CreatePurchaseRequestSchema),
     defaultValues: record ? valuesFromRecord(record) : emptyDefaults,
   });
 
@@ -87,6 +100,17 @@ export function PurchaseRequestNewForm({
     selectionMapFromRecord(record),
   );
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [warehouses, setWarehouses] = useState<{ id: number; name: string }[]>([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
+  const [warehousesError, setWarehousesError] = useState<string | null>(null);
+
+  const watchedWarehouseId = form.watch('warehouseId');
+  const selectedWarehouseId =
+    watchedWarehouseId != null && Number(watchedWarehouseId) > 0 ? Number(watchedWarehouseId) : null;
+  const selectedWarehouseName =
+    warehouses.find((w) => w.id === selectedWarehouseId)?.name ??
+    record?.warehouseName ??
+    null;
 
   useEffect(() => {
     form.reset(record ? valuesFromRecord(record) : emptyDefaults);
@@ -96,6 +120,26 @@ export function PurchaseRequestNewForm({
   useEffect(() => {
     onBusyChange?.(isPending);
   }, [isPending, onBusyChange]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    let cancelled = false;
+    setWarehousesLoading(true);
+    setWarehousesError(null);
+    void getPurchaseWarehouseCatalogAction().then((res) => {
+      if (cancelled) return;
+      setWarehousesLoading(false);
+      if (!res.success || !res.data) {
+        setWarehouses([]);
+        setWarehousesError(res.error ?? 'بارگذاری لیست انبارها ناموفق بود');
+        return;
+      }
+      setWarehouses(res.data.warehouses ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit]);
 
   const onSubmit = (values: CreatePurchaseRequestValues) => {
     const lines = isEdit
@@ -112,22 +156,39 @@ export function PurchaseRequestNewForm({
       return;
     }
 
-    const payload = {
-      title: values.title?.trim() || undefined,
-      reason: values.reason?.trim() || undefined,
-      lines,
-    };
+    if (!isEdit && (!values.warehouseId || values.warehouseId <= 0)) {
+      notifyError('انبار را انتخاب کنید');
+      return;
+    }
 
     startTransition(async () => {
-      const res = isEdit
-        ? await updatePurchaseRequestAction(record.id, payload)
-        : await createPurchaseRequestAction(payload);
+      if (isEdit) {
+        const res = await updatePurchaseRequestAction(record.id, {
+          title: values.title?.trim() || undefined,
+          reason: values.reason?.trim() || undefined,
+          lines,
+        });
+        if (!res.success) {
+          notifyError(res.error);
+          return;
+        }
+        notifySuccess('درخواست خرید ویرایش شد');
+        onSuccess?.();
+        return;
+      }
+
+      const res = await createPurchaseRequestAction({
+        warehouseId: values.warehouseId,
+        title: values.title?.trim() || undefined,
+        reason: values.reason?.trim() || undefined,
+        lines,
+      });
       if (!res.success) {
         notifyError(res.error);
         return;
       }
 
-      if (!isEdit && res.data && attachmentFiles.length > 0) {
+      if (res.data && attachmentFiles.length > 0) {
         for (const file of attachmentFiles) {
           const up = await uploadPurchaseRequestAttachmentAction(res.data.id, file);
           if (!up.success) {
@@ -137,12 +198,10 @@ export function PurchaseRequestNewForm({
         }
       }
 
-      notifySuccess(isEdit ? 'درخواست خرید ویرایش شد' : 'درخواست خرید ثبت شد');
-      if (!isEdit) {
-        form.reset(emptyDefaults);
-        setSelected({});
-        setAttachmentFiles([]);
-      }
+      notifySuccess('درخواست خرید ثبت شد');
+      form.reset(emptyDefaults);
+      setSelected({});
+      setAttachmentFiles([]);
       onSuccess?.();
     });
   };
@@ -151,6 +210,56 @@ export function PurchaseRequestNewForm({
     <Form {...form}>
       <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {!isEdit && <WorkflowSameAssigneeAlert show={sameAssigneeWarning} />}
+
+        {!isEdit ? (
+          <FormField
+            control={form.control}
+            name="warehouseId"
+            render={({ field }) => (
+              <FormItem className="rounded-lg border bg-muted/20 p-4">
+                <FormLabel>
+                  انبار
+                  <RequiredMark />
+                </FormLabel>
+                <Select
+                  value={field.value > 0 ? String(field.value) : undefined}
+                  onValueChange={(v) => {
+                    const nextId = Number(v);
+                    field.onChange(nextId);
+                    setSelected({});
+                  }}
+                  disabled={isPending || warehousesLoading}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={warehousesLoading ? 'در حال بارگذاری…' : 'انتخاب انبار'}
+                      />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {warehouses.map((w) => (
+                      <SelectItem key={w.id} value={String(w.id)}>
+                        {w.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {warehousesError ? (
+                  <p className="text-sm text-destructive">{warehousesError}</p>
+                ) : null}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : record?.warehouseName || record?.warehouseId ? (
+          <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+            <span className="text-muted-foreground">انبار: </span>
+            <span className="font-medium">
+              {record.warehouseName ?? `انبار #${record.warehouseId}`}
+            </span>
+          </div>
+        ) : null}
 
         <FormField
           control={form.control}
@@ -176,7 +285,13 @@ export function PurchaseRequestNewForm({
 
         {!isEdit ? (
           <>
-            <WarehouseItemPicker value={selected} onChange={setSelected} />
+            <WarehouseItemPicker
+              value={selected}
+              onChange={setSelected}
+              warehouseId={selectedWarehouseId}
+              warehouseName={selectedWarehouseName}
+              disabled={isPending}
+            />
             <div className="space-y-2 rounded-lg border border-dashed p-4">
               <FormLabel>پیوست (اختیاری)</FormLabel>
               <AttachmentFileInput files={attachmentFiles} onFilesChange={setAttachmentFiles} />

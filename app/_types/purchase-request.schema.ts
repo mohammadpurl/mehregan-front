@@ -8,12 +8,26 @@ export const PurchaseLineSchema = z.object({
 });
 
 export const CreatePurchaseRequestSchema = z.object({
+  warehouseId: z.coerce
+    .number({ error: 'انبار را انتخاب کنید' })
+    .int()
+    .positive('انبار را انتخاب کنید'),
   title: z.string().trim().min(2, 'عنوان درخواست الزامی است').max(255),
   reason: z.string().max(2000).optional().or(z.literal('')),
   lines: z.array(PurchaseLineSchema),
 });
 
 export type CreatePurchaseRequestValues = z.infer<typeof CreatePurchaseRequestSchema>;
+
+/** ویرایش: انبار قابل تغییر نیست و در بدنه PATCH ارسال نمی‌شود */
+export const EditPurchaseRequestSchema = z.object({
+  warehouseId: z.coerce.number().int().optional(),
+  title: z.string().trim().min(2, 'عنوان درخواست الزامی است').max(255),
+  reason: z.string().max(2000).optional().or(z.literal('')),
+  lines: z.array(PurchaseLineSchema),
+});
+
+export type EditPurchaseRequestValues = z.infer<typeof EditPurchaseRequestSchema>;
 
 export const ProformaUploadSchema = z.object({
   supplierId: z.coerce.number().int().positive('تأمین‌کننده را انتخاب کنید'),

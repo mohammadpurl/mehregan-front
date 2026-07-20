@@ -8,12 +8,14 @@ import type {
   RequestsReport,
   RequestsReportFilters,
 } from '@/app/_types/requests-report.types';
+import { getRequestRefTypeLabel } from '@/app/constants/request-ref-type-labels';
 
 function mapItem(raw: Record<string, unknown>): RequestReportItem {
+  const refType = String(raw.ref_type ?? raw.refType ?? '');
   return {
     id: Number(raw.id ?? raw.business_ref_id ?? raw.businessRefId ?? 0),
-    refType: String(raw.ref_type ?? raw.refType ?? ''),
-    refLabel: String(raw.ref_label ?? raw.refLabel ?? raw.ref_type ?? raw.refType ?? ''),
+    refType,
+    refLabel: getRequestRefTypeLabel(refType),
     title: String(raw.title ?? raw.name ?? ''),
     requesterId:
       raw.requester_id != null || raw.requesterId != null
@@ -64,21 +66,24 @@ export async function getRequestTypesAction() {
         : Array.isArray((data as { types?: unknown[] })?.types)
           ? (data as { types: unknown[] }).types
           : [];
-    const items: RequestReportTypeOption[] = rows
-      .map((row) => {
-        if (typeof row === 'string') {
-          return { value: row, label: row };
-        }
-        if (!row || typeof row !== 'object') return null;
+    const items: RequestReportTypeOption[] = [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      let value = '';
+      if (typeof row === 'string') {
+        value = row.trim();
+      } else if (row && typeof row === 'object') {
         const o = row as Record<string, unknown>;
-        const value = String(o.value ?? o.ref_type ?? o.refType ?? o.code ?? '').trim();
-        if (!value) return null;
-        return {
-          value,
-          label: String(o.label ?? o.name ?? o.title ?? value),
-        };
-      })
-      .filter(Boolean) as RequestReportTypeOption[];
+        value = String(o.value ?? o.ref_type ?? o.refType ?? o.code ?? '').trim();
+      }
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      const option: RequestReportTypeOption = {
+        value,
+        label: getRequestRefTypeLabel(value),
+      };
+      items.push(option);
+    }
     return { success: true as const, data: items };
   } catch (err: unknown) {
     return {

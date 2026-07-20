@@ -55,6 +55,8 @@ import {
   WorkflowPurchaseFillStock,
   type WorkflowPurchaseFillStockHandle,
 } from './_components/workflow-purchase-fill-stock';
+import { updatePurchaseStockLevelsAction } from '@/app/_actions/purchase-request-actions';
+import { getWorkflowInstanceStatusLabel } from '@/app/constants/workflow-instance-status-labels';
 import type { PurchaseRequest } from '@/app/_types/purchase-request.types';
 import type { PettyCashResponse } from '@/app/dashboard/petty-cash/_types/petty-cash.types';
 import type { MissionRequestResponse } from '@/app/dashboard/mission-requests/_types/mission-request.types';
@@ -73,16 +75,6 @@ function workflowStatusTone(
   if (s === 'rejected' || s === 'returned') return 'rejected';
   if (s === 'pending' || s === 'in_progress' || s === 'active') return 'pending';
   return 'neutral';
-}
-
-function workflowStatusLabelFa(status?: string): string {
-  const s = (status ?? '').toLowerCase();
-  if (s === 'approved') return 'تأیید شده';
-  if (s === 'rejected') return 'رد شده';
-  if (s === 'returned') return 'برگشت به درخواست‌کننده';
-  if (s === 'in_progress' || s === 'active') return 'در حال تأیید';
-  if (s === 'pending') return 'در انتظار';
-  return status ?? '—';
 }
 
 function inboxRefTypeLabel(refType: string | undefined): string {
@@ -659,6 +651,22 @@ export default function WorkflowInboxPage() {
         });
         return;
       }
+      if (isFillStockStep && built.stockUpdates?.length) {
+        setActionPending(true);
+        const stockRes = await updatePurchaseStockLevelsAction(
+          purchaseRecord.id,
+          built.stockUpdates,
+        );
+        if (!stockRes.success) {
+          setActionPending(false);
+          toast({
+            title: 'ثبت موجودی انبار ناموفق بود',
+            description: stockRes.error,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
       approvePayload = built.payload;
     }
 
@@ -879,7 +887,7 @@ export default function WorkflowInboxPage() {
                 ? `مرحله جاری: ${pendingPlanStep.label ?? pendingPlanStep.roleName ?? pendingPlanStep.order}`
                 : null
             }
-            statusLabel={workflowStatusLabelFa(workflowStatus)}
+            statusLabel={getWorkflowInstanceStatusLabel(workflowStatus)}
             statusTone={workflowStatusTone(workflowStatus)}
             requesterName={requesterName}
             createdAt={recordCreatedAt}

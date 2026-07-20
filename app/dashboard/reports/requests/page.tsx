@@ -24,22 +24,19 @@ import {
 } from '@/app/_actions/requests-report-actions';
 import { lookupUsersForManagerAction } from '@/app/_actions/user-actions';
 import type { RequestReportItem, RequestReportTypeOption } from '@/app/_types/requests-report.types';
+import {
+  REQUEST_REPORT_REF_TYPE_OPTIONS,
+  getRequestRefTypeLabel,
+  toRequestRefTypeOption,
+} from '@/app/constants/request-ref-type-labels';
 import { formatJalaliDate } from '@/app/utils/jalali-date';
 import { formatAmount } from '@/app/utils/number-format';
 import { downloadBase64File } from '@/app/utils/download-base64.client';
 import { useToast } from '@/hooks/use-toast';
 import { Download, FileSpreadsheet } from 'lucide-react';
 
-const FALLBACK_TYPES: RequestReportTypeOption[] = [
-  { value: 'payment_request', label: 'درخواست مالی (وام/مساعده)' },
-  { value: 'payment_order', label: 'دستور پرداخت' },
-  { value: 'petty_cash', label: 'تنخواه' },
-  { value: 'financial_document', label: 'سند مالی' },
-  { value: 'purchase_request', label: 'درخواست خرید' },
-  { value: 'mission_request', label: 'درخواست ماموریت' },
-  { value: 'warehouse_form', label: 'فرم انبار' },
-  { value: 'workflow_form', label: 'درخواست اداری' },
-];
+const FALLBACK_TYPES: RequestReportTypeOption[] =
+  REQUEST_REPORT_REF_TYPE_OPTIONS.map(toRequestRefTypeOption);
 
 function itemHref(item: RequestReportItem): string | null {
   if (item.workflowInstanceId) {
@@ -184,7 +181,8 @@ export default function RequestsReportPage() {
       {
         accessorKey: 'refLabel',
         header: 'نوع درخواست',
-        cell: ({ row }) => row.original.refLabel || row.original.refType || '—',
+        cell: ({ row }) =>
+          getRequestRefTypeLabel(row.original.refType) || row.original.refLabel || '—',
       },
       {
         accessorKey: 'requesterName',

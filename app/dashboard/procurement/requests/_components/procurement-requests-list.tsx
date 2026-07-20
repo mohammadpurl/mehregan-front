@@ -158,6 +158,13 @@ export function ProcurementRequestsList() {
         cell: ({ row }) => row.original.requesterName ?? '—',
       },
       {
+        accessorKey: 'warehouseName',
+        header: 'انبار',
+        cell: ({ row }) =>
+          row.original.warehouseName ??
+          (row.original.warehouseId != null ? `#${row.original.warehouseId}` : '—'),
+      },
+      {
         accessorKey: 'status',
         header: 'وضعیت',
         cell: ({ row }) => (

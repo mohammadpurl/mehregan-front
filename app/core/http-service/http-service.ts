@@ -235,6 +235,15 @@ async function uploadDataWithAuth<TResult>(
     return await uploadData<TResult>(url, data, headers);
 }
 
+/** PATCH با FormData (مثلاً ویرایش پیش‌فاکتور پیش‌نویس) */
+async function uploadPatchDataWithAuth<TResult>(
+    url: string,
+    data: FormData
+): Promise<TResult> {
+    const headers = await getAuthHeaders(false);
+    return await patchData<FormData, TResult>(url, data, headers);
+}
+
 export { 
     createData, 
     readData, 
@@ -248,5 +257,6 @@ export {
     updateDataWithAuth,
     patchDataWithAuth,
     uploadDataWithAuth,
+    uploadPatchDataWithAuth,
     deleteDataWithAuth,
 };
