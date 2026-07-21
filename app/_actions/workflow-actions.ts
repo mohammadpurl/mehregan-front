@@ -14,6 +14,7 @@ import {
   WorkflowListResponse,
   WorkflowInstanceListResponse,
   WorkflowInstanceListScope,
+  WorkflowInstanceRow,
 } from '../_types/workflow.types';
 
 const BASE = '/workflow-forms';

@@ -146,6 +146,7 @@ export function paymentResponseToEmployeeFormValues(r: PaymentRequestResponse): 
   const ext = parseExtendedMetaFromDescription(r.description ?? '');
   return {
     type: r.type,
+    title: r.title?.trim() || '',
     paymentDate: r.paymentDate,
     reason: r.reason,
     description: '',

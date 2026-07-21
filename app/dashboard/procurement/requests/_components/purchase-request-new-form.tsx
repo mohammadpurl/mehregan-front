@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/components/ui/form';
 import { Textarea } from '@/app/components/ui/textarea';
@@ -92,7 +92,9 @@ export function PurchaseRequestNewForm({
   const sameAssigneeWarning = useWorkflowAssigneesPreviewWarning('purchase_request', null);
 
   const form = useForm<CreatePurchaseRequestValues>({
-    resolver: zodResolver(isEdit ? EditPurchaseRequestSchema : CreatePurchaseRequestSchema),
+    resolver: zodResolver(
+      isEdit ? EditPurchaseRequestSchema : CreatePurchaseRequestSchema,
+    ) as Resolver<CreatePurchaseRequestValues>,
     defaultValues: record ? valuesFromRecord(record) : emptyDefaults,
   });
 
