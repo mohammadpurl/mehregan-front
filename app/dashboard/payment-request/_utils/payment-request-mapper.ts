@@ -291,7 +291,9 @@ export function paymentOrderValuesToBody(values: {
 }
 
 export function employeeValuesToLoanAdvanceBody(
-  values: Pick<PaymentRequestEmployeeCreateValues, 'amount' | 'paymentDate' | 'reason' | 'title'>,
+  values: Pick<PaymentRequestEmployeeCreateValues, 'amount' | 'paymentDate' | 'reason'> & {
+    title?: string | null;
+  },
   requesterId?: number,
 ): LoanAdvanceRequestBody {
   const body: LoanAdvanceRequestBody = {
