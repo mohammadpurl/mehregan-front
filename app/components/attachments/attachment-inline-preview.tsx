@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
-import { useSessionStore } from '@/app/_store/auth-store';
 import { fetchAttachmentBlob } from '@/app/utils/attachment-download.client';
 import { isLikelyImageFile } from '@/app/components/attachments/attachment-image-thumb';
 import {
@@ -27,11 +26,6 @@ export function RemoteAttachmentPreview({
   attachmentId,
   className,
 }: RemoteProps) {
-  const accessToken = useSessionStore(
-    (s) =>
-      s.session?.accesstoken ??
-      (s.session as { accessToken?: string } | null)?.accessToken,
-  );
   const [src, setSrc] = useState<string | null>(null);
   const [kind, setKind] = useState<'image' | 'pdf' | 'other'>('other');
   const [error, setError] = useState(false);
@@ -45,7 +39,7 @@ export function RemoteAttachmentPreview({
 
     void (async () => {
       try {
-        const blob = await fetchAttachmentBlob(fileUrl, id, accessToken);
+        const blob = await fetchAttachmentBlob(fileUrl, id);
         if (revoked) return;
         const isImage =
           blob.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name);
@@ -62,7 +56,7 @@ export function RemoteAttachmentPreview({
       revoked = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [accessToken, fileUrl, id, name]);
+  }, [fileUrl, id, name]);
 
   if (error) {
     return (

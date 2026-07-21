@@ -30,7 +30,11 @@ export interface JWT {
 }
 
 export interface UserSession extends JWT {
-    accesstoken: string;
+    /**
+     * JWT دسترسی — فقط سمت سرور از کوکی httpOnly خوانده می‌شود.
+     * هرگز در پاسخ /api/auth/session یا state کلاینت قرار نگیرد.
+     */
+    accesstoken?: string;
     sessionId: string;    
     sessionExpiry: number;
     roles?: string[];
@@ -40,6 +44,10 @@ export interface UserSession extends JWT {
     /** Optional subscription/plan metadata when provided by auth service */
     plan?: UserPlan;
 }
+
+/** نشست امن برای UI / Zustand — بدون access token */
+export type ClientSession = Omit<UserSession, 'accesstoken'>;
+
 
 export interface RegisterModel {
     name: string;

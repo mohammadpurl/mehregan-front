@@ -131,7 +131,6 @@ export default function WorkflowInboxPage() {
   const [checkPlanRows, setCheckPlanRows] = useState<ProformaCheckPlanRow[]>(() =>
     createEmptyCheckPlanRows(1),
   );
-  const [warehouseId, setWarehouseId] = useState('');
   const [stepAttachmentFiles, setStepAttachmentFiles] = useState<File[]>([]);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
@@ -231,7 +230,6 @@ export default function WorkflowInboxPage() {
     setPaymentLocation('');
     setPayerCompanyAccountId(0);
     setCheckPlanRows(createEmptyCheckPlanRows(1));
-    setWarehouseId('');
     setStepAttachmentFiles([]);
   }, []);
 
@@ -250,7 +248,6 @@ export default function WorkflowInboxPage() {
       setPaymentLocation('');
       setPayerCompanyAccountId(0);
       setCheckPlanRows(createEmptyCheckPlanRows(1));
-      setWarehouseId('');
       setStepAttachmentFiles([]);
       void markInboxReadAction(row.id).then(() => void refreshBadgeCounts());
       await loadInstanceDetails(row.ref_id);
@@ -582,8 +579,6 @@ export default function WorkflowInboxPage() {
                 ref={purchaseFillStockRef}
                 record={purchaseRecord}
                 mode="confirm_warehouse_sepidar"
-                warehouseId={warehouseId}
-                onWarehouseIdChange={setWarehouseId}
               />
             ) : null}
           </>

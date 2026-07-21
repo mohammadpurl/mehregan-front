@@ -1,18 +1,18 @@
-import { decryptSession } from "@/app/utils/session";
+import { decryptSession, toClientSession } from "@/app/utils/session";
+import { ERP_SESSION_COOKIE } from "@/app/utils/auth-cookie";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-// Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
     try {
         const cookieStore = await cookies();
-        const session = cookieStore.get('erp-session')?.value;
+        const session = cookieStore.get(ERP_SESSION_COOKIE)?.value;
 
         if (!session) {
-            return new Response('Unauthorized', { status: 401 });
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         try {
@@ -20,7 +20,8 @@ export async function GET() {
             if (!decryptedSession) {
                 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             }
-            return new Response(JSON.stringify(decryptedSession), { status: 200 });
+            const clientSession = toClientSession(decryptedSession);
+            return NextResponse.json(clientSession, { status: 200 });
         } catch {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -31,8 +32,9 @@ export async function GET() {
 
 export async function POST() {
     const cookieStore = await cookies();
-    const session = cookieStore.get('erp-session')?.value;
+    const session = cookieStore.get(ERP_SESSION_COOKIE)?.value;
     if (!session) {
-        return new Response('Unauthorized', { status: 401 });
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    return NextResponse.json({ ok: true });
 }

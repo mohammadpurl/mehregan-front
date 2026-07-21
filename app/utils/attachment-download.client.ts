@@ -17,10 +17,13 @@ function resolveFetchTarget(
   return resolveAttachmentDownloadUrl(fileUrl);
 }
 
+/**
+ * دانلود پیوست فقط از طریق پروکسی همان‌مبدأ (/api/attachments/...) با کوکی httpOnly.
+ * دیگر accessToken سمت کلاینت لازم نیست.
+ */
 export async function fetchAttachmentBlob(
   fileUrl: string,
   attachmentId?: string | number | null,
-  accessToken?: string | null,
 ): Promise<Blob> {
   const url = resolveFetchTarget(fileUrl, attachmentId);
   if (!url) {
@@ -28,15 +31,18 @@ export async function fetchAttachmentBlob(
   }
 
   const isSameOriginProxy = url.startsWith('/api/attachments/');
-  const headers: Record<string, string> = {};
-  if (!isSameOriginProxy && accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
+  if (!isSameOriginProxy) {
+    // اجبار به پروکسی امن — جلوگیری از Bearer در مرورگر
+    const id = attachmentId ?? extractAttachmentId(fileUrl);
+    if (id != null && String(id).match(/^\d+$/)) {
+      return fetchAttachmentBlob(fileUrl, id);
+    }
+    throw new Error('دانلود مستقیم پیوست از دامنهٔ خارجی مجاز نیست. شناسه پیوست لازم است.');
   }
 
   const response = await fetch(url, {
     method: 'GET',
-    headers,
-    credentials: isSameOriginProxy ? 'include' : 'include',
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -52,14 +58,12 @@ export async function fetchAttachmentBlob(
   return response.blob();
 }
 
-/** دانلود فایل پیوست */
 export async function downloadAttachmentFile(
   fileUrl: string,
   fileName: string,
-  accessToken?: string | null,
   attachmentId?: string | number | null,
 ): Promise<void> {
-  const blob = await fetchAttachmentBlob(fileUrl, attachmentId, accessToken);
+  const blob = await fetchAttachmentBlob(fileUrl, attachmentId);
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = objectUrl;
@@ -70,13 +74,11 @@ export async function downloadAttachmentFile(
   URL.revokeObjectURL(objectUrl);
 }
 
-/** باز کردن پیوست در تب جدید (مثلاً PDF / تصویر) */
 export async function openAttachmentFile(
   fileUrl: string,
-  accessToken?: string | null,
   attachmentId?: string | number | null,
 ): Promise<void> {
-  const blob = await fetchAttachmentBlob(fileUrl, attachmentId, accessToken);
+  const blob = await fetchAttachmentBlob(fileUrl, attachmentId);
   const objectUrl = URL.createObjectURL(blob);
   const opened = window.open(objectUrl, '_blank', 'noopener,noreferrer');
   if (!opened) {

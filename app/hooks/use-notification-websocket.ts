@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useSessionStore } from '@/app/_store/auth-store';
-import { buildAuthenticatedWebSocketUrl, buildUserWebSocketUrl } from '@/app/utils/ws-url';
+import { buildAuthenticatedWebSocketUrl } from '@/app/utils/ws-url';
 import { useNotificationCenterStore } from '@/app/_store/notification-center.store';
 import { useNotificationStore } from '@/app/_store/notification.store';
 
@@ -20,7 +20,7 @@ type WorkflowWsPayload = {
 const RECONNECT_MS = 5000;
 
 export function useNotificationWebSocket(userId: number | null | undefined) {
-  const accessToken = useSessionStore((s) => s.session?.accesstoken);
+  const status = useSessionStore((s) => s.status);
   const refreshBadgeCounts = useNotificationCenterStore((s) => s.refreshBadgeCounts);
   const fetchLatest = useNotificationCenterStore((s) => s.fetchLatest);
   const wsRef = useRef<WebSocket | null>(null);
@@ -28,16 +28,14 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
 
   useEffect(() => {
     if (!userId || userId < 1) return;
-    if (!accessToken?.trim()) return;
+    if (status !== 'authenticated') return;
 
     let cancelled = false;
 
     const connect = () => {
       if (cancelled) return;
-      const url = accessToken.trim()
-        ? buildAuthenticatedWebSocketUrl(accessToken)
-        : buildUserWebSocketUrl(userId, accessToken);
-      const ws = new WebSocket(url);
+      // کوکی httpOnly توسط مرورگر در handshake ارسال می‌شود (بدون token در URL)
+      const ws = new WebSocket(buildAuthenticatedWebSocketUrl());
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -114,5 +112,5 @@ export function useNotificationWebSocket(userId: number | null | undefined) {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [userId, accessToken, fetchLatest, refreshBadgeCounts]);
+  }, [userId, status, fetchLatest, refreshBadgeCounts]);
 }

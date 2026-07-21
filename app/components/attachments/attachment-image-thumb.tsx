@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
-import { useSessionStore } from '@/app/_store/auth-store';
 import { fetchAttachmentBlob } from '@/app/utils/attachment-download.client';
 
 function isImageFileName(fileName: string): boolean {
@@ -17,7 +16,7 @@ type Props = {
   onOpen?: () => void;
 };
 
-/** پیش‌نمایش تصویر پیوست (با توکن) — برای غیرتصویر آیکون فایل */
+/** پیش‌نمایش تصویر پیوست از طریق پروکسی همان‌مبدأ — برای غیرتصویر آیکون فایل */
 export function AttachmentImageThumb({
   fileUrl,
   fileName,
@@ -25,11 +24,6 @@ export function AttachmentImageThumb({
   className,
   onOpen,
 }: Props) {
-  const accessToken = useSessionStore(
-    (s) =>
-      s.session?.accesstoken ??
-      (s.session as { accessToken?: string } | null)?.accessToken,
-  );
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const isImage = isImageFileName(fileName);
@@ -41,7 +35,7 @@ export function AttachmentImageThumb({
 
     void (async () => {
       try {
-        const blob = await fetchAttachmentBlob(fileUrl, attachmentId, accessToken);
+        const blob = await fetchAttachmentBlob(fileUrl, attachmentId);
         if (revoked) return;
         if (!blob.type.startsWith('image/') && !isImageFileName(fileName)) {
           setFailed(true);
@@ -58,7 +52,7 @@ export function AttachmentImageThumb({
       revoked = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [accessToken, attachmentId, fileName, fileUrl, isImage]);
+  }, [attachmentId, fileName, fileUrl, isImage]);
 
   if (!isImage || failed || !src) {
     return (

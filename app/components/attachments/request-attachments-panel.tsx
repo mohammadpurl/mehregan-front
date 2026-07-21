@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Download, Eye, Paperclip } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
-import { useSessionStore } from '@/app/_store/auth-store';
 import {
   type AttachmentDisplayItem,
   collectAttachmentItems,
@@ -30,11 +29,6 @@ export function RequestAttachmentsPanel({
   items: itemsProp,
   className,
 }: Props) {
-  const accessToken = useSessionStore(
-    (s) =>
-      s.session?.accesstoken ??
-      (s.session as { accessToken?: string } | null)?.accessToken,
-  );
   const [busyId, setBusyId] = useState<string | number | null>(null);
 
   const items =
@@ -49,9 +43,9 @@ export function RequestAttachmentsPanel({
     setBusyId(key);
     try {
       if (mode === 'view') {
-        await openAttachmentFile(item.fileUrl, accessToken, item.id);
+        await openAttachmentFile(item.fileUrl, item.id);
       } else {
-        await downloadAttachmentFile(item.fileUrl, item.fileName, accessToken, item.id);
+        await downloadAttachmentFile(item.fileUrl, item.fileName, item.id);
       }
     } catch (err) {
       reportAttachmentActionError(mode, err);

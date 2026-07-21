@@ -1,6 +1,10 @@
 // app/core/middleware/auth.ts
 import { UserResponse, UserSession } from "@/app/(auth)/_types/auth.types";
 import { SetAuthCookieAction } from "@/app/_actions/auth-actions";
+import {
+  ERP_ACCESS_TOKEN_COOKIE,
+  ERP_SESSION_COOKIE,
+} from "@/app/utils/auth-cookie";
 import { decryptSession } from "@/app/utils/session";
 import { permissionMatches } from "@/lib/permissions";
 import { cookies } from "next/headers";
@@ -35,10 +39,21 @@ const authorizationRules: Array<{
 
 const PUBLIC_AUTH_PATHS = ["/login", "/signin"];
 
+/**
+ * فقط این endpointهای API بدون سشن مجازند (نه کل /api).
+ * /api/auth/session باید برای کلاینت 401 JSON برگرداند، نه redirect به لاگین.
+ */
+const PUBLIC_API_EXACT_PATHS = new Set([
+  "/api/auth/session",
+  "/session",
+]);
+
+function isPublicApiPath(pathname: string): boolean {
+  return PUBLIC_API_EXACT_PATHS.has(pathname);
+}
+
 function isBypassPath(pathname: string): boolean {
   if (pathname.startsWith("/_next")) return true;
-  if (pathname.startsWith("/api")) return true;
-  if (pathname.startsWith("/session")) return true;
   if (pathname === "/favicon.ico") return true;
   if (/\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?)$/i.test(pathname)) return true;
   return false;
@@ -65,6 +80,10 @@ function redirectToDashboard(request: NextRequest): NextResponse {
   u.pathname = "/dashboard";
   u.search = "";
   return NextResponse.redirect(u);
+}
+
+function unauthorizedApi(): NextResponse {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
 const hasAuthorization = (session: UserSession, pathname: string) => {
@@ -100,7 +119,15 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
     return NextResponse.next();
   }
 
-  const session = request.cookies.get("erp-session")?.value;
+  const isApiOrSessionRoute =
+    pathname.startsWith("/api") || pathname === "/session" || pathname.startsWith("/session/");
+
+  // endpointهای عمومی صریح (نه کل /api)
+  if (isPublicApiPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  const session = request.cookies.get(ERP_SESSION_COOKIE)?.value;
 
   const authRoutes = PUBLIC_AUTH_PATHS;
   const protectedRoutes = ["/dashboard"];
@@ -110,8 +137,10 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
   const isAuthRoute = authRoutes.includes(pathname);
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
-  // بدون سشن: فقط صفحات لاگین/ثبت‌نام عمومی؛ بقیه → لاگین
   if (!session) {
+    if (isApiOrSessionRoute) {
+      return unauthorizedApi();
+    }
     if (isProtectedRoute) {
       const callbackUrl = encodeURIComponent(pathname + nextUrl.search);
       signinRoute.pathname = "/login";
@@ -132,8 +161,6 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
     const accessExpired = parsed.exp < now;
     const refreshExpired = parsed.sessionExpiry < now;
 
-    // سشن معتبر و روی صفحهٔ ورود → داشبورد (اما نه برای Server Action؛ وگرنه
-    // پاسخ action خراب می‌شود: Unexpected response was received from the server)
     if (!accessExpired && !refreshExpired && isAuthRoute) {
       if (isNextMutationRequest(request)) {
         return NextResponse.next();
@@ -142,12 +169,19 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
     }
 
     if (!accessExpired && !refreshExpired && !hasAuthorization(parsed, pathname)) {
+      if (isApiOrSessionRoute) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       return redirectToDashboard(request);
     }
 
     if (refreshExpired) {
       const cookieStore = await cookies();
-      cookieStore.delete("erp-session");
+      cookieStore.delete(ERP_SESSION_COOKIE);
+      cookieStore.delete(ERP_ACCESS_TOKEN_COOKIE);
+      if (isApiOrSessionRoute) {
+        return unauthorizedApi();
+      }
       signinRoute.pathname = "/login";
       signinRoute.search = "";
       return NextResponse.redirect(signinRoute);
@@ -166,12 +200,18 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
           await SetAuthCookieAction(user);
 
           if (!hasAuthorization(parsed, pathname)) {
+            if (isApiOrSessionRoute) {
+              return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
             return redirectToDashboard(request);
           }
         } else {
           throw new Error("Refresh failed");
         }
       } catch {
+        if (isApiOrSessionRoute) {
+          return unauthorizedApi();
+        }
         signinRoute.pathname = "/login";
         signinRoute.search = "";
         return NextResponse.redirect(signinRoute);
@@ -179,13 +219,15 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
     }
   } catch (error) {
     console.error("Auth middleware error:", error);
+    if (isApiOrSessionRoute) {
+      return unauthorizedApi();
+    }
     signinRoute.pathname = "/login";
     signinRoute.search = "";
     return NextResponse.redirect(signinRoute);
   }
 
-  // سشن معتبر: فقط داشبورد؛ ریشه یا هر مسیر دیگر → داشبورد
-  if (pathname === "/" || (!pathname.startsWith("/dashboard") && !isPublicAuthPath(pathname))) {
+  if (pathname === "/" || (!pathname.startsWith("/dashboard") && !isPublicAuthPath(pathname) && !isApiOrSessionRoute)) {
     return redirectToDashboard(request);
   }
 

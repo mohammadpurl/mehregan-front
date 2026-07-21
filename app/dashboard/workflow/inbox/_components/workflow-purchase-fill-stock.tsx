@@ -43,8 +43,6 @@ type FillStockProps = {
 type WarehouseSepidarProps = {
   record: PurchaseRequest;
   mode: 'confirm_warehouse_sepidar';
-  warehouseId: string;
-  onWarehouseIdChange: (value: string) => void;
 };
 
 type Props = FillStockProps | WarehouseSepidarProps;
@@ -69,6 +67,17 @@ export const WorkflowPurchaseFillStock = forwardRef<
     Record<number, PurchaseWarehouseCatalogItem>
   >({});
   const [catalogLoading, setCatalogLoading] = useState(mode === 'fill_stock');
+  const existingWarehouseId =
+    record.warehouseId != null && Number(record.warehouseId) > 0
+      ? Number(record.warehouseId)
+      : record.destinationWarehouseId != null && Number(record.destinationWarehouseId) > 0
+        ? Number(record.destinationWarehouseId)
+        : null;
+  const existingWarehouseLabel =
+    record.warehouseName?.trim() ||
+    record.destinationWarehouseName?.trim() ||
+    (existingWarehouseId != null ? `انبار #${existingWarehouseId}` : null);
+  const [fallbackWarehouseId, setFallbackWarehouseId] = useState('');
   const [warehouses, setWarehouses] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
@@ -108,7 +117,7 @@ export const WorkflowPurchaseFillStock = forwardRef<
   }, [mode, record.items, record.warehouseId]);
 
   useEffect(() => {
-    if (mode !== 'confirm_warehouse_sepidar') return;
+    if (mode !== 'confirm_warehouse_sepidar' || existingWarehouseId != null) return;
     let cancelled = false;
     (async () => {
       const res = await getGrnWarehousesAction();
@@ -117,7 +126,7 @@ export const WorkflowPurchaseFillStock = forwardRef<
     return () => {
       cancelled = true;
     };
-  }, [mode]);
+  }, [mode, existingWarehouseId]);
 
   useImperativeHandle(
     ref,
@@ -156,50 +165,64 @@ export const WorkflowPurchaseFillStock = forwardRef<
           return { ok: true as const, payload: {}, stockUpdates };
         }
 
-        const warehouseId = props.mode === 'confirm_warehouse_sepidar' ? props.warehouseId : '';
-        const id = Number(warehouseId);
+        // انبار مقصد همان انبار ثبت‌شده در ایجاد درخواست است؛ بک‌اند از req.warehouse_id استفاده می‌کند.
+        const id =
+          existingWarehouseId ??
+          (fallbackWarehouseId.trim() ? Number(fallbackWarehouseId) : NaN);
         if (!Number.isFinite(id) || id <= 0) {
-          return { ok: false as const, error: 'انبار مقصد را انتخاب کنید' };
+          return { ok: false as const, error: 'انبار مقصد روی درخواست ثبت نشده است؛ آن را انتخاب کنید' };
         }
         return { ok: true as const, payload: { warehouse_id: id } };
       },
     }),
-    [mode, props, record.items, stocks],
+    [mode, record.items, stocks, existingWarehouseId, fallbackWarehouseId],
   );
 
   if (mode === 'confirm_warehouse_sepidar') {
     return (
       <div className="space-y-3 rounded-lg border border-teal-200/80 bg-teal-50/40 p-4 dark:border-teal-900/40 dark:bg-teal-950/30">
         <p className="text-sm font-medium">ورود به انبار مقصد</p>
-        <p className="text-xs text-muted-foreground">
-          انبار مقصد را انتخاب کنید؛ سپس تیک ثبت در سپیدار را بزنید و تأیید کنید.
-        </p>
-        <div className="space-y-1">
-          <Label>
-            انبار مقصد
-            <RequiredMark />
-          </Label>
-          <Select
-            value={props.warehouseId || undefined}
-            onValueChange={props.onWarehouseIdChange}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="انتخاب انبار" />
-            </SelectTrigger>
-            <SelectContent>
-              {warehouses.map((wh) => (
-                <SelectItem key={wh.id} value={String(wh.id)}>
-                  {wh.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {record.destinationWarehouseName ? (
-          <p className="text-xs text-muted-foreground">
-            انبار قبلی ثبت‌شده: {record.destinationWarehouseName}
-          </p>
-        ) : null}
+        {existingWarehouseId != null ? (
+          <>
+            <p className="text-xs text-muted-foreground">
+              انبار مقصد همان انباری است که هنگام ثبت درخواست انتخاب شده؛ نیازی به انتخاب دوباره نیست.
+            </p>
+            <div className="rounded-md border bg-background/80 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">انبار مقصد: </span>
+              <span className="font-medium">{existingWarehouseLabel}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              تیک ثبت در سپیدار را بزنید و تأیید کنید تا کالا وارد همین انبار شود.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              روی این درخواست انبار مقصد ثبت نشده؛ لطفاً انبار را انتخاب کنید.
+            </p>
+            <div className="space-y-1">
+              <Label>
+                انبار مقصد
+                <RequiredMark />
+              </Label>
+              <Select
+                value={fallbackWarehouseId || undefined}
+                onValueChange={setFallbackWarehouseId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="انتخاب انبار" />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses.map((wh) => (
+                    <SelectItem key={wh.id} value={String(wh.id)}>
+                      {wh.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
       </div>
     );
   }

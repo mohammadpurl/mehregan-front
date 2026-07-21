@@ -3,8 +3,19 @@ import { cookies, headers } from "next/headers";
 import { JWT, SignInModel, UserResponse, UserSession } from "@/app/(auth)/_types/auth.types";
 import { jwtDecode } from "jwt-decode";
 import { decryptSession, encryptSession } from "@/app/utils/session";
+import {
+    authCookieOptions,
+    ERP_ACCESS_TOKEN_COOKIE,
+    ERP_SESSION_COOKIE,
+} from "@/app/utils/auth-cookie";
 import { createData } from "@/app/core/http-service/http-service";
 import { extractActionErrorMessage } from "@/app/_actions/extract-action-error";
+
+async function clearAuthCookies() {
+    const cookieStore = await cookies();
+    cookieStore.delete(ERP_SESSION_COOKIE);
+    cookieStore.delete(ERP_ACCESS_TOKEN_COOKIE);
+}
 
 export async function signinAction(model: SignInModel) {
     const headersList = headers();
@@ -41,8 +52,9 @@ export async function signinAction(model: SignInModel) {
 export async function signOutAction() {
     try {
         const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('erp-session')?.value;
+        const sessionCookie = cookieStore.get(ERP_SESSION_COOKIE)?.value;
         if (!sessionCookie) {
+            await clearAuthCookies();
             return { success: true };
         }
 
@@ -54,22 +66,19 @@ export async function signOutAction() {
             );
 
             if (response.success) {
-                cookieStore.delete('erp-session');
+                await clearAuthCookies();
                 return { success: true };
             }
         } catch {
-            // Even if API call fails, delete the cookie
-            cookieStore.delete('erp-session');
+            await clearAuthCookies();
             return { success: true };
         }
 
-        cookieStore.delete('erp-session');
+        await clearAuthCookies();
         return { success: true };
     } catch {
-        // If anything fails, try to delete cookie anyway
         try {
-            const cookieStore = await cookies();
-            cookieStore.delete('erp-session');
+            await clearAuthCookies();
         } catch {}
         return { success: true };
     }
@@ -104,7 +113,6 @@ export async function SetAuthCookieAction(user: UserResponse) {
             fullName: decoded.fullName,
             pic: decoded.pic,
             exp: decoded.exp * 1000,
-            accesstoken: user.accessToken,
             sessionId: user.sessionId,
             sessionExpiry: user.sessionExpiry * 1000,
             userId:
@@ -119,13 +127,10 @@ export async function SetAuthCookieAction(user: UserResponse) {
         };
 
         const cookieStore = await cookies();
+        const opts = authCookieOptions();
         const encryptedSession = await encryptSession(session);
-        cookieStore.set('erp-session', encryptedSession, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'strict',
-            path: '/'
-        });
+        cookieStore.set(ERP_SESSION_COOKIE, encryptedSession, opts);
+        cookieStore.set(ERP_ACCESS_TOKEN_COOKIE, user.accessToken, opts);
     } catch (err: unknown) {
         throw err;
     }

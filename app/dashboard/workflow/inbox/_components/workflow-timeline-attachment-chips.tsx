@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Download, Eye, FileSpreadsheet, FileText, FileType, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
-import { useSessionStore } from '@/app/_store/auth-store';
 import type { AttachmentDisplayItem } from '@/app/utils/attachment-display.utils';
 import {
   downloadAttachmentFile,
@@ -26,11 +25,6 @@ type Props = {
 };
 
 export function WorkflowTimelineAttachmentChips({ items, className }: Props) {
-  const accessToken = useSessionStore(
-    (s) =>
-      s.session?.accesstoken ??
-      (s.session as { accessToken?: string } | null)?.accessToken,
-  );
   const [busyId, setBusyId] = useState<string | number | null>(null);
 
   if (!items.length) return null;
@@ -39,8 +33,8 @@ export function WorkflowTimelineAttachmentChips({ items, className }: Props) {
     const key = item.id ?? item.fileUrl;
     setBusyId(key);
     try {
-      if (mode === 'view') await openAttachmentFile(item.fileUrl, accessToken, item.id);
-      else await downloadAttachmentFile(item.fileUrl, item.fileName, accessToken, item.id);
+      if (mode === 'view') await openAttachmentFile(item.fileUrl, item.id);
+      else await downloadAttachmentFile(item.fileUrl, item.fileName, item.id);
     } catch (err) {
       reportAttachmentActionError(mode, err);
     } finally {

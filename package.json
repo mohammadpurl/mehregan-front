@@ -39,7 +39,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@tanstack/react-query": "^5.83.0",
     "@tanstack/react-table": "^8.21.3",
-    "axios": "^1.13.2",
+    "axios": "^1.18.1",
     "baseline-browser-mapping": "^2.8.3",
     "browserslist": "^4.24.5",
     "caniuse-lite": "^1.0.30001700",
